@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context="sm.app.spectrogram.SpectrogramActivity"
+    ><!-- xmlns:app="http://schemas.android.com/apk/res/res-auto" -->
+   <!-- <item android:id="@+id/action_settings" android:title="@string/action_settings"
+        android:orderInCategory="300" app:showAsAction="never" />-->
+    <!--<item android:id="@+id/action_pause" android:title="@string/action_pause"
+        android:orderInCategory="200"  />
+    <item android:id="@+id/action_device_sound_capabilities" android:title="@string/action_device_sound_capabilities"
+        android:orderInCategory="310"  />
+    <item android:id="@+id/action_about" android:title="@string/action_about"
+        android:orderInCategory="700"  />
+    <item android:id="@+id/action_email" android:title="@string/action_email"
+        android:orderInCategory="800"  />
+    <item android:id="@+id/action_our_apps" android:title="@string/action_our_apps"
+        android:orderInCategory="900"  />-->
+    <!--<item android:id="@+id/action_user_guide" android:title="@string/action_user_guide"
+    android:orderInCategory="600" app:showAsAction="never" />-->
+
+</menu>

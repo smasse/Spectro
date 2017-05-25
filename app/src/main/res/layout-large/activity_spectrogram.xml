@@ -1,0 +1,151 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/spectrogram2_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0099cc"
+    android:keepScreenOn="true"
+    tools:context="sm.app.spectro.SpectrogramActivity">
+
+    <sm.lib.acoustic.sound.forandroid.input.spectrogram.SpectrogramView
+        android:id="@+id/spectrogram2"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clickable="false"
+        android:gravity="center"
+        android:keepScreenOn="true" />
+
+    <LinearLayout
+        android:id="@+id/spectrogram2_gui"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_gravity="center"
+        android:clickable="true"
+        android:orientation="vertical">
+        <!-- TODO  maybe remove this view when in older android versions where the top bar is shown -->
+        <TextView
+            android:id="@+id/spectrogram2_textview_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:layout_marginRight="20dp"
+            android:clickable="false"
+            android:text="@string/app_name"
+            android:textColor="#8833b5e5"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:visibility="visible" />
+
+        <LinearLayout
+            android:id="@+id/spectrogram2_buttons"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:baselineAligned="false"
+            android:clickable="false"
+            android:gravity="center_horizontal"
+            android:orientation="horizontal">
+            <Button
+                android:id="@+id/spectrogram2_pause"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:alpha="0.5"
+                android:clickable="false"
+                android:text="Pause" />
+
+            <Button
+                android:id="@+id/spectrogram2_hide"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:alpha="0.5"
+                android:clickable="false"
+                android:text="Hide UI" />
+
+            <Button
+                android:id="@+id/spectrogram2_device"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:alpha="0.5"
+                android:text="Device" />
+
+            <Button
+                android:id="@+id/spectrogram2_about"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:alpha="0.5"
+                android:text="About" />
+        </LinearLayout>
+
+        <ViewStub
+            android:id="@+id/stub_for_url_to_play"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inflatedId="@+id/inflated_for_url_to_play"
+            android:layout="@layout/url_to_play_layout" />
+
+        <TextView
+            android:id="@+id/content_spectrogram2"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_gravity="center"
+            android:layout_marginBottom="20dp"
+            android:layout_marginLeft="40dp"
+            android:layout_marginRight="40dp"
+            android:layout_marginTop="20dp"
+            android:autoLink="all"
+            android:clickable="false"
+            android:gravity="center"
+            android:keepScreenOn="true"
+            android:scrollbars="vertical"
+            android:textColor="#8833b5e5"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:visibility="invisible"
+            android:visible="false" />
+        <!-- android:layout_margin="20dp" -->
+        <!-- android:maxLines = "20" -->
+        <!-- android:text="@string/dummy_content" -->
+    </LinearLayout>
+
+</FrameLayout>
+
+    <!-- This FrameLayout insets its children based on system windows using
+         android:fitsSystemWindows. -->
+    <!--<FrameLayout android:layout_width="match_parent" android:layout_height="match_parent"
+        android:fitsSystemWindows="true">
+
+        <LinearLayout android:id="@+id/fullscreen_content_controls_spectrogram1" style="?metaButtonBarStyle"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_gravity="bottom|center_horizontal"
+            android:background="@color/black_overlay" android:orientation="horizontal"
+            tools:ignore="UselessParent">
+
+            <Button android:id="@+id/pause_button_spectrogram2" style="?metaButtonBarButtonStyle"
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:text="@string/pause_button" />
+
+        </LinearLayout>
+    </FrameLayout>-->
+    <!--<GridLayout xmlns:android="http://schemas.android.com/apk/res/android"
+         xmlns:tools="http://schemas.android.com/tools"
+         android:id="@+id/spectrogram2_buttons"
+         android:layout_width="wrap_content"
+         android:layout_height="wrap_content"
+         android:orientation="horizontal"
+         android:gravity="center_horizontal"
+         android:layout_gravity="center_horizontal"
+         tools:context=".SpectrogramActivity" >--><!-- android:columnCount="2"
+            android:rowCount="2" -->
+    <!--<Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/spectrogram2_our_apps"
+        android:alpha="0.5"
+        android:text="Our Apps"/>-->
+    <!--<Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/spectrogram2_email_dev"
+        android:alpha="0.5"
+        android:text="Email Dev"/>-->
+
