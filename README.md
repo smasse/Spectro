@@ -1,6 +1,9 @@
 ## README file for software sm Spectro by Serge Masse ##
 #### First Published on Gitlab 2016.11.20 ####
-##### Version 2017-3-5 #####
+
+The app is currently published on Google Play: https://play.google.com/store/apps/details?id=sm.app.spectro&hl=en
+
+##### Version 2017-5-25 #####
 
 ## Overview ##
 sm Spectro is a complete spectrogram app for Android.
