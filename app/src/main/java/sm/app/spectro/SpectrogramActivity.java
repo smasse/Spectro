@@ -131,6 +131,15 @@ You can also use other sound apps that can share recorded files with this app, o
  * The use of this software with captive cetaceans and
  * other captive large mammals is discouraged.
  *
+ * <p/>SmartPlayer is used to play recordings.
+ * <pre>SmartPlayer contains public interface Callback {
+ void onStartingToPlay();
+ void onNormalEndOfPlay(boolean audioFocusIsLost);// or when audio focus is lost
+ void onAnomalyDetectedByPlayer(Throwable e, String errorMessage);
+ void onAudioFocusRefused();
+ Context getContextForSmartPlayer();
+ }</pre>
+ *
  * @author Serge Masse
  *
  * <!-- https://developer.android.com/studio/publish/index.html -->
