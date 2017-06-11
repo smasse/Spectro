@@ -3,6 +3,9 @@
 
 The app is currently published on Google Play: https://play.google.com/store/apps/details?id=sm.app.spectro&hl=en
 
+[//]: <>(TODO 2017-6-7 Mic button: tries next mic in list of available sound sources; 
+device text shows the current mic details at top)
+
 ##### Version 2017-5-25 #####
 
 ## Overview ##

@@ -81,6 +81,21 @@ import sm.leafy.util.forandroid.AppPublisher;
 import sm.leafy.util.forandroid.OnAnyThread;
 import sm.leafy.util.forandroid.Timestamp;
 
+//TODO 2017-6-3
+/*
+Window window = activity.getWindow();
+window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
+window.setStatusBarColor(ContextCompat.getColor(activity, R.color.example_color));
+
+android:statusBarColor = @android:color/transparent
+
+    <!-- Make the status bar traslucent -->
+    <style name="AppTheme" parent="AppTheme.Base">
+        <item name="android:windowTranslucentStatus">true</item>
+    </style>
+ */
+
 //TODO washere bug no display of sound bins on tablet 2017-5-6
 
 //also takes a long time to start on a tablet (Nexus 9) - white screen for many seconds
@@ -220,11 +235,19 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
         0% — 00
      */
 
-    private static final boolean TITLE_TEXTVIEW_ENABLED = false;
+    public static final boolean TITLE_TEXTVIEW_ENABLED = false;
+
+    public static final boolean ALWAYS_HIDE_BG_WHEN_TEXT = true;
 
     boolean deviceShown = false;
     boolean aboutShown = false;
     boolean ourAppsShown = false;
+    /**
+     * when ALWAYS_HIDE_BG_WHEN_TEXT is set, then hideBgIsSet should always be false
+     * and the Hide-Xx button should always show "HIDE UI"
+     * because when ALWAYS_HIDE_BG_WHEN_TEXT is set then the bg is controlled by the
+     * device and about buttons.
+     */
     boolean hideBgIsSet = false;
     boolean spectrogramShown = true;
     boolean urlIsPlaying = false;
@@ -369,6 +392,15 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
         main = this;
         AppContext.activityContext = this;
 
+        /* for transparent/translucent app/status bar
+        Window window = this.getWindow();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+            window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
+            window.setStatusBarColor(getResources().getColor(android.R.color.transparent));
+        }
+        */
+
 //        tempHackForCpuAtFullSpeed();
 
 //        if(APP_INDEXING_IS_ENABLED) {
@@ -487,7 +519,7 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
         @Override
         public void run() {
             pause.setOnClickListener(ON_CLICK_LISTENER);
-            pause.setAlpha(ALPHA_NOT_SET);
+            pause.setAlpha(ALPHA_NEUTRAL);
             if (pauseButtonLabel != null) {
                 pause.setText(pauseButtonLabel);
             }
@@ -667,29 +699,86 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
 //        }
 //    };
 
-    private void doHideBg() {
+    private void disableTheHideGuiButton(){
+        if(hideGui==null)return;
+        hideGui.setAlpha(ALPHA_DARK);
+    }
+
+    private void enableTheHideGuiButton(){
+        if(hideGui==null)return;
+        hideGui.setAlpha(ALPHA_NEUTRAL);
+    }
+
+    //
+
+    /**
+     * Designed to be used when the Hide-Xx button is "Hide Bg", and not "Hide Gui".
+     */
+    private void doHideOrShowBg() {
+        // Hide Bg = toggle bg
         if (!spectrogramShown) {
             //spectro was not shown, then show it by disabling the color
-            if (largeGuiLayout != null) largeGuiLayout.setBackgroundColor(Color.TRANSPARENT);
-            spectrogramShown = true;
-            textColorBrighter = false;
-            contentTextView.setTextColor(textColorTransparent);
+            showBgAndHideText();
+//            if (largeGuiLayout != null) largeGuiLayout.setBackgroundColor(Color.TRANSPARENT);
+//            spectrogramShown = true;
+//            textColorBrighter = false;
+//            contentTextView.setTextColor(textColorTransparent);
         } else {
-            //spectro was shown, then hide it by using all black guiLayout
-            if (largeGuiLayout != null) largeGuiLayout.setBackgroundColor(Color.BLACK);
-            spectrogramShown = false;
-            textColorBrighter = true;
-            contentTextView.setTextColor(textColorNotTransparent);
+            //spectro was shown, then hide it by using all black guiLayout if we have text
+            if(ALWAYS_HIDE_BG_WHEN_TEXT){
+                //then we should have no text showing, so don't hide bg
+
+            }else {
+                hideBg();
+            }
+//            if (largeGuiLayout != null) largeGuiLayout.setBackgroundColor(Color.BLACK);
+//            spectrogramShown = false;
+//            textColorBrighter = true;
+//            contentTextView.setTextColor(textColorNotTransparent);
         }
+    }
+
+    private void showBgAndHideText(){
+        //if (largeGuiLayout != null) largeGuiLayout.setBackgroundColor(Color.TRANSPARENT);
+        spectrogramShown = true;
+        textColorBrighter = false;
+        aboutShown = false;
+        deviceShown = false;
+        //contentTextView.setTextColor(textColorTransparent);
+        if (contentTextView != null) {
+            contentTextView.setText("");
+            contentTextView.setVisibility(View.GONE);
+            contentTextView.setTextColor(textColorTransparent);
+        }
+        if (largeGuiLayout != null) {
+            if (AppConfig.UI_LOG_ENABLED)
+                Log.d(TAG, "deviceButtonSelected: " +
+                        "largeGuiLayout sensitivity is enabled");
+            largeGuiLayout.setOnClickListener(ON_CLICK_LISTENER);
+            largeGuiLayout.setClickable(true);
+            largeGuiLayout.setBackgroundColor(Color.TRANSPARENT);
+        }
+        enableThePauseButton(pauseButtonLabel);
+        enableTheHideGuiButton();
+    }
+
+    private void hideBg(){
+        if (largeGuiLayout != null) largeGuiLayout.setBackgroundColor(Color.BLACK);
+        spectrogramShown = false;
+        textColorBrighter = true;
+        contentTextView.setTextColor(textColorNotTransparent);
     }
 
     private void doHideGui() {
         if (AppConfig.UI_LOG_ENABLED)
             Log.d(TAG, "doHideGui: entering");
-        if (buttonsLayout != null)
+        if (buttonsLayout != null) {
             buttonsLayout.setVisibility(View.GONE);
-        if (contentTextView != null) {
-            contentTextView.setVisibility(View.GONE);
+        }
+        if(!ALWAYS_HIDE_BG_WHEN_TEXT){
+            if (contentTextView != null) {
+                contentTextView.setVisibility(View.GONE);// TODO ok?
+            }
         }
         doHideUrl(false);
         if (largeGuiLayout != null) {
@@ -806,13 +895,7 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
 
                         if (v.equals(hideGui)) {
                             //hide button selected, then toggle the bg
-                            if (hideBgIsSet) {
-                                // is "hide bg", not "hide ui", when Device or About texts are shown
-                                doHideBg();
-                            } else {
-                                // is normal hide UI, so hide widgets and enable screen sensitivity
-                                doHideGui();
-                            }
+                            hideGuiButtonSelected();
                         } else {
                             // a button and not the hide gui button,
                             // guiLayout set downstream dependent on the selected button
@@ -956,38 +1039,59 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
         //setting the hide xx button
         if (deviceShown || aboutShown) {
             //text shown
-            if (!hideBgIsSet) {
-                if (hideGui != null) hideGui.setText("Hide BG");
-                hideBgIsSet = true;
-            }
-            if (v.equals(hideGui)) {
-                hideGui.setAlpha(ALPHA_SET);
-            } else {
-                if (hideGui != null) hideGui.setAlpha(ALPHA_NEUTRAL);
+            if( !ALWAYS_HIDE_BG_WHEN_TEXT) {
+                if (!hideBgIsSet) {
+                    if (hideGui != null) hideGui.setText("Hide BG");
+                    hideBgIsSet = true;
+                }
+                if (v.equals(hideGui)) {
+                    hideGui.setAlpha(ALPHA_SET);
+                } else {
+                    if (hideGui != null) hideGui.setAlpha(ALPHA_NEUTRAL);
+                }
+            }else{
+//                if (v.equals(hideGui)) {
+//                    hideGui.setAlpha(ALPHA_SET);
+//                } else {
+//                    if (hideGui != null) hideGui.setAlpha(ALPHA_NEUTRAL);
+//                }
             }
         } else {
             //no text shown
-            if (hideBgIsSet) {
-                if (hideGui != null) hideGui.setText("Hide UI");
-                hideBgIsSet = false;
-            }
-            if (v.equals(hideGui)) {
-                hideGui.setAlpha(ALPHA_SET);
-            } else {
-                if (hideGui != null) hideGui.setAlpha(ALPHA_NOT_SET);
+            if( !ALWAYS_HIDE_BG_WHEN_TEXT) {
+                if (hideBgIsSet) {
+                    if (hideGui != null) hideGui.setText("Hide UI");
+                    hideBgIsSet = false;
+                }
+                if (v.equals(hideGui)) {
+                    hideGui.setAlpha(ALPHA_SET);
+                } else {
+                    if (hideGui != null) hideGui.setAlpha(ALPHA_NOT_SET);
+                }
+            }else{
+//                if (v.equals(hideGui)) {
+//                    hideGui.setAlpha(ALPHA_SET);
+//                } else {
+//                    if (hideGui != null) hideGui.setAlpha(ALPHA_NEUTRAL);
+//                }
             }
         }
     }
-
-    //TODO future texts button selected
 
     private void deviceButtonSelected(){
         if (AppConfig.UI_LOG_ENABLED)
             Log.d(TAG, "ON_CLICK_LISTENER_FOR_SPECTROGRAM.onClick(v): " +
                     "DEVICE button selected");
         if (!deviceShown) {
-            //the text is not shown, then show device sound capabilities
-            //don't change bg here
+            //the text is not shown, then show text of device sound capabilities
+            if(ALWAYS_HIDE_BG_WHEN_TEXT){
+                // hide bg option is enabled
+                hideBg();
+                disableTheHideGuiButton();
+                disableThePauseButton(pauseButtonLabel);
+            } else {
+                //don't change bg here
+            }
             deviceShown = true;
             aboutShown = false;
             if (contentTextView != null) {
@@ -1003,21 +1107,27 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
             }
         } else {
             //the text is shown, then hide it, and show bg if not shown
-            deviceShown = false;
-            spectrogramShown = true;
-            textColorBrighter = false;
-            if (contentTextView != null) {
-                contentTextView.setText("");
-                contentTextView.setVisibility(View.GONE);
-                contentTextView.setTextColor(textColorTransparent);
+            showBgAndHideText();
+        }
+    }
+
+    private void hideGuiButtonSelected() {
+        if(ALWAYS_HIDE_BG_WHEN_TEXT){
+            //if text showing, then don't do anything here
+            if(aboutShown || deviceShown){
+                Snackbar.make(largeGuiLayout,
+                        "Nothing to do for this button in this situation",//TODO res value string
+                        Snackbar.LENGTH_LONG).setAction("null", null).show();
+                return;
             }
-            if (largeGuiLayout != null) {
-                if (AppConfig.UI_LOG_ENABLED)
-                    Log.d(TAG, "deviceButtonSelected: " +
-                            "largeGuiLayout sensitivity is enabled");
-                largeGuiLayout.setOnClickListener(ON_CLICK_LISTENER);
-                largeGuiLayout.setClickable(true);
-                largeGuiLayout.setBackgroundColor(Color.TRANSPARENT);
+            doHideGui();
+        }else {
+            if (hideBgIsSet) {
+                // is "hide bg", not "hide ui", when Device or About texts are shown
+                doHideOrShowBg();
+            } else {
+                // is normal hide UI, so hide widgets and enable screen sensitivity
+                doHideGui();
             }
         }
     }
@@ -1029,7 +1139,16 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
                     + "; contentTextView = " + contentTextView
                     + "; guiLayout = " + largeGuiLayout);
         if (!aboutShown) {
-            //show the about text
+            //hide bg if option is enabled, and show the about text
+            if(ALWAYS_HIDE_BG_WHEN_TEXT){
+                // hide bg option is enabled
+                hideBg();
+                disableTheHideGuiButton();
+                disableThePauseButton(pauseButtonLabel);
+                //doHideUrl();
+            } else {
+                //don't change bg here
+            }
             aboutShown = true;
             deviceShown = false;
             if (contentTextView != null) {
@@ -1044,21 +1163,22 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
             }
         } else {
             //hide the about text and show bg if not shown
-            aboutShown = false;
-            spectrogramShown = true;
-            textColorBrighter = false;
-            if (contentTextView != null) {
-                contentTextView.setText("");
-                contentTextView.setVisibility(View.GONE);
-                contentTextView.setTextColor(textColorTransparent);
-            }
-            if (largeGuiLayout != null) {
-                if (AppConfig.UI_LOG_ENABLED)
-                    Log.d(TAG, "aboutButtonSelected: largeGuiLayout sensitivity is enabled");
-                largeGuiLayout.setOnClickListener(ON_CLICK_LISTENER);
-                largeGuiLayout.setClickable(true);
-                largeGuiLayout.setBackgroundColor(Color.TRANSPARENT);
-            }
+            showBgAndHideText();
+//            aboutShown = false;
+//            spectrogramShown = true;
+//            textColorBrighter = false;
+//            if (contentTextView != null) {
+//                contentTextView.setText("");
+//                contentTextView.setVisibility(View.GONE);
+//                contentTextView.setTextColor(textColorTransparent);
+//            }
+//            if (largeGuiLayout != null) {
+//                if (AppConfig.UI_LOG_ENABLED)
+//                    Log.d(TAG, "aboutButtonSelected: largeGuiLayout sensitivity is enabled");
+//                largeGuiLayout.setOnClickListener(ON_CLICK_LISTENER);
+//                largeGuiLayout.setClickable(true);
+//                largeGuiLayout.setBackgroundColor(Color.TRANSPARENT);
+//            }
         }
     }
 
