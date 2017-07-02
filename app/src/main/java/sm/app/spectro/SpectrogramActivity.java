@@ -77,14 +77,14 @@ import sm.lib.acoustic.sound.forandroid.input.spectrogram.SpectrogramView;
 import sm.lib.acoustic.sound.forandroid.output.SmartPlayer;
 import sm.lib.acoustic.sound.forandroid.quality.SoundQualitySettings;
 
+import static sm.leafy.util.LeafyClient.APP_TYPE_EDU;
+import static sm.leafy.util.LeafyClient.APP_TYPE_FREE;
+import static sm.leafy.util.LeafyClient.APP_TYPE_FREE_WITH_ADS;
+import static sm.leafy.util.LeafyClient.APP_TYPE_PRICED;
 import static sm.leafy.util.forandroid.OnAnyThread.isOnRealDevice;
 
-//import android.app.Instrumentation;
-//import com.google.android.gms.appindexing.Action;
-//import com.google.android.gms.appindexing.AppIndex;
-//import com.google.android.gms.common.api.GoogleApiClient;
-//import java.util.Timer;
-//import java.util.TimerTask;
+//TODO 2017-7-1
+// the about button hides the spectrogram and does not show a text
 
 //TODO 2017-6-3
 /*
@@ -378,31 +378,53 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
     /**
      * Production: new LogConfig(LogConfig.OFF,LogConfig.OFF,LogConfig.OFF);
      */
-    private final LogConfig LOG_CONFIG = new LogConfig(LogConfig.ON,LogConfig.ON,LogConfig.ON);
+    private final LogConfig LOG_CONFIG = new LogConfig(LogConfig.ON,LogConfig.ON,LogConfig.UI);
 
-    
-    public int getAppType() {//TODO 2017-6-28 complete a bunch
-        return 0;
-    }
-
-    
-    public String getAppTypeString() {
-        return null;
-    }
-
-    
-    public String getAppTypeString(Object o, int i) {
-        return null;
-    }
-
-    
-    public void setAppType(int i) {
-
-    }
-
-    
     public LogConfig getLogConfig() {
         return LOG_CONFIG;
+    }
+
+
+    /**
+     * designed to be reset in children onCreate.
+     */
+    protected volatile int appType = LeafyClient.APP_TYPE_UNKNOWN;
+
+    /**
+     * default implementation, may be overwritten by client app
+     *
+     * @return int such as LeafyClient.APP_TYPE_FREE
+     */
+    public int getAppType() {
+        return appType;
+    }
+
+    /**
+     * Designed to be called by the onCreate method of the main Activity.
+     * @param appType
+     */
+    public void setAppType(int appType) {
+        this.appType = appType;
+    }
+
+
+    public String getAppTypeString(final Object object, final int appTypeInt) {
+        final Context contextGiven = (Context)object;
+        switch (appTypeInt) {
+            case APP_TYPE_EDU:
+                return contextGiven.getString(R.string.app_type_edu);
+            case APP_TYPE_FREE:
+                return contextGiven.getString(R.string.app_type_free);
+            case APP_TYPE_PRICED:
+                return contextGiven.getString(R.string.app_type_priced);
+            case APP_TYPE_FREE_WITH_ADS:
+                return contextGiven.getString(R.string.app_type_free_with_ads);
+        }
+        return contextGiven.getString(R.string.app_type_unknown);
+    }
+
+    public String getAppTypeString(){
+        return getAppTypeString(AppContext.getIt().APP_CONTEXT,appType);
     }
 
     
@@ -412,12 +434,12 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
 
     
     public String getDbProviderAuthority() {
-        return null;
+        return "N/A";
     }
 
     
     public String getDbProviderAuthorityFragment() {
-        return null;
+        return "N/A";
     }
 
     @Override
@@ -617,13 +639,33 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
     }
 
     
-    public void initUrlToPlay(Object o, String s) {
-
+    public void initUrlToPlay(Object o, String s) { //TODO washere
+        initUrlToPlay((Bundle)o, s);
     }
 
-    
+
+    /**
+     * for DEV mode only
+     *
+     * @return String, empty when not dev.
+     */
     public String forDisplay() {
-        return null;
+        if (!isDevMode()) return getClass().getSimpleName();
+        boolean isDbCapable = isDbCapable();
+        return "isDevMode() " + isDevMode()
+                + ", isAdsCapable() " + isAdsCapable()
+                + ", isEduVersion() " + isEduVersion()
+                + ", isDonationsCapable() " + isDonationsCapable()
+                + ", isUseTestPurchase() " + isUseTestPurchase()
+                + ", isUseEmptyIabPayload() " + isUseEmptyIabPayload()
+                + ", isVerifyIabPayload() " + isVerifyIabPayload()
+                + ", isSimulatingNoConnection() " + isSimulatingNoConnection()
+                + ", isSimulatingNoPurchase() " + isSimulatingNoPurchase()
+                + ", isDbCapable " + isDbCapable
+                + (isDbCapable ? ", getDbProviderAuthority() "+getDbProviderAuthority():"")
+                + ", isShowAdsWhenDonated() " + isShowAdsWhenDonated()
+                + ", getDbProviderAuthorityFragment() " + getDbProviderAuthorityFragment()
+                ;
     }
 
     /**
@@ -806,6 +848,12 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
     }
 
     private void showBgAndHideText(){
+        if (getLogConfig().DEBUG==LogConfig.UI)
+            Log.d(TAG, "showBgAndHideText: " +
+                    "aboutShown = " + aboutShown
+                    +": deviceShown = "+deviceShown
+                    + "; contentTextView = " + contentTextView
+                    + "; guiLayout = " + largeGuiLayout);
         //if (largeGuiLayout != null) largeGuiLayout.setBackgroundColor(Color.TRANSPARENT);
         spectrogramShown = true;
         textColorBrighter = false;
@@ -2371,6 +2419,10 @@ tv.setText(Html.fromHtml(getString(R.string.my_text)));
 
         buf.append(fromHtml( getAboutTextInHtml() ));
 
+        if(getLogConfig().DEBUG==LogConfig.UI){
+            Log.d(TAG,".getAboutText: length = "+buf.length());
+        }
+
         return buf.toString();
     }
 
@@ -3360,7 +3412,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     }
 
     
-    public Object getAndroidActivityContext() {
+    public Context getAndroidActivityContext() {
         return this;
     }
 
@@ -4204,7 +4256,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      * @deprecated replaced by method in AppContext
      */
     public int getVersionCode() {
-        return 0;
+        return 0; //AppContext.getIt().getVersionCode(); //TODO new lib version
     }
 
     /**
@@ -4213,7 +4265,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      * @deprecated replaced by method in AppContext
      */
     public String getVersionName() {
-        return null;
+        return AppContext.getIt().getVersionName();
     }
 
     @Override
