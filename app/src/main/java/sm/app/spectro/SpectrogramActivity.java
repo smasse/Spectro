@@ -23,7 +23,6 @@ package sm.app.spectro;
 import android.Manifest;
 import android.annotation.TargetApi;
 import android.app.Activity;
-//import android.app.Instrumentation;
 import android.content.ClipData;
 import android.content.Context;
 import android.content.Intent;
@@ -53,20 +52,21 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-//import com.google.android.gms.appindexing.Action;
-//import com.google.android.gms.appindexing.AppIndex;
-//import com.google.android.gms.common.api.GoogleApiClient;
-
 import java.io.FileDescriptor;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.util.Date;
-//import java.util.Timer;
-//import java.util.TimerTask;
 
+import sm.leafy.util.LeafyClient;
+import sm.leafy.util.LogConfig;
+import sm.leafy.util.forandroid.AppContext;
+import sm.leafy.util.forandroid.AppPublisher;
+import sm.leafy.util.forandroid.LeafyClientForAndroid;
+import sm.leafy.util.forandroid.OnAnyThread;
+import sm.leafy.util.forandroid.Timestamp;
 import sm.lib.acoustic.sound.EmitterGrandParent;
-import sm.lib.acoustic.sound.SoundClientInterface;
+import sm.lib.acoustic.sound.SoundClient;
 import sm.lib.acoustic.sound.SoundClientPreferences;
 import sm.lib.acoustic.sound.forandroid.DeviceSoundCapabilities;
 import sm.lib.acoustic.sound.forandroid.SettingsForSoundPreferences;
@@ -76,10 +76,15 @@ import sm.lib.acoustic.sound.forandroid.input.SettingsForSoundInputDisplay;
 import sm.lib.acoustic.sound.forandroid.input.spectrogram.SpectrogramView;
 import sm.lib.acoustic.sound.forandroid.output.SmartPlayer;
 import sm.lib.acoustic.sound.forandroid.quality.SoundQualitySettings;
-import sm.leafy.util.forandroid.AppContext;
-import sm.leafy.util.forandroid.AppPublisher;
-import sm.leafy.util.forandroid.OnAnyThread;
-import sm.leafy.util.forandroid.Timestamp;
+
+import static sm.leafy.util.forandroid.OnAnyThread.isOnRealDevice;
+
+//import android.app.Instrumentation;
+//import com.google.android.gms.appindexing.Action;
+//import com.google.android.gms.appindexing.AppIndex;
+//import com.google.android.gms.common.api.GoogleApiClient;
+//import java.util.Timer;
+//import java.util.TimerTask;
 
 //TODO 2017-6-3
 /*
@@ -159,14 +164,16 @@ You can also use other sound apps that can share recorded files with this app, o
  *
  * <!-- https://developer.android.com/studio/publish/index.html -->
  */
-public class SpectrogramActivity extends Activity implements SoundClientInterface,
+public class SpectrogramActivity extends Activity implements SoundClient.Callback,
         SmartPlayer.Callback {
 
     private static final String TAG = SpectrogramActivity.class.getSimpleName();
 
-    public static volatile SpectrogramActivity main = null;
+    //public static volatile SpectrogramActivity main = null;
 
     //private volatile BasicListener listener = null;
+
+    public static final boolean USER_LOG_INIT = false;
 
     /**
      * true means that the text for our apps is to be shown in a specific window;
@@ -368,9 +375,59 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
 
     private final boolean APP_INDEXING_IS_ENABLED = false;
 
+    /**
+     * Production: new LogConfig(LogConfig.OFF,LogConfig.OFF,LogConfig.OFF);
+     */
+    private final LogConfig LOG_CONFIG = new LogConfig(LogConfig.ON,LogConfig.ON,LogConfig.ON);
+
+    
+    public int getAppType() {//TODO 2017-6-28 complete a bunch
+        return 0;
+    }
+
+    
+    public String getAppTypeString() {
+        return null;
+    }
+
+    
+    public String getAppTypeString(Object o, int i) {
+        return null;
+    }
+
+    
+    public void setAppType(int i) {
+
+    }
+
+    
+    public LogConfig getLogConfig() {
+        return LOG_CONFIG;
+    }
+
+    
+    public boolean isDbCapable() {
+        return false;
+    }
+
+    
+    public String getDbProviderAuthority() {
+        return null;
+    }
+
+    
+    public String getDbProviderAuthorityFragment() {
+        return null;
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
+        setAppType(LeafyClient.APP_TYPE_FREE);
+        LeafyClientForAndroid.getInstance(this);
+        AppContext.getInstance(this);
+
+
         super.onCreate(savedInstanceState);
 
         if (!isTaskRoot()) {
@@ -381,16 +438,16 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
             http://code.google.com/p/android/issues/detail?id=2373
             http://code.google.com/p/android/issues/detail?id=26658
              */
-            if (AppConfig.LOG_ENABLED || AppConfig.INIT_LOG_ENABLED
-                    || AppConfig.RESTORE_LOG_ENABLED || AppConfig.ERROR_LOG_ENABLED)
+            if (getLogConfig().DEBUG==LogConfig.ON || getLogConfig().DEBUG==LogConfig.INIT
+                    || getLogConfig().DEBUG==LogConfig.RESTORE || getLogConfig().ERROR==LogConfig.ON)
                 Log.e(TAG, ".onCreate: finishing because not TaskRoot");
 
             finish();
             return;
         }
 
-        main = this;
-        AppContext.activityContext = this;
+//        main = this;
+//        AppContext.activityContext = this;
 
         /* for transparent/translucent app/status bar
         Window window = this.getWindow();
@@ -409,18 +466,18 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
 //            client = new GoogleApiClient.Builder(this).addApi(AppIndex.API).build();
 //        }
 
-        if (AppConfig.getIt().isDevMode()
-                && (AppConfig.INIT_LOG_ENABLED
-                    || AppConfig.THREADS_LOG_ENABLED
-                    || AppConfig.SOUND_INPUT_INIT_LOG_ENABLED)
-                || AppConfig.LOG_INTENT)
+        if (isDevMode()
+                && (getLogConfig().DEBUG==LogConfig.INIT
+                    || getLogConfig().DEBUG==LogConfig.THREADS
+                    || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT)
+                || getLogConfig().DEBUG==LogConfig.INTENT)
             Log.d(TAG, ".onCreate: entering..." +
-                    "app name {" + AppContext.getAppName()
-                    + "} version name {" + AppContext.getVersionName()
-                    + "} AppPublisher.emailAddress {" + AppPublisher.emailAddressForSupport
-                    + "} Support email subject from AppConfig: "
-                    + AppConfig.getIt().getSupportEmailSubject()
-                    + "\nAppConfig (for de. mode): " + AppConfig.getIt().forDisplay()
+                    "app name {" + AppContext.getIt().getAppName()
+                    + "} version name {" + AppContext.getIt().getVersionName()
+                    + "} AppPublisher.emailAddressForSupport {" + AppPublisher.emailAddressForSupport
+                    + "} Support email subject: "
+                   // + AppPublisher.getSupportEmailSubject() //TODO washere 2017-7-1
+                    + "\n" + forDisplay()
                     + "\n" + Thread.currentThread()
             );
 
@@ -437,12 +494,12 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
      */
     protected void onCreateComplete(final Bundle savedInstanceState) {
         try {
-            if (AppConfig.LOG_ENABLED || AppConfig.INIT_LOG_ENABLED
-                    || AppConfig.SETTINGS_CHANGED_LOG_ENABLED
-                    || AppConfig.SOUND_INPUT_INIT_LOG_ENABLED
-                    || AppConfig.LOG_INTENT
-                    || AppConfig.RESTORE_LOG_ENABLED
-                    || AppConfig.PERMISSIONS_LOG_ENABLED)
+            if (getLogConfig().DEBUG==LogConfig.ON || getLogConfig().DEBUG==LogConfig.INIT
+                    || getLogConfig().DEBUG==LogConfig.SETTINGS_CHANGED
+                    || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT
+                    || getLogConfig().DEBUG==LogConfig.INTENT
+                    || getLogConfig().DEBUG==LogConfig.RESTORE
+                    || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
                 Log.d(TAG, ".onCreateComplete: entering...");
 
             setOnRealDeviceOrEmulator();
@@ -467,7 +524,7 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
 
             if (!doesSoundInput) {
                 // device does not support sound input
-                if (AppConfig.SOUND_INPUT_INIT_LOG_ENABLED || AppConfig.INIT_LOG_ENABLED)
+                if (getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT || getLogConfig().DEBUG==LogConfig.INIT)
                     Log.d(TAG, ".onCreateComplete: device does not support sound input");
 
                 disableThePauseButton(null);
@@ -500,15 +557,15 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
                 }
             }
         } catch (Exception ex) {
-            if(AppConfig.ERROR_LOG_ENABLED)Log.e(TAG,".onCreateComplete: "+ex);
+            if(getLogConfig().ERROR==LogConfig.ON)Log.e(TAG,".onCreateComplete: "+ex);
             disableThePauseButton(null);
             onExceptionAtInit(ex);//TODO washere 2016-11 does this work???
         } finally {
-            if (AppConfig.INIT_LOG_ENABLED
-                    || AppConfig.SOUND_INPUT_INIT_LOG_ENABLED
-                    || AppConfig.LOG_INTENT
-                    || AppConfig.PERMISSIONS_LOG_ENABLED
-                    || AppConfig.PLAY_URL_LOG_ENABLED)
+            if (getLogConfig().DEBUG==LogConfig.INIT
+                    || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT
+                    || getLogConfig().DEBUG==LogConfig.INTENT
+                    || getLogConfig().DEBUG==LogConfig.PERMISSIONS
+                    || getLogConfig().DEBUG==LogConfig.PLAY_URL)
                 Log.d(TAG, ".onCreateComplete: exiting...");
         }
     }
@@ -516,7 +573,7 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
     private volatile String pauseButtonLabel = null;
 
     private Runnable RUNNABLE_TO_ENABLE_THE_PAUSE_BUTTON = new Runnable() {
-        @Override
+        
         public void run() {
             pause.setOnClickListener(ON_CLICK_LISTENER);
             pause.setAlpha(ALPHA_NEUTRAL);
@@ -527,7 +584,7 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
     };
 
     private Runnable RUNNABLE_TO_DISABLE_THE_PAUSE_BUTTON = new Runnable() {
-        @Override
+        
         public void run() {
             if(pause==null)return;
             pause.setOnClickListener(null);
@@ -544,7 +601,7 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
      *
      * @param label not used if null
      */
-    private void enableThePauseButton(final String label) {
+    public void enableThePauseButton(final String label) {//TODO maybe add this to the same callback as disableThePauseButton
         pauseButtonLabel = label;
         runOnUiThread(RUNNABLE_TO_ENABLE_THE_PAUSE_BUTTON);
     }
@@ -554,9 +611,19 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
      *
      * @param label not change if param is null
      */
-    private void disableThePauseButton(final String label) {
+    public void disableThePauseButton(final String label) {
         pauseButtonLabel = label;
         runOnUiThread(RUNNABLE_TO_DISABLE_THE_PAUSE_BUTTON);
+    }
+
+    
+    public void initUrlToPlay(Object o, String s) {
+
+    }
+
+    
+    public String forDisplay() {
+        return null;
     }
 
     /**
@@ -604,8 +671,8 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
         }
 
         largeGuiLayout = (LinearLayout) findViewById(R.id.spectrogram2_gui);
-        if (AppConfig.UI_LOG_ENABLED)
-            Log.d(TAG, "initUI: largeGuiLayout sensitivity is disabled");
+        if (getLogConfig().DEBUG==LogConfig.UI)
+            Log.d(TAG, "initUI: largeGuiLayout is spectrogram2_gui");
         largeGuiLayout.setOnClickListener(ON_CLICK_LISTENER);
         largeGuiLayout.setClickable(true);
 
@@ -751,7 +818,7 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
             contentTextView.setTextColor(textColorTransparent);
         }
         if (largeGuiLayout != null) {
-            if (AppConfig.UI_LOG_ENABLED)
+            if (getLogConfig().DEBUG==LogConfig.UI)
                 Log.d(TAG, "deviceButtonSelected: " +
                         "largeGuiLayout sensitivity is enabled");
             largeGuiLayout.setOnClickListener(ON_CLICK_LISTENER);
@@ -770,7 +837,7 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
     }
 
     private void doHideGui() {
-        if (AppConfig.UI_LOG_ENABLED)
+        if (getLogConfig().DEBUG==LogConfig.UI)
             Log.d(TAG, "doHideGui: entering");
         if (buttonsLayout != null) {
             buttonsLayout.setVisibility(View.GONE);
@@ -783,7 +850,7 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
         doHideUrl(false);
         if (largeGuiLayout != null) {
             //enable screen sensitivity
-            if (AppConfig.UI_LOG_ENABLED)
+            if (getLogConfig().DEBUG==LogConfig.UI)
                 Log.d(TAG, "doHideGui: largeGuiLayout sensitivity is enabled");
             largeGuiLayout.setOnClickListener(ON_CLICK_LISTENER);
             largeGuiLayout.setClickable(true);
@@ -795,16 +862,16 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
     }
 
     private void doShowGui() {
-        if (AppConfig.UI_LOG_ENABLED)
+        if (getLogConfig().DEBUG==LogConfig.UI)
             Log.d(TAG, "doShowGui: entering");
         if (buttonsLayout != null) buttonsLayout.setVisibility(View.VISIBLE);
         if (contentTextView != null) {
             if(contentTextView.getText().length()>0) {
-                if (AppConfig.UI_LOG_ENABLED)
+                if (getLogConfig().DEBUG==LogConfig.UI)
                     Log.d(TAG, "doShowGui: contentTextView made visible because it has some text");
                 contentTextView.setVisibility(View.VISIBLE);
             }else{
-                if (AppConfig.UI_LOG_ENABLED)
+                if (getLogConfig().DEBUG==LogConfig.UI)
                     Log.d(TAG, "doShowGui: contentTextView made gone because it has no text");
                 contentTextView.setVisibility(View.GONE);
             }
@@ -819,23 +886,23 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
     }
 
     private boolean doShowUrlGui() {
-        if (AppConfig.UI_LOG_ENABLED)
+        if (getLogConfig().DEBUG==LogConfig.UI)
             Log.d(TAG, "doShowUrlGui: entering");
 
         if ( ! SOUND_TO_PLAY_IS_ENABLED) {
-            if (AppConfig.UI_LOG_ENABLED)
+            if (getLogConfig().DEBUG==LogConfig.UI)
                 Log.d(TAG, "doShowUrlGui: exiting; SOUND_TO_PLAY_IS_ENABLED is false");
             return false;
         }
 
         if ( ! doesSoundOutput) {
-            if (AppConfig.UI_LOG_ENABLED)
+            if (getLogConfig().DEBUG==LogConfig.UI)
                 Log.d(TAG, "doShowUrlGui: exiting; doesSoundOutput is false");
             return false;
         }
 
         if (urlLayout == null) {
-            if (AppConfig.UI_LOG_ENABLED)
+            if (getLogConfig().DEBUG==LogConfig.UI)
                 Log.d(TAG, "doShowUrlGui: exiting; urlLayout is null");
             return false;
         }
@@ -843,11 +910,11 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
         if (urlLayout.getVisibility() == View.VISIBLE) {
             //do nothing
 //                urlLayout.setVisibility(View.GONE);
-            if (AppConfig.UI_LOG_ENABLED)
+            if (getLogConfig().DEBUG==LogConfig.UI)
                 Log.d(TAG, "doShowUrlGui: urlLayout is already visible");
         } else {
             //show url gui
-            if (AppConfig.UI_LOG_ENABLED)
+            if (getLogConfig().DEBUG==LogConfig.UI)
                 Log.d(TAG, "doShowUrlGui: urlLayout is being set visible");
             urlLayout.setVisibility(View.VISIBLE);
         }
@@ -875,21 +942,21 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
          *
          * @param v The user-selected view (button or other gui)
          */
-        @Override
+        
         public void onClick(View v) {
             try {
-                if (AppConfig.UI_LOG_ENABLED)
+                if (getLogConfig().DEBUG==LogConfig.UI)
                     Log.d(TAG, "ON_CLICK_LISTENER_FOR_SPECTROGRAM.onClick(v): entering");
 
                 if (buttonsLayout.isShown()) {
                     //buttons are activated
-                    if (AppConfig.UI_LOG_ENABLED)
+                    if (getLogConfig().DEBUG==LogConfig.UI)
                         Log.d(TAG, "ON_CLICK_LISTENER_FOR_SPECTROGRAM.onClick(v): " +
                                 "buttonsLayout.isShown() returned true");
                     //do action
                     if (v instanceof Button) {
                         //for a button
-                        if (AppConfig.UI_LOG_ENABLED)
+                        if (getLogConfig().DEBUG==LogConfig.UI)
                             Log.d(TAG, "ON_CLICK_LISTENER_FOR_SPECTROGRAM.onClick(v): " +
                                     ". is instance of button");
 
@@ -928,7 +995,7 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
                                             } else {
                                                 // not hide url
                                                 // do nothing here, go to afterButtonSelected downstream
-                                                if (AppConfig.UI_LOG_ENABLED || AppConfig.ERROR_LOG_ENABLED)
+                                                if (getLogConfig().DEBUG==LogConfig.UI || getLogConfig().ERROR==LogConfig.ON)
                                                     Log.e(TAG,
                                                         "ON_CLICK_LISTENER_FOR_SPECTROGRAM.onClick(v): " +
                                                         ". is _not_ a known Button, do nothing: " + v);
@@ -941,25 +1008,25 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
                         afterButtonSelected(v);
                     } else {
                         // not a button, and some gui shown, but maybe url gui not shown
-                        if (AppConfig.UI_LOG_ENABLED)
+                        if (getLogConfig().DEBUG==LogConfig.UI)
                             Log.d(TAG, "ON_CLICK_LISTENER_FOR_SPECTROGRAM.onClick(v): " +
                                     ". is _not_ an instance of Button: " + v);
                         doShowGui();
                     }
                 } else {
                     // layout not shown (buttons not show), then show it and show the buttons and url
-                    if (AppConfig.UI_LOG_ENABLED)
+                    if (getLogConfig().DEBUG==LogConfig.UI)
                         Log.d(TAG, "ON_CLICK_LISTENER_FOR_SPECTROGRAM.onClick(v): " +
                                 "buttonsLayout.isShown() returned false, then show GUI");
                     doShowGui();
                 }
             } catch (Throwable ex) {
-                if (AppConfig.UI_LOG_ENABLED||AppConfig.ERROR_LOG_ENABLED)
+                if (getLogConfig().DEBUG==LogConfig.UI||getLogConfig().ERROR==LogConfig.ON)
                     Log.e(TAG, "ON_CLICK_LISTENER_FOR_SPECTROGRAM.onClick(v): " + ex
                             + "\n" + Log.getStackTraceString(ex)
                         );
             }
-            if (AppConfig.UI_LOG_ENABLED)
+            if (getLogConfig().DEBUG==LogConfig.UI)
                 Log.d(TAG, "ON_CLICK_LISTENER_FOR_SPECTROGRAM.onClick(v): exiting");
         }
     };
@@ -970,13 +1037,13 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
      * @param v the button that has been selected
      */
     void afterButtonSelected(View v) {
-        if (AppConfig.UI_LOG_ENABLED)
+        if (getLogConfig().DEBUG==LogConfig.UI)
             Log.d(TAG,"afterButtonSelected: entering");
 
         updateAboutButtonOnUIThread();
 
         if (v.equals(hideUrlButton) || v.equals(playUrlButton)) {
-            if (AppConfig.UI_LOG_ENABLED)
+            if (getLogConfig().DEBUG==LogConfig.UI)
                 Log.d(TAG,"afterButtonSelected: exiting; button is hideUrlButton or playUrlButton");
             return;
         }
@@ -1079,7 +1146,7 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
     }
 
     private void deviceButtonSelected(){
-        if (AppConfig.UI_LOG_ENABLED)
+        if (getLogConfig().DEBUG==LogConfig.UI)
             Log.d(TAG, "ON_CLICK_LISTENER_FOR_SPECTROGRAM.onClick(v): " +
                     "DEVICE button selected");
         if (!deviceShown) {
@@ -1099,7 +1166,7 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
                 contentTextView.setText(getDeviceText());
             }
             if (largeGuiLayout != null) {
-                if (AppConfig.UI_LOG_ENABLED)
+                if (getLogConfig().DEBUG==LogConfig.UI)
                     Log.d(TAG, "deviceButtonSelected: " +
                             "largeGuiLayout sensitivity is disabled");
                 largeGuiLayout.setOnClickListener(null);
@@ -1133,7 +1200,7 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
     }
 
     private void aboutButtonSelected() {
-        if (AppConfig.UI_LOG_ENABLED)
+        if (getLogConfig().DEBUG==LogConfig.UI)
             Log.d(TAG, "aboutButtonSelected: " +
                     "aboutShown = " + aboutShown
                     + "; contentTextView = " + contentTextView
@@ -1156,7 +1223,7 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
                 contentTextView.setVisibility(View.VISIBLE);
             }
             if (largeGuiLayout != null) {
-                if (AppConfig.UI_LOG_ENABLED)
+                if (getLogConfig().DEBUG==LogConfig.UI)
                     Log.d(TAG, "aboutButtonSelected: largeGuiLayout sensitivity is disabled");
                 largeGuiLayout.setOnClickListener(null);
                 largeGuiLayout.setClickable(false);
@@ -1173,7 +1240,7 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
 //                contentTextView.setTextColor(textColorTransparent);
 //            }
 //            if (largeGuiLayout != null) {
-//                if (AppConfig.UI_LOG_ENABLED)
+//                if (getLogConfig().DEBUG==LogConfig.UI)
 //                    Log.d(TAG, "aboutButtonSelected: largeGuiLayout sensitivity is enabled");
 //                largeGuiLayout.setOnClickListener(ON_CLICK_LISTENER);
 //                largeGuiLayout.setClickable(true);
@@ -1183,7 +1250,7 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
     }
 
     private void playUrlButtonSelected(){
-        if (AppConfig.PLAY_URL_LOG_ENABLED)
+        if (getLogConfig().DEBUG==LogConfig.PLAY_URL)
             Log.d(TAG, "button playUrlButton selected; " +
                     "urlIsPlaying = " + urlIsPlaying
                     + "; urlIsPaused = " + urlIsPaused);
@@ -1208,7 +1275,7 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
     }
 
     private void hideOrCancelUrlButtonSelected(){
-        if (AppConfig.PLAY_URL_LOG_ENABLED)
+        if (getLogConfig().DEBUG==LogConfig.PLAY_URL)
             Log.d(TAG, "hideUrlButton selected; urlIsPlaying = " + urlIsPlaying);
         if (urlIsPlaying) {
             // playing, so cancel play
@@ -1300,7 +1367,7 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
      */
     private boolean doPlayUrl(final String urlString) {
         isCancelling = false;
-        if (AppConfig.PLAY_URL_LOG_ENABLED || AppConfig.PERMISSIONS_LOG_ENABLED)
+        if (getLogConfig().DEBUG==LogConfig.PLAY_URL || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
             Log.d(TAG, ".doPlayUrl(String url): entering with urlString {" + urlString
                     //+"} permissionGrantedForStorageAccess = "+permissionGrantedForStorageAccess
                     + "}, SOUND_TO_PLAY_IS_ENABLED = " + SOUND_TO_PLAY_IS_ENABLED
@@ -1318,22 +1385,22 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
 
         if (isLocalFile(urlStrg)) {
             // is local file, check external storage access permission
-            if (AppConfig.PLAY_URL_LOG_ENABLED || AppConfig.PERMISSIONS_LOG_ENABLED)
+            if (getLogConfig().DEBUG==LogConfig.PLAY_URL || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
                 Log.d(TAG, ".doPlayUrl: is local file {" + urlStrg + "}; get access permission...");
 
             if (!getPermissionForExternalStorageAccess(urlStrg)) {
                 // external storage access permission was definitively denied
                 // or permission is being requested, don't play
-                if (AppConfig.PLAY_URL_LOG_ENABLED || AppConfig.PERMISSIONS_LOG_ENABLED)
+                if (getLogConfig().DEBUG==LogConfig.PLAY_URL || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
                     Log.d(TAG, ".doPlayUrl: access denied or being requested...");
                 return false;
             }
             // local file access granted, then play it
-            if (AppConfig.PLAY_URL_LOG_ENABLED || AppConfig.PERMISSIONS_LOG_ENABLED)
+            if (getLogConfig().DEBUG==LogConfig.PLAY_URL || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
                 Log.d(TAG, ".doPlayUrl: access granted, try to play local file");
         } else {
             // not local file, then remote file, try to play
-            if (AppConfig.PLAY_URL_LOG_ENABLED || AppConfig.PERMISSIONS_LOG_ENABLED)
+            if (getLogConfig().DEBUG==LogConfig.PLAY_URL || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
                 Log.d(TAG, ".doPlayUrl: not local file, try to play remote file");
         }
 
@@ -1352,14 +1419,14 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
      * @return true when started, false when attempt failed.
      */
     private boolean playLocalFileAfterStorageAccessGranted(final String filePath) {
-        if (AppConfig.PLAY_URL_LOG_ENABLED)
+        if (getLogConfig().DEBUG==LogConfig.PLAY_URL)
             Log.d(TAG, ".playLocalFileAfterStorageAccessGranted: entering with filePath {" + filePath + "}");
 
         //=================================================
         boolean started = playRemoteOrLocalFile(filePath);
         //=================================================
 
-        if (AppConfig.PLAY_URL_LOG_ENABLED || AppConfig.PERMISSIONS_LOG_ENABLED)
+        if (getLogConfig().DEBUG==LogConfig.PLAY_URL || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
             Log.d(TAG, ".playLocalFileAfterStorageAccessGranted(String): " +
                     "playRemoteOrLocalFile(urlString) returned " + started
                     + " with {" + filePath + "}");
@@ -1456,7 +1523,7 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
      * @return boolean
      */
     private boolean play(final String path) {
-        if (AppConfig.LOG_INTENT)
+        if (getLogConfig().DEBUG==LogConfig.INTENT)
             Log.d(TAG, ".play(String): path {" + path + "}");
 
         Uri uri = Uri.parse(path);
@@ -1466,7 +1533,7 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
     }
 
     private final Runnable RUNNABLE_FOR_URL_PREPARE = new Runnable() {
-        @Override
+        
         public void run() {
             urlPrepareSnackbar = Snackbar.make(largeGuiLayout,
                     "Please wait, preparing media for playing...",//TODO res
@@ -1480,17 +1547,13 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
     }
 
 
-    public static final boolean USER_LOG_INIT = false;
-
-    private Snackbar statusSnackbar;
-
     private volatile String statusText = "";
 
     private final Runnable RUNNABLE_FOR_STATUS = new Runnable() {
-        @Override
+        
         public void run() {
             if(largeGuiLayout!=null) {
-                statusSnackbar = Snackbar.make(largeGuiLayout,
+                Snackbar statusSnackbar = Snackbar.make(largeGuiLayout,
                         statusText,
                         Snackbar.LENGTH_SHORT).setAction("null", null);
                 statusSnackbar.show();
@@ -1499,14 +1562,20 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
     };
 
     /**
-     * Designed to be used when USER_LOG_INIT is true.
+     * <!-- old: Designed to be used when USER_LOG_INIT is true. -->
      *
-     * @param giventStatusText
+     * @param givenStatusText
      */
-    private void showStatusSnackbar(final String giventStatusText) {
-        statusText = giventStatusText;
+    public void showStatusSnackbar(final String givenStatusText) {//TODO 2017-7-1 add param isIndefinite and OK action with listener to dismiss it
+        statusText = givenStatusText;
         runOnUiThread(RUNNABLE_FOR_STATUS);
     }
+
+    
+    public boolean isVerifyIabPayload() {
+        return false;
+    }
+
 
     /**
      * Designed to be called when urlIsPaused is true.
@@ -1536,8 +1605,9 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
      */
     private boolean setUrlToPlayInUi(final String urlString) {//TODO review with setUrlGuiWhenPlaying()
         //urlToPlay = urlString;
-        if (AppConfig.RESTORE_LOG_ENABLED || AppConfig.LOG_INTENT
-                || AppConfig.PLAY_URL_LOG_ENABLED)
+        if (getLogConfig().DEBUG==LogConfig.RESTORE 
+                || getLogConfig().DEBUG==LogConfig.INTENT
+                || getLogConfig().DEBUG==LogConfig.PLAY_URL)
             Log.d(TAG, ".setUrlToPlayInUi: urlString {" + urlString + "}");
 
         if (urlString != null && !urlString.isEmpty()) {
@@ -1549,8 +1619,9 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
                 return true;
             } else {
                 // ui widget is null
-                if (AppConfig.RESTORE_LOG_ENABLED || AppConfig.LOG_INTENT
-                        || AppConfig.PLAY_URL_LOG_ENABLED)
+                if (getLogConfig().DEBUG==LogConfig.RESTORE 
+                        || getLogConfig().DEBUG==LogConfig.INTENT
+                        || getLogConfig().DEBUG==LogConfig.PLAY_URL)
                     Log.d(TAG, ".setUrlToPlayInUi: editTextUrlToPlay is null");
             }
         }
@@ -1645,7 +1716,7 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
      * @param withNotif true when caller wants the notification to be shown to user.
      */
     private void doHideUrl(final boolean withNotif) {
-        if (AppConfig.UI_LOG_ENABLED)
+        if (getLogConfig().DEBUG==LogConfig.UI)
             Log.d(TAG, "doHideUrl: entering");
 
         doCancelUrl();
@@ -1653,7 +1724,7 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
         if (urlLayout != null) urlLayout.setVisibility(View.GONE);
 
         if (largeGuiLayout != null) {
-            if (AppConfig.UI_LOG_ENABLED)
+            if (getLogConfig().DEBUG==LogConfig.UI)
                 Log.d(TAG, "doHideUrl: largeGuiLayout sensitivity is enabled");
             largeGuiLayout.setOnClickListener(ON_CLICK_LISTENER);
         }
@@ -1694,7 +1765,7 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
         }
 
         if (permission == PackageManager.PERMISSION_GRANTED) {
-            if (AppConfig.PERMISSIONS_LOG_ENABLED) {
+            if (getLogConfig().DEBUG==LogConfig.PERMISSIONS) {
                 Log.d(TAG, ".getPermissionForExternalStorageAccess: " +
                         "checkSelfPermission returned positive; this method is returning true");
             }
@@ -1702,7 +1773,7 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
         }
 
         //no permission; did we asked the user before? if yes, then don't ask again
-        if (AppConfig.PERMISSIONS_LOG_ENABLED) {
+        if (getLogConfig().DEBUG==LogConfig.PERMISSIONS) {
             Log.d(TAG, ".getPermissionForExternalStorageAccess: " +
                     "checkSelfPermission returned negative; storageAccessPermissionWasAsked = "
                     + storageAccessPermissionWasAsked);
@@ -1730,7 +1801,7 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
                 PERMISSIONS_FOR_EXTERNAL_STORAGE_ACCESS,
                 PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS
         );
-        if (AppConfig.PERMISSIONS_LOG_ENABLED) {
+        if (getLogConfig().DEBUG==LogConfig.PERMISSIONS) {
             Log.d(TAG, ".getPermissionForExternalStorageAccess: " +
                     "checkSelfPermission returned negative; storageAccessPermissionWasAsked = "
                     + storageAccessPermissionWasAsked
@@ -1751,8 +1822,8 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
 
     private void getPermissionForRecordAudio(final Bundle savedInstanceStateGiven) {
         savedInstanceStateTemp = savedInstanceStateGiven;
-        if (AppConfig.INIT_LOG_ENABLED || AppConfig.SOUND_INPUT_INIT_LOG_ENABLED
-                || AppConfig.PERMISSIONS_LOG_ENABLED)
+        if (getLogConfig().DEBUG==LogConfig.INIT || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT
+                || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
             Log.d(TAG, ".getPermissionForRecordAudio entering...Build.VERSION.SDK_INT = "
                     + Build.VERSION.SDK_INT);
 
@@ -1770,8 +1841,8 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
                     Manifest.permission.RECORD_AUDIO)
                     == PackageManager.PERMISSION_GRANTED;
         }
-        if (AppConfig.INIT_LOG_ENABLED || AppConfig.SOUND_INPUT_INIT_LOG_ENABLED
-                || AppConfig.PERMISSIONS_LOG_ENABLED)
+        if (getLogConfig().DEBUG==LogConfig.INIT || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT
+                || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
             Log.d(TAG, ".getPermissionForRecordAudio: aprioriGranted " + aprioriGranted);
 
         if (!aprioriGranted) {
@@ -1784,13 +1855,13 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
                     Manifest.permission.WRITE_EXTERNAL_STORAGE};
 
             if (Build.VERSION.SDK_INT >= 23) {
-                if (AppConfig.INIT_LOG_ENABLED || AppConfig.SOUND_INPUT_INIT_LOG_ENABLED
-                        || AppConfig.PERMISSIONS_LOG_ENABLED)
+                if (getLogConfig().DEBUG==LogConfig.INIT || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT
+                        || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
                     Log.d(TAG, ".getPermissionForRecordAudio about to call requestPermissions(...)");
                 requestPermissions(permissions, PERMISSIONS_REQUEST_CODE_FOR_RECORD_AUDIO);
             } else {
-                if (AppConfig.INIT_LOG_ENABLED || AppConfig.SOUND_INPUT_INIT_LOG_ENABLED
-                        || AppConfig.PERMISSIONS_LOG_ENABLED)
+                if (getLogConfig().DEBUG==LogConfig.INIT || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT
+                        || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
                     Log.d(TAG, ".getPermissionForRecordAudio about to call ActivityCompat.requestPermissions(...)");
                 ActivityCompat.requestPermissions(this, permissions,
                         PERMISSIONS_REQUEST_CODE_FOR_RECORD_AUDIO);
@@ -1800,8 +1871,8 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
             // result of the request.
         } else {
             //granted apriori
-            if (AppConfig.INIT_LOG_ENABLED || AppConfig.SOUND_INPUT_INIT_LOG_ENABLED
-                    || AppConfig.PERMISSIONS_LOG_ENABLED)
+            if (getLogConfig().DEBUG==LogConfig.INIT || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT
+                    || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
                 Log.d(TAG, ".getPermissionForRecordAudio: was granted apriori" +
                         "; calling onCreateComplete...");
 
@@ -1810,8 +1881,8 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
         }
         //here when permission granted before running the app, e.g., older version of android
 
-        if (AppConfig.INIT_LOG_ENABLED || AppConfig.SOUND_INPUT_INIT_LOG_ENABLED
-                || AppConfig.PERMISSIONS_LOG_ENABLED)
+        if (getLogConfig().DEBUG==LogConfig.INIT || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT
+                || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
             Log.d(TAG, ".getPermissionForRecordAudio exiting...");
     }
 
@@ -1825,8 +1896,8 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
     @Override
     public void onRequestPermissionsResult(int requestCode,
                                            String[] permissions, int[] grantResults) {
-        if (AppConfig.INIT_LOG_ENABLED || AppConfig.SOUND_INPUT_INIT_LOG_ENABLED
-                || AppConfig.PERMISSIONS_LOG_ENABLED)
+        if (getLogConfig().DEBUG==LogConfig.INIT || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT
+                || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
             Log.d(TAG, ".onRequestPermissionsResult entering with requestCode {" + requestCode
                     + "}; filePathNeedingAccess {" + filePathNeedingAccess + "}");
 //        readFileAccepted = false;
@@ -1834,9 +1905,9 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
         //permissionGrantedForRecordAudio = false;
         switch (requestCode) {
             case PERMISSIONS_REQUEST_CODE_FOR_RECORD_AUDIO: {
-                if (AppConfig.INIT_LOG_ENABLED
-                        || AppConfig.SOUND_INPUT_INIT_LOG_ENABLED
-                        || AppConfig.PERMISSIONS_LOG_ENABLED)
+                if (getLogConfig().DEBUG==LogConfig.INIT
+                        || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT
+                        || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
                     Log.d(TAG, ".onRequestPermissionsResult: " +
                             "PERMISSIONS_REQUEST_CODE_FOR_RECORD_AUDIO; " +
                             "grantResults.length = " + grantResults.length);
@@ -1850,15 +1921,15 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
 
                 if (!permissionGrantedForRecordAudio) {
                     //not granted, cannot run the app
-                    if (AppConfig.INIT_LOG_ENABLED || AppConfig.SOUND_INPUT_INIT_LOG_ENABLED
-                            || AppConfig.PERMISSIONS_LOG_ENABLED)
+                    if (getLogConfig().DEBUG==LogConfig.INIT || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT
+                            || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
                         Log.d(TAG, ".onRequestPermissionsResult: audio permission denied; calling finish()");
                     finish();
                     return;
                 }
                 //here when record audio was granted
-                if (AppConfig.INIT_LOG_ENABLED || AppConfig.SOUND_INPUT_INIT_LOG_ENABLED
-                        || AppConfig.PERMISSIONS_LOG_ENABLED)
+                if (getLogConfig().DEBUG==LogConfig.INIT || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT
+                        || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
                     Log.d(TAG, ".onRequestPermissionsResult: audio permission granted");
                 //complete create
                 onCreateComplete(savedInstanceStateTemp);
@@ -1866,9 +1937,9 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
             } // case
 
             case PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS: {
-                if (AppConfig.INIT_LOG_ENABLED
-                        || AppConfig.SOUND_INPUT_INIT_LOG_ENABLED
-                        || AppConfig.PERMISSIONS_LOG_ENABLED)
+                if (getLogConfig().DEBUG==LogConfig.INIT
+                        || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT
+                        || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
                     Log.d(TAG, ".onRequestPermissionsResult: " +
                             "PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS; " +
                             "grantResults.length = " + grantResults.length);
@@ -1884,9 +1955,9 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
                 // when false, disable the play url functions for local files
 //                permissionGrantedForStorageAccess = ;
 
-                if (AppConfig.INIT_LOG_ENABLED
-                        || AppConfig.SOUND_INPUT_INIT_LOG_ENABLED
-                        || AppConfig.PERMISSIONS_LOG_ENABLED)
+                if (getLogConfig().DEBUG==LogConfig.INIT
+                        || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT
+                        || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
                     Log.d(TAG, ".onRequestPermissionsResult: " +
                             "PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS; " +
                             "readFileAccepted = " + readFileAccepted
@@ -1904,8 +1975,8 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
             // other 'case' lines to check for other
             // permissions this app might request
             default: {
-                if (AppConfig.INIT_LOG_ENABLED || AppConfig.SOUND_INPUT_INIT_LOG_ENABLED
-                        || AppConfig.PERMISSIONS_LOG_ENABLED)
+                if (getLogConfig().DEBUG==LogConfig.INIT || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT
+                        || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
                     Log.d(TAG, ".onRequestPermissionsResult: default; requestCode " + requestCode
                             //+"; permissionGrantedForRecordAudio "+ permissionGrantedForRecordAudio
                             //+"; calling onCreateComplete(savedInstanceStateTemp)..."
@@ -1919,8 +1990,8 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
 
     public void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
-        if (AppConfig.PAUSE_LOG_ENABLED || AppConfig.THREADS_LOG_ENABLED
-                || AppConfig.RESTORE_LOG_ENABLED)
+        if (getLogConfig().DEBUG==LogConfig.PAUSE || getLogConfig().DEBUG==LogConfig.THREADS
+                || getLogConfig().DEBUG==LogConfig.RESTORE)
             Log.d(TAG, ".onSaveInstanceState " + Thread.currentThread());
 
         saveBitmap(outState);
@@ -1935,8 +2006,8 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
      */
     protected void onRestoreInstanceState(Bundle savedInstanceState) {//TODO future restore bitmap
         super.onSaveInstanceState(savedInstanceState);
-        if (AppConfig.PAUSE_LOG_ENABLED || AppConfig.THREADS_LOG_ENABLED
-                || AppConfig.RESTORE_LOG_ENABLED)
+        if (getLogConfig().DEBUG==LogConfig.PAUSE || getLogConfig().DEBUG==LogConfig.THREADS
+                || getLogConfig().DEBUG==LogConfig.RESTORE)
             Log.d(TAG, ".onRestoreInstanceState: calling restoreBitmap(savedInstanceState)..."
                     + Thread.currentThread());
 
@@ -1948,13 +2019,13 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
 
     private void restoreBitmap(final Bundle savedInstanceState) {
         if (!SPECTROGRAM_IMAGE_PERSISTENCE_IS_ENABLED) {
-            if (AppConfig.PAUSE_LOG_ENABLED || AppConfig.RESTORE_LOG_ENABLED)
+            if (getLogConfig().DEBUG==LogConfig.PAUSE || getLogConfig().DEBUG==LogConfig.RESTORE)
                 Log.d(TAG, ".restoreBitmap: exiting because SPECTROGRAM_IMAGE_PERSISTENCE_IS_ENABLED is false");
             return;
         }
         if (savedInstanceState != null) {
             // not new session; restoring the app from Android savedInstanceState
-            if (AppConfig.PAUSE_LOG_ENABLED || AppConfig.RESTORE_LOG_ENABLED)
+            if (getLogConfig().DEBUG==LogConfig.PAUSE || getLogConfig().DEBUG==LogConfig.RESTORE)
                 Log.d(TAG, ".restoreBitmap: restoring");
 //            SpectrogramView.restoring = true; TODO future restoring bitmap function
             //------------------------------------------------------------
@@ -1962,16 +2033,16 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
             //------------------------------------------------------------
             if (ob != null) {
 //                SpectrogramView.bitmap = (Bitmap) ob;
-                if (AppConfig.PAUSE_LOG_ENABLED || AppConfig.RESTORE_LOG_ENABLED)
+                if (getLogConfig().DEBUG==LogConfig.PAUSE || getLogConfig().DEBUG==LogConfig.RESTORE)
                     Log.d(TAG, ".restoreBitmap: restoring; saved bitmap not null");
             } else {
-                if (AppConfig.PAUSE_LOG_ENABLED || AppConfig.RESTORE_LOG_ENABLED)
+                if (getLogConfig().DEBUG==LogConfig.PAUSE || getLogConfig().DEBUG==LogConfig.RESTORE)
                     Log.d(TAG, ".restoreBitmap: restoring; saved bitmap is null");
             }
 
         } else {
             // not restoring; new session
-            if (AppConfig.PAUSE_LOG_ENABLED || AppConfig.RESTORE_LOG_ENABLED)
+            if (getLogConfig().DEBUG==LogConfig.PAUSE || getLogConfig().DEBUG==LogConfig.RESTORE)
                 Log.d(TAG, ".restoreBitmap: not restoring");
 //            SpectrogramView.restoring = false;
 //            SpectrogramView.bitmap = null;
@@ -1980,7 +2051,7 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
 
     private void saveBitmap(Bundle outState) {
         if (!SPECTROGRAM_IMAGE_PERSISTENCE_IS_ENABLED) {
-            if (AppConfig.PAUSE_LOG_ENABLED || AppConfig.RESTORE_LOG_ENABLED)
+            if (getLogConfig().DEBUG==LogConfig.PAUSE || getLogConfig().DEBUG==LogConfig.RESTORE)
                 Log.d(TAG, ".saveBitmap: exiting because SPECTROGRAM_IMAGE_PERSISTENCE_IS_ENABLED is false");
             return;
         }
@@ -1991,10 +2062,10 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
                 //----------------------------------------------
                 outState.putParcelable(PREF_BITMAP_KEY, bitmap);
                 //----------------------------------------------
-                if (AppConfig.PAUSE_LOG_ENABLED || AppConfig.RESTORE_LOG_ENABLED)
+                if (getLogConfig().DEBUG==LogConfig.PAUSE || getLogConfig().DEBUG==LogConfig.RESTORE)
                     Log.d(TAG, ".saveBitmap: bitmap saved");
             } else {
-                if (AppConfig.PAUSE_LOG_ENABLED || AppConfig.RESTORE_LOG_ENABLED)
+                if (getLogConfig().DEBUG==LogConfig.PAUSE || getLogConfig().DEBUG==LogConfig.RESTORE)
                     Log.d(TAG, ".saveBitmap: bitmap is null");
             }
         }
@@ -2011,15 +2082,15 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
 
     private void restartSpectro() {
         try {
-            if (AppConfig.PAUSE_LOG_ENABLED)
+            if (getLogConfig().DEBUG==LogConfig.PAUSE)
                 Log.e(TAG, ".restartSpectro: calling unpause()...");
             unpause();
             pause.setText(getString(R.string.pause_button));
-            if (AppConfig.PAUSE_LOG_ENABLED)
+            if (getLogConfig().DEBUG==LogConfig.PAUSE)
                 Log.d(TAG, ".restartSpectro: unpause() ok");
         } catch (Exception e) {
             //e.printStackTrace();
-            if (AppConfig.SOUND_INPUT_INIT_LOG_ENABLED || AppConfig.ERROR_LOG_ENABLED)
+            if (getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT || getLogConfig().ERROR==LogConfig.ON)
                 Log.e(TAG, ".restartSpectro: unpause() raised: " + e);
             return;
         }
@@ -2028,12 +2099,12 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
     }
 
     private void pauseSpectro() {
-        if (AppConfig.PAUSE_LOG_ENABLED)
+        if (getLogConfig().DEBUG==LogConfig.PAUSE)
             Log.d(TAG, ".pauseSpectro entering");
         closeListener();
         pause.setText(getString(R.string.pause_button_restart));
         isPausedByHUser = true;
-        if (AppConfig.PAUSE_LOG_ENABLED)
+        if (getLogConfig().DEBUG==LogConfig.PAUSE)
             Log.d(TAG, ".pauseSpectro exiting");
     }
 
@@ -2042,7 +2113,7 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
      * All callers are run on the ui thread in this version.
      */
     private void pauseToggle() {
-        if (AppConfig.PAUSE_LOG_ENABLED)
+        if (getLogConfig().DEBUG==LogConfig.PAUSE)
             Log.d(TAG, ".pauseToggle: entering; isPausedByHUser " + isPausedByHUser
                             + "; isPaused() " + isPaused()
 //                    + "; button label = "+pauseButton.getText()
@@ -2058,7 +2129,7 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
                 // was not paused, so play, don't resume
                 // there is a time limit on attempt to play
                 // doPlayUrl(editTextUrlToPlay.getText().toString());
-                if (AppConfig.PAUSE_LOG_ENABLED)
+                if (getLogConfig().DEBUG==LogConfig.PAUSE)
                     Log.d(TAG, ".pauseToggle: entering; isPausedByHUser " + isPausedByHUser
                             + "; urlIsPaused " + urlIsPaused
                     );
@@ -2068,7 +2139,7 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
             pauseSpectro();
             doPauseUrl(false);
         }
-        if (AppConfig.PAUSE_LOG_ENABLED)
+        if (getLogConfig().DEBUG==LogConfig.PAUSE)
             Log.d(TAG, ".pauseToggle: exiting; isPausedByHUser " + isPausedByHUser
                             + "; isPaused() " + isPaused()
 //                    + "; button label = "+pauseButton.getText()
@@ -2076,7 +2147,7 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
     }
 
 
-//    @Override
+//    @ Override
 //    public boolean onCreateOptionsMenu(Menu menu) {
 //        // Inflate the menu; this adds items to the action bar if it is present.
 ////        getMenuInflater().inflate(R.menu.menu, menu);
@@ -2084,7 +2155,7 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
 //        return false;
 //    }
 //
-//    @Override
+//    @ Override
 //    public boolean onOptionsItemSelected(MenuItem item) {
 //        // Handle action bar item clicks here. The action bar will
 //        // automatically handle clicks on the Home/Up button, so long
@@ -2144,10 +2215,10 @@ public class SpectrogramActivity extends Activity implements SoundClientInterfac
     }
 
     public void sendEmailToSupport(final String text) {
-        if (!AppConfig.getIt().isSupportEmailEnabled()) return;
+        if (!isSupportEmailEnabled()) return;
         Intent intent = new Intent(Intent.ACTION_VIEW,
-                Uri.parse("mailto:" + AppConfig.getIt().getSupportEmailAddress()));
-        intent.putExtra(Intent.EXTRA_SUBJECT, AppConfig.getIt().getSupportEmailSubject());
+                Uri.parse("mailto:" + AppPublisher.emailAddressForSupport));
+        intent.putExtra(Intent.EXTRA_SUBJECT, "AppPublisher.getSupportEmailSubject()");//TODO washere 2017-7-1
         intent.putExtra(Intent.EXTRA_TEXT, text);
         startActivity(intent);
     }
@@ -2187,7 +2258,7 @@ tv.setText(Html.fromHtml(getString(R.string.my_text)));
         StringBuilder buf = new StringBuilder();
         buf.append("<h3>Last Anomaly:</h3><p/>");
         buf.append(lastAnomalyText);
-        if (AppConfig.getIt().isDevMode()) {
+        if (isDevMode()) {
             if (lastThrowable != null)
                 buf.append("<p/>").append(Log.getStackTraceString(lastThrowable));
         } else {
@@ -2682,20 +2753,20 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     @Override
     protected void onResume() {
         super.onResume();
-        if (AppConfig.THREADS_LOG_ENABLED || AppConfig.RESTORE_LOG_ENABLED)
+        if (getLogConfig().DEBUG==LogConfig.THREADS || getLogConfig().DEBUG==LogConfig.RESTORE)
             Log.d(TAG, ".onResume: entering");
         if (isPausedByHUser) {
             //don't restart bg threads
-            if (AppConfig.PAUSE_LOG_ENABLED || AppConfig.THREADS_LOG_ENABLED
-                    || AppConfig.RESTORE_LOG_ENABLED)
+            if (getLogConfig().DEBUG==LogConfig.PAUSE || getLogConfig().DEBUG==LogConfig.THREADS
+                    || getLogConfig().DEBUG==LogConfig.RESTORE)
                 Log.d(TAG, ".onResume: isPausedByHUser, don't restart " + Thread.currentThread());
         } else {
             //isPausedByHUser = false
             //was not paused by H user, then restart if paused by system
             if (isPaused()) {
                 // is paused, listener is null
-                if (AppConfig.PAUSE_LOG_ENABLED || AppConfig.THREADS_LOG_ENABLED
-                        || AppConfig.RESTORE_LOG_ENABLED)
+                if (getLogConfig().DEBUG==LogConfig.PAUSE || getLogConfig().DEBUG==LogConfig.THREADS
+                        || getLogConfig().DEBUG==LogConfig.RESTORE)
                     Log.d(TAG, ".onResume: before unpause() "
                             + Thread.currentThread());
                 try {
@@ -2704,18 +2775,18 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
                     //============
 //                    pauseButton.setText(getString(R.string.pause_button));
                 } catch (Exception e) {
-                    if (AppConfig.PAUSE_LOG_ENABLED || AppConfig.ERROR_LOG_ENABLED
-                            || AppConfig.THREADS_LOG_ENABLED || AppConfig.RESTORE_LOG_ENABLED)
+                    if (getLogConfig().DEBUG==LogConfig.PAUSE || getLogConfig().ERROR==LogConfig.ON
+                            || getLogConfig().DEBUG==LogConfig.THREADS || getLogConfig().DEBUG==LogConfig.RESTORE)
                         Log.e(TAG, "onResume: unpause() raised " + e + " " + Thread.currentThread());
                 }
-                if (AppConfig.PAUSE_LOG_ENABLED || AppConfig.THREADS_LOG_ENABLED
-                        || AppConfig.RESTORE_LOG_ENABLED)
+                if (getLogConfig().DEBUG==LogConfig.PAUSE || getLogConfig().DEBUG==LogConfig.THREADS
+                        || getLogConfig().DEBUG==LogConfig.RESTORE)
                     Log.d(TAG, ".onResume: after unpause() "
                             + Thread.currentThread());
             } else {
                 // is not paused
-                if (AppConfig.PAUSE_LOG_ENABLED || AppConfig.THREADS_LOG_ENABLED
-                        || AppConfig.RESTORE_LOG_ENABLED)
+                if (getLogConfig().DEBUG==LogConfig.PAUSE || getLogConfig().DEBUG==LogConfig.THREADS
+                        || getLogConfig().DEBUG==LogConfig.RESTORE)
                     Log.d(TAG, ".onResume: not paused, do nothing " + Thread.currentThread());
             }
         }
@@ -2727,25 +2798,25 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      * Designed to be done very early in the activity startup step.
      */
     private void restorePreferences() {
-        if (AppConfig.LOG_ENABLED)
+        if (getLogConfig().DEBUG==LogConfig.ON)
             Log.d(TAG, ".restorePreferences: entering...");
 
         final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
 
-        if (AppConfig.LOG_ENABLED)
+        if (getLogConfig().DEBUG==LogConfig.ON)
             Log.d(TAG, ".restorePreferences: prefs = " + prefs);
 
         SettingsForSoundPreferences.restoreInputSettings(prefs);
 
         restoreUrlToPlay(prefs);
 
-        if (AppConfig.LOG_ENABLED)
+        if (getLogConfig().DEBUG==LogConfig.ON)
             Log.d(TAG, ".restorePreferences: exiting...");
     }
 
     private void restoreUrlToPlay(final SharedPreferences prefs) {
         urlToPlay = prefs.getString(PREF_URL_KEY, "");
-        if (AppConfig.RESTORE_LOG_ENABLED)
+        if (getLogConfig().DEBUG==LogConfig.RESTORE)
             Log.d(TAG, ".restoreUrlToPlay: urlToPlay {" + urlToPlay + "}");
 //        if(urlToPlay!=null){
 //            if(editTextUrlToPlay!=null)editTextUrlToPlay.setText(urlToPlay);
@@ -2755,7 +2826,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
     private void onExceptionAtInit(Throwable ex) {
         String s = "" + ex; //ex.getLocalizedMessage() + "\n";
-        if (AppConfig.ERROR_LOG_ENABLED || AppConfig.THREADS_LOG_ENABLED) {
+        if (getLogConfig().ERROR==LogConfig.ON || getLogConfig().DEBUG==LogConfig.THREADS) {
             s += "\n" + Log.getStackTraceString(ex);
             Log.e(TAG, ".onExceptionAtInit: " + s + " " + Thread.currentThread());
         }
@@ -2771,7 +2842,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
         String onEmulatorText = null;
 
-        if (AppConfig.getIt().isOnRealDevice()) {
+        if (isOnRealDevice()) {
             //license check is disabled
             //---------------------------------------------------------------------
 //				final boolean licenseCheckStarted = startCheckLicense(
@@ -2807,7 +2878,8 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         //============================================================
 
         if (!DeviceSoundCapabilities.isDeviceCapableOfSoundInput()) {
-            if (AppConfig.INIT_LOG_ENABLED || AppConfig.SOUND_INPUT_INIT_LOG_ENABLED)
+            if (getLogConfig().DEBUG==LogConfig.INIT 
+                    || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT)
                 Log.d(TAG, ".setDeviceSoundCapabilities: device cannot do sound input");
             return false;
         }
@@ -2822,7 +2894,8 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //			writeInMonitor(DeviceSoundCapabilities.getForDisplay(
 //			    true,false,false)); //LeafyLog.SOUND_QUALITY_LOG_ENABLED)); //getDeviceAudioCapabilities();//2014-11
 
-        if (AppConfig.INIT_LOG_ENABLED || AppConfig.SOUND_INPUT_INIT_LOG_ENABLED)
+        if (getLogConfig().DEBUG==LogConfig.INIT 
+                || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT)
             Log.d(TAG, ".setDeviceSoundCapabilities: " + Timestamp.getNanosForDisplay()
                 + "; first part of initFundamentalsForDevice completed ok;" +
                 "\n xInputHzPerBinFloat = " + SettingsForSoundInput.xInputHzPerBinFloat
@@ -2854,10 +2927,10 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      */
     static String getMonitorTextForAnomalyNotif(final String text, final Throwable ex) {
         return "A severe anomaly was detected " + text
-                + (main == null && text != null
-                && (!text.contains("main") && !text.contains("appParent"))
-                ? "; and attribute *appParent* (or *main*) is null"
-                : "")
+//                + (text != null
+//                && (!text.contains("main") && !text.contains("appParent"))
+//                ? "; and attribute *appParent* (or *main*) is null"
+//                : "")
                 //+(ex==null?"":"; "+ex.toString()+" - "+ex.getLocalizedMessage());
                 ;
     }
@@ -2893,9 +2966,8 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      * convenience method.
      *
      * @param text
-     * @deprecated not used in this version
      */
-    public static void notifyForAnomaly(final String text) {
+    public void notifyForAnomaly(final String text) {
         notifyForAnomaly(text, null);
     }
 
@@ -2907,19 +2979,19 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      *
      * @param text
      * @param ex   Throwable, may be null.
-     * @deprecated not used in this version
      */
-    public static void notifyForAnomaly(final String text, final Throwable ex) {
+    public void notifyForAnomaly(final String text, final Throwable ex) {
 
-        if(AppConfig.SOUND_QUALITY_LOG_ENABLED || AppConfig.ERROR_LOG_ENABLED) {
-            Log.e(TAG, "notifyForAnomaly: AppConfig.getIt().isSupportEmailEnabled() "
-                    + AppConfig.getIt().isSupportEmailEnabled()
+        if(getLogConfig().DEBUG==LogConfig.SOUND_QUALITY
+                || getLogConfig().ERROR==LogConfig.ON) {
+            Log.e(TAG, "notifyForAnomaly: isSupportEmailEnabled() "
+                    + isSupportEmailEnabled()
                     //+"; Settings.anomalyReportToFileIsEnabled "+Settings.anomalyReportToFileIsEnabled
                     + "\n" + text);
         }
 
-        if(USER_LOG_INIT && main!=null){
-            main.showStatusSnackbar(text);
+        if(USER_LOG_INIT){
+            showStatusSnackbar(text);
         }
 
         final String detailsForEmail = getAnomalyDetailsForEmail(ex);
@@ -2930,18 +3002,11 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
         final String all = monitorText + "\n\n" + detailsForEmail;
 
-        if (AppConfig.getIt().isSupportEmailEnabled() && main != null
-                && OnAnyThread.IT.isConnected(main, AppConfig.getIt().isSimulatingNoConnection())) {
+        if (isSupportEmailEnabled() 
+                && OnAnyThread.IT.isConnected(isSimulatingNoConnection())) {
             //try to send email to de. and write in monitor and console (short msg referring to monitor, app msgs);
 
-            if (main != null) {
-                main.sendEmailToSupport(all);
-//                appParent.writeInConsoleByApp(consoleMsg);
-//                writeInMonitor(monitorText);
-            } else {
-                //here appParent is null, can only write to file (if room and allowed)
-//                writeAnomalyReportToFileNoException(all);
-            }
+            sendEmailToSupport(all);
 
             //rules for adding the stack trace to monitor
 //            if (ex!=null && ! AppConfig.getIt().isSupportEmailEnabled()){ // && ! Settings.anomalyReportToFileIsEnabled) {
@@ -2971,9 +3036,9 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      * @param statusCode
      * @param text
      */
-    @Override
+    
     public void results(int statusCode, String text) {
-        if(AppConfig.LOG_ENABLED)
+        if(getLogConfig().DEBUG==LogConfig.ON)
             Log.d(TAG, ".results: statusCode " + statusCode + ": " + text);
         if(USER_LOG_INIT) {
             showStatusSnackbar( "results: statusCode " + statusCode + ": " + text );
@@ -2989,18 +3054,18 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      * @param user       String ID; ex.: H, C, A
      * @param isNewLine  boolean; true will force a new line to be started
      */
-    @Override
+    
     public void results(int statusCode, String text, long millis, String user, boolean isNewLine) {
         if(USER_LOG_INIT) {
             String s = "results: statusCode " + statusCode + ": " + text + "; millis " + millis
                     + "; user " + user + "; isNewLine " + isNewLine;
             showStatusSnackbar(s);
-            if(AppConfig.LOG_ENABLED)
+            if(getLogConfig().DEBUG==LogConfig.ON)
                 Log.d(TAG, "."+s);
         }
     }
 
-    @Override
+    
     public boolean isPaused() {//TODO future review with preserve bg image when app interrupted
         if (DeviceSoundCapabilities.getFundamentalsInitialized()) {
             //initialized, then depends on listener being null or not
@@ -3010,7 +3075,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         return false;
     }
 
-    @Override
+    
     public void unpause() throws Exception {
         getListener();
     }
@@ -3041,10 +3106,10 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //            try {
 ////                listener.startSoundInput(this);
 //                listener = BasicListener.getARunningListener(this);
-//                if(AppConfig.PAUSE_LOG_ENABLED)
+//                if(getLogConfig().DEBUG==LogConfig.PAUSE)
 //                    Log.d(TAG, ".startListener(): *listener.startSoundInput(this)* completed ok.");
 //            } catch (Exception e) {
-//                if(AppConfig.SOUND_INPUT_INIT_LOG_ENABLED || AppConfig.ERROR_LOG_ENABLED)
+//                if(getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT || getLogConfig().ERROR==LogConfig.ON)
 //                    Log.e(TAG,".startListener(): *BasicListener.getARunningListener(this)* raised "+e.getMessage()
 //                            +"\n"+DeviceSoundCapabilities.getFundamentalsSummaryForDisplay());
 //                Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
@@ -3055,12 +3120,12 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //        return listener;
 //    }
 
-    @Override
+    
     public String getHUser() {
         return "H";
     }
 
-    @Override
+    
     public String getNonHUser() {
         return "X";
     }
@@ -3072,7 +3137,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      * above 8000 and we are not on an emulator, i.e., if
      * 44,100 and 96,000 are not available.
      */
-//    @Override
+//    @ Override
 //    public boolean isNativeSampleRateRequested() {
 //        return true;
 //    }
@@ -3099,7 +3164,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      * @return boolean; when true, the float encoding will be favored above the byte encoding for
      * a given rate; when false, the byte encoding is favored.
      */
-//    @Override
+//    @ Override
 //    public boolean isEncodingPcmFloatPreferred() {
 //        return false;
 //    }
@@ -3154,7 +3219,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      *
      * @return true when app is requesting an AudioConfig with mono channels, for input and output.
      */
-//    @Override
+//    @ Override
 //    public boolean isChannelMonoRequested() {
 //        return true;
 //    }
@@ -3179,7 +3244,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         soundPrefs.isEncodingPcmFloatPreferred = false;//TODO future true with new code for float processing
         soundPrefs.isNativeSampleRateRequested = true;
         soundPrefs.isSameEncodingPcmForInputAndOutputRequested = false;
-        if(AppConfig.LOG_ENABLED){
+        if(getLogConfig().DEBUG==LogConfig.ON){
             Log.d(TAG,".getSoundClientPreferences: isMicPreferred {"+soundPrefs.isMicPreferred
             +"} isChannelMonoRequested {"+soundPrefs.isChannelMonoRequested
             +"} isEncodingPcmFloatPreferred {"+soundPrefs.isEncodingPcmFloatPreferred
@@ -3196,7 +3261,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     /**
      * @return float volume percent
      */
-    @Override
+    
     public float notifyVolume() {
         return 0;
     }
@@ -3206,7 +3271,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      *
      * @param tf boolean; emission success status; true or false.
      */
-    @Override
+    
     public void emissionCompletionStatus(boolean tf) {
     }
 
@@ -3215,7 +3280,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      *
      * @return null for EmitterGrandParent
      */
-    @Override
+    
     public EmitterGrandParent getEmitter() {
         return null;
     }
@@ -3246,7 +3311,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
             } catch (Exception e) {
                 disableThePauseButton(null);
                 showProblemStartingListener();
-                if (AppConfig.ERROR_LOG_ENABLED)
+                if (getLogConfig().ERROR==LogConfig.ON)
                     Log.e(TAG, ".getListener: " + e + " " + Log.getStackTraceString(e));
                 throw e;
             }
@@ -3276,10 +3341,10 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //            try {
 ////                listener.startSoundInput(this);
 //                listener = BasicListener.getARunningListener(this);
-//                if(AppConfig.PAUSE_LOG_ENABLED)
+//                if(getLogConfig().DEBUG==LogConfig.PAUSE)
 //                    Log.d(TAG, ".startListener(): *listener.startSoundInput(this)* completed ok.");
 //            } catch (Exception e) {
-//                if(AppConfig.SOUND_INPUT_INIT_LOG_ENABLED || AppConfig.ERROR_LOG_ENABLED)
+//                if(getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT || getLogConfig().ERROR==LogConfig.ON)
 //                    Log.e(TAG,".startListener(): *BasicListener.getARunningListener(this)* raised "+e.getMessage()
 //                            +"\n"+DeviceSoundCapabilities.getFundamentalsSummaryForDisplay());
 //                Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
@@ -3294,7 +3359,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         BasicListener.shutdownTheRunningListener();
     }
 
-    @Override
+    
     public Object getAndroidActivityContext() {
         return this;
     }
@@ -3322,7 +3387,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         super.onPause();
         savePrefs();
         isPausedByHUser = false;
-        if (AppConfig.PAUSE_LOG_ENABLED || AppConfig.THREADS_LOG_ENABLED)
+        if (getLogConfig().DEBUG==LogConfig.PAUSE || getLogConfig().DEBUG==LogConfig.THREADS)
             Log.d(TAG, ".onPause: prefs saved; calling closeListener() " + Thread.currentThread());
         closeListener();
         if (player != null) player.shutdown();//TODO should we null the player?
@@ -3351,7 +3416,8 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
             SharedPreferences.Editor editor = prefs.edit();
             editor.putString(PREF_URL_KEY, urlToPlay);
             editor.commit();
-            if (AppConfig.RESTORE_LOG_ENABLED || AppConfig.SAVE_PREF_LOG_ENABLED) {
+            if (getLogConfig().DEBUG==LogConfig.RESTORE 
+                    || getLogConfig().DEBUG==LogConfig.SAVE_PREF) {
                 Log.d(TAG, ".saveUrl: urlToPlay {" + urlToPlay
                         + "} PREF_URL_KEY {" + PREF_URL_KEY + "}");
             }
@@ -3382,7 +3448,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         final String action = intent.getAction();
         String type = intent.getType();
         if (!Intent.ACTION_SEND.equals(action) || type == null) {
-            if (AppConfig.LOG_INTENT)
+            if (getLogConfig().DEBUG==LogConfig.INTENT)
                 Log.d(TAG,".isInboundIntentToPlay: returning false; not SEND or type is null");
             return false;
         }
@@ -3415,7 +3481,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
                     j = i+1;
 
-                    if (AppConfig.LOG_INTENT)
+                    if (getLogConfig().DEBUG==LogConfig.INTENT)
                         Log.d(TAG,"isInboundIntentToPlay: clipData item "+j+" of "+itemCount+": "
                                 +itemAt
                             +"\nText {"+text+"}"
@@ -3424,7 +3490,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
                             );
                     if(isContainingWavUrl(text)){
                         // this will return the last link if more than one
-                        if (AppConfig.LOG_INTENT)
+                        if (getLogConfig().DEBUG==LogConfig.INTENT)
                             Log.d(TAG,"isInboundIntentToPlay: clipData item "+j+" of "+itemCount
                                 +": clipDataItemText {"+clipDataItemText+"}");
                         clipDataItemText = text;
@@ -3468,9 +3534,9 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      * @return boolean true when intent is valid; false when no valid intent present or when failure
      */
     private boolean handleIncomingIntent(final String urlFromPrefs) {
-        if (AppConfig.INIT_LOG_ENABLED || AppConfig.SOUND_INPUT_INIT_LOG_ENABLED
-                || AppConfig.LOG_INTENT || AppConfig.RESTORE_LOG_ENABLED
-                || AppConfig.PLAY_URL_LOG_ENABLED) {
+        if (getLogConfig().DEBUG==LogConfig.INIT || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT
+                || getLogConfig().DEBUG==LogConfig.INTENT || getLogConfig().DEBUG==LogConfig.RESTORE
+                || getLogConfig().DEBUG==LogConfig.PLAY_URL) {
             Log.d(TAG, ".handleIncomingIntent: entering");
         }
         final Intent intent = getIntent();
@@ -3490,7 +3556,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
                 // the app start intent not valid send intent;
                 // could be normal start without an play intent or invalid send or play intent
 
-                if (AppConfig.LOG_INTENT || AppConfig.PLAY_URL_LOG_ENABLED)
+                if (getLogConfig().DEBUG==LogConfig.INTENT || getLogConfig().DEBUG==LogConfig.PLAY_URL)
                     Log.d(TAG, ".handleIncomingIntent: not valid intent to play {" + intent + "}");
                 if (isActionSendIntent(intent)) {
                     // the start intent is a send one from external app, and it's invalid
@@ -3511,7 +3577,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
             urlToPlay = getUrlToPlay(intent);
             setUrlToPlayInUi(urlToPlay);
 
-            if (AppConfig.LOG_INTENT || AppConfig.PLAY_URL_LOG_ENABLED)
+            if (getLogConfig().DEBUG==LogConfig.INTENT || getLogConfig().DEBUG==LogConfig.PLAY_URL)
                 Log.d(TAG, ".handleIncomingIntent: possibly valid intent to play;" +
                         " calling play(\nintent {" + intent
                         + "},\n urlToPlayUri {"+urlToPlayUri
@@ -3522,12 +3588,12 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
             // ===========================================================
 
             if (intentIsValid) {
-                if (AppConfig.LOG_INTENT)
+                if (getLogConfig().DEBUG==LogConfig.INTENT)
                     Log.d(TAG,".handleIncomingIntent: true returned by player.play(intent {"
                             + intent + "}, urlToPlayUri, urlToPlay)");
             } else {
                 // the url from the intent is invalid
-                if (AppConfig.LOG_INTENT || AppConfig.PLAY_URL_LOG_ENABLED)
+                if (getLogConfig().DEBUG==LogConfig.INTENT || getLogConfig().DEBUG==LogConfig.PLAY_URL)
                     Log.d(TAG, ".handleIncomingIntent: false returned by player.play(intent {"
                             + intent + "}, urlToPlayUri, urlToPlay)");
                 invalidIntent(intent, urlToPlay);
@@ -3543,7 +3609,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
             return intentIsValid;
 
         } catch (Throwable e) {
-            if (AppConfig.ERROR_LOG_ENABLED)
+            if (getLogConfig().ERROR==LogConfig.ON)
                 Log.e(TAG, ".handleIncomingIntent: " + e + "; " + Log.getStackTraceString(e));
             invalidIntent(intent, null);
             setUrlToPlayInUi("");
@@ -3568,7 +3634,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         urlToPlayDecoded = "";
         //TODO washere washere spectro bug this does not work for extra_stream for type AUDIO_*
         urlToPlayRaw = intent.getStringExtra(Intent.EXTRA_TEXT);
-        if (AppConfig.LOG_INTENT)
+        if (getLogConfig().DEBUG==LogConfig.INTENT)
             Log.d(TAG, ".handleIncomingIntent: urlToPlayRaw from Intent.EXTRA_TEXT {"
                     + urlToPlayRaw + "}");
         if (urlToPlayRaw == null) {
@@ -3609,7 +3675,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     }
 
     private void invalidUrl(final String urlString) {
-        if (AppConfig.LOG_INTENT)
+        if (getLogConfig().DEBUG==LogConfig.INTENT)
             Log.d(TAG, ".invalidUrl: invalid URL text {" + urlString + "}");
         if (largeGuiLayout != null)
             Snackbar.make(largeGuiLayout,
@@ -3618,7 +3684,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     }
 
     private void invalidIntent(final Intent intent, final String invalidUrl) {
-        if (AppConfig.LOG_INTENT)
+        if (getLogConfig().DEBUG==LogConfig.INTENT)
             Log.e(TAG, ".invalidIntent: invalid intent {" + intent + "}");
         String x = invalidUrl == null || invalidUrl.isEmpty() ? "" : ": " + invalidUrl;
         if (largeGuiLayout != null) {
@@ -3632,7 +3698,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     }
 
     private void showError(final String text) {
-        if (AppConfig.LOG_INTENT || AppConfig.LOG_ENABLED || AppConfig.ERROR_LOG_ENABLED)
+        if (getLogConfig().DEBUG==LogConfig.INTENT || getLogConfig().DEBUG==LogConfig.ON || getLogConfig().ERROR==LogConfig.ON)
             Log.e(TAG, ".showError {" + text + "}");
         if (largeGuiLayout != null) {
             Snackbar.make(largeGuiLayout, text, Snackbar.LENGTH_LONG).show();
@@ -3649,7 +3715,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      * @return true when succeeded, false when failure.
      */
     private boolean play(final Intent intent, final Uri uri, final String urlToPlayGiven) {
-        if (AppConfig.LOG_INTENT || AppConfig.PLAY_URL_LOG_ENABLED)
+        if (getLogConfig().DEBUG==LogConfig.INTENT || getLogConfig().DEBUG==LogConfig.PLAY_URL)
             Log.d(TAG, ".play: trying to play intent for remote file {" + intent
                     + "} uri {" + uri + "} urlToPlayGiven {" + urlToPlayGiven + "}");
         //urlToPlay = urlToPlayDecoded;
@@ -3660,7 +3726,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     }
 
 //    private boolean play(final Intent intent, final String urlToPlayGiven){
-//        if (AppConfig.LOG_INTENT)
+//        if (getLogConfig().DEBUG==LogConfig.INTENT)
 //            Log.d(TAG, ".play: trying to play intent for remote file {" + intent
 //                    + "} urlToPlayGiven {"+urlToPlayGiven+"}");
 //        //urlToPlay = urlToPlayDecoded;
@@ -3682,13 +3748,13 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //            throws UnsupportedEncodingException {
 //
 //        urlToPlayDecoded = URLDecoder.decode(urlToPlayRawGiven, "UTF-8");
-//        if (AppConfig.LOG_INTENT)
+//        if (getLogConfig().DEBUG==LogConfig.INTENT)
 //            Log.d(TAG, ".playRemoteFile: url is text; urlToPlayDecoded {"
 //                    + urlToPlayDecoded + "}");
 //
 //        if (urlToPlayDecoded != null && !urlToPlayDecoded.isEmpty()) {
 //            // external url or uri to play may be ok, try it
-//            if (AppConfig.LOG_INTENT || AppConfig.PLAY_URL_LOG_ENABLED)
+//            if (getLogConfig().DEBUG==LogConfig.INTENT || getLogConfig().DEBUG==LogConfig.PLAY_URL)
 //                Log.e(TAG, ".playRemoteFile: trying to play intent with text URL to remote file {"
 //                        + intent + "}");
 //            urlToPlay = urlToPlayDecoded;
@@ -3716,7 +3782,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //     * @deprecated
 //     */
 //    private boolean playLocalFile(final Intent intent, final Uri uriGiven, final String filepath) {
-//        if (AppConfig.LOG_INTENT)
+//        if (getLogConfig().DEBUG==LogConfig.INTENT)
 //            Log.d(TAG, ".playLocalFile: entering with filepath {" + filepath + "}");
 //
 ////      Try to open the file for "read" access using the
@@ -3725,13 +3791,13 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //        FileDescriptor fd = getFileDescriptorForPrivateFileWithRetries(filepath);
 //
 //        if (fd == null) {
-//            if (AppConfig.LOG_INTENT)
+//            if (getLogConfig().DEBUG==LogConfig.INTENT)
 //                Log.d(TAG, "playLocalFile: File cannot be opened {" + filepath + "}");
 //            showError("File cannot be opened");
 //            return false;
 //        }
 //
-//        if (AppConfig.LOG_INTENT)
+//        if (getLogConfig().DEBUG==LogConfig.INTENT)
 //            Log.d(TAG, "playLocalFile: File opened!!! {" + filepath + "} descriptor {" + fd + "}");
 //
 //        boolean success = false;
@@ -3743,7 +3809,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 ////            try {
 ////                pfd.close();
 ////            } catch (IOException ignore) {
-////                if (AppConfig.LOG_INTENT||AppConfig.ERROR_LOG_ENABLED)
+////                if (getLogConfig().DEBUG==LogConfig.INTENT||getLogConfig().ERROR==LogConfig.ON)
 ////                    Log.e(TAG, "playLocalFile: File found: {"+filepath+"}, descriptor {"+fd+"}"
 ////                    +" IOException "+ignore+" "+Log.getStackTraceString(ignore));
 ////            }
@@ -3760,13 +3826,13 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         try {
             fd = openFileInput(filepath).getFD();
         } catch (IllegalArgumentException e) {
-            if (AppConfig.LOG_INTENT || AppConfig.ERROR_LOG_ENABLED)
+            if (getLogConfig().DEBUG==LogConfig.INTENT || getLogConfig().ERROR==LogConfig.ON)
                 Log.e(TAG, "getFileDescriptorForPrivateFile: File {" + filepath + "}"
                         + " IOException " + e + " " + Log.getStackTraceString(e));
             //showError("File cannot be opened");
             return null;
         } catch (IOException e) {
-            if (AppConfig.LOG_INTENT || AppConfig.ERROR_LOG_ENABLED)
+            if (getLogConfig().DEBUG==LogConfig.INTENT || getLogConfig().ERROR==LogConfig.ON)
                 Log.e(TAG, "getFileDescriptorForPrivateFile: File {" + filepath + "}"
                         + " IOException " + e + " " + Log.getStackTraceString(e));
             //showError("File cannot be opened");
@@ -3824,7 +3890,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //        Uri uri = uriGiven;
 //        if (uri == null) {
 //            uri = Uri.parse(filepath);
-//            if (AppConfig.LOG_INTENT)
+//            if (getLogConfig().DEBUG==LogConfig.INTENT)
 //                Log.d(TAG, ".getFileDescriptorWithContentResolverAndPfd: " +
 //                        "Uri.parse(filepath) returned uri {" + uri + "}");
 //        }
@@ -3859,9 +3925,9 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      * Designed to be used in runOnUiThread.
      */
     private final Runnable RUNNABLE_TO_SHOW_ANOMALY_TEXT = new Runnable() {
-        @Override
+        
         public void run() {
-            if (AppConfig.RESTORE_LOG_ENABLED || AppConfig.ERROR_LOG_ENABLED)
+            if (getLogConfig().DEBUG==LogConfig.RESTORE || getLogConfig().ERROR==LogConfig.ON)
                 Log.e(SpectrogramActivity.TAG, getLastAnomalyTextInHtml());
             if (about != null) {
 //                if(lastAnomalyText==null || lastAnomalyText.isEmpty()){
@@ -3905,7 +3971,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     }
 
     private final Runnable RUNNABLE_TO_CLEAR_ANOMALY_TEXT = new Runnable() {
-        @Override
+        
         public void run() {
             updateAboutButtonOnUIThread();
         }
@@ -3915,13 +3981,13 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         if (lastAnomalyText == null || lastAnomalyText.length() == 0) {
             if (about != null) {
                 about.setText("About");//TODO use res
-                if (AppConfig.UI_LOG_ENABLED)
+                if (getLogConfig().DEBUG==LogConfig.UI)
                     Log.d(TAG,"updateAboutButtonOnUIThread: about button label set to *About*");
             }
         } else {
             if (about != null) {
                 about.setText("Error");//TODO use res
-                if (AppConfig.UI_LOG_ENABLED)
+                if (getLogConfig().DEBUG==LogConfig.UI)
                     Log.d(TAG,"updateAboutButtonOnUIThread: about button label set to *Error*");
             }
         }
@@ -3935,13 +4001,13 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     }
 
     private final Runnable RUNNABLE_FOR_PLAYER_STARTING_TO_PLAY = new Runnable() {
-        @Override
+        
         public void run() {
             if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
         }
     };
 
-    @Override
+    
     public void onStartingToPlay() {
         runOnUiThread(RUNNABLE_FOR_PLAYER_STARTING_TO_PLAY);
     }
@@ -3949,7 +4015,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     volatile String textForEndOfPlay = "Normal end of play";
 
     private final Runnable RUNNABLE_FOR_PLAYER_NORMAL_END = new Runnable() {
-        @Override
+        
         public void run() {
             if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
             Snackbar.make(largeGuiLayout, textForEndOfPlay,
@@ -3959,7 +4025,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         }
     };
 
-    @Override
+    
     public void onNormalEndOfPlay( boolean audioFocusIsLost) {
         textForEndOfPlay = "The sound file has ended normally";
         if(audioFocusIsLost){
@@ -3969,7 +4035,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     }
 
     private final Runnable RUNNABLE_FOR_ANOMALY_IN_PLAYER = new Runnable() {
-        @Override
+        
         public void run() {
             doCancelUrl();
             if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
@@ -3990,7 +4056,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      * @param e            may be null
      * @param errorMessage String
      */
-    @Override
+    
     public void onAnomalyDetectedByPlayer(final Throwable e, final String errorMessage) {
         if(isCancelling){
             return;
@@ -4001,7 +4067,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     }
 
     private final Runnable RUNNABLE_FOR_AUDIO_FOCUS_REFUSED = new Runnable() {
-        @Override
+        
         public void run() {
             doCancelUrl();
             if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
@@ -4014,12 +4080,12 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         }
     };
 
-    @Override
+    
     public void onAudioFocusRefused(){
         runOnUiThread(RUNNABLE_FOR_AUDIO_FOCUS_REFUSED);
     }
 
-    @Override
+    
     public Context getContextForSmartPlayer(){
         return this;
     }
@@ -4065,26 +4131,89 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         return super.onKeyDown(keyCode, event);
     }
 
-//    /**
+//    /* *
 //     * Disable app restart and the loss of data (url) when config changes,
 //     * in coordination with THE manifest.xml file.
 //     *
 //     * @param config
 //     */
-//    @Override
+//    @ Override
 //    public void onConfigurationChanged(Configuration config){
 //        super.onConfigurationChanged(config);
 //
 ////        restoreUrlToPlay();
 ////        if(editTextUrlToPlay!=null)
 ////            editTextUrlToPlay.setText(urlToPlay);
-////        if(AppConfig.RESTORE_LOG_ENABLED){
+////        if(getLogConfig().DEBUG==LogConfig.RESTORE){
 ////            Log.d(TAG,".onConfigurationChanged: urlToPlay {"+urlToPlay+"}");
 ////        }
 //    }
 
     public boolean isDevMode() {
-        return AppConfig.getIt().isDevMode();
+        return true;
+    }
+
+    
+    public boolean isEduVersion() {
+        return false;
+    }
+
+    
+    public boolean isSupportEmailEnabled() {//TODO washere 2017-6-28 complete a bunch
+        return false;
+    }
+
+    
+    public boolean isAdsCapable() {
+        return false;
+    }
+
+    
+    public boolean isShowAdsWhenDonated() {
+        return false;
+    }
+
+    
+    public boolean isDonationsCapable() {
+        return false;
+    }
+
+    
+    public boolean isUseTestPurchase() {
+        return false;
+    }
+
+    
+    public boolean isUseEmptyIabPayload() {
+        return false;
+    }
+
+    
+    public boolean isSimulatingNoConnection() {
+        return false;
+    }
+
+    
+    public boolean isSimulatingNoPurchase() {
+        return false;
+    }
+
+    /**
+     * 
+     * @return
+     * @deprecated replaced by method in AppContext
+     */
+    public int getVersionCode() {
+        return 0;
+    }
+
+    /**
+     * 
+     * @return
+     * @deprecated replaced by method in AppContext
+     */
+    public String getVersionName() {
+        return null;
     }
 
     @Override
