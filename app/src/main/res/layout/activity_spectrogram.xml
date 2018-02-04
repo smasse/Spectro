@@ -3,9 +3,9 @@
     android:id="@+id/spectrogram2_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0099cc"
     android:keepScreenOn="true"
     tools:context="sm.app.spectro.SpectrogramActivity">
+    <!-- android:background="#0099cc" -->
 
     <sm.lib.acoustic.sound.forandroid.input.spectrogram.SpectrogramView
         android:id="@+id/spectrogram2"

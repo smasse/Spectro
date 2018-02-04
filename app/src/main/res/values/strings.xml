@@ -1,3 +1,23 @@
+<!--
+ * Copyright 2016-2018 Serge Masse
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * It is the wish of the copyright holder that this software not be used
+ * for the purpose of killing, harming, or capturing animals.
+ * The use of this software with captive cetaceans and other large mammals
+ * in captivity is discouraged.
+-->
 <resources>
     <string name="app_name">sm Spectrogram</string>
     <string name="app_name_short">Spectrogram</string>
@@ -17,7 +37,7 @@
     <string name="action_our_apps">Our Apps</string>
     <string name="action_device_sound_capabilities">Device</string>
     <string name="action_pause">Pause</string>
-    <string name="action_restart">Restart</string>
+    <string name="action_restart">Resume</string>
 
     <!--<string name="title_activity_fullscreen">FullscreenActivity</string>-->
 
@@ -38,8 +58,8 @@
     <string name="app_publisher_web_site_url">https://plus.google.com/+SergeMasse</string>
     <string name="app_publisher_google_play_pub">Serge%20Masse</string>
     <string name="db_provider_authority_prefix">sergemasse</string>
-    <string name="app_publisher_copyright">COPYRIGHT 2016-2017 Serge Masse</string>
-    <string name="support_email_subject_line">sm Spectrogram - User Requesting Support</string>
+    <string name="app_publisher_copyright">COPYRIGHT 2016&#8211;2018 Serge Masse</string>
+    <string name="support_email_subject_line">sm Spectrogram &#8211; User Requesting Support</string>
 
     <string name="url_example">https://</string>
     <string name="url_no_sound_output">Device does not support sound output</string>
@@ -47,7 +67,7 @@
 
 
     <string name="pause_button">Pause</string>
-    <string name="pause_button_restart">Restart</string>
+    <string name="pause_button_restart">Resume</string>
     <!--
     our_apps_short_part1
     our_apps_please_note

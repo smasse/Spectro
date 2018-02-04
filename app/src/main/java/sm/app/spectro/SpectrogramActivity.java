@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2017 Serge Masse
+ * Copyright 2016-2018 Serge Masse
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,21 +21,28 @@
 package sm.app.spectro;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.app.Activity;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.content.ClipData;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.provider.OpenableColumns;
+import android.support.annotation.NonNull;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
+import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.ContextCompat;
 import android.text.Html;
 import android.text.Spanned;
@@ -44,7 +51,6 @@ import android.util.Log;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
-import android.view.ViewStub;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
@@ -52,98 +58,44 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.io.FileDescriptor;
-import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
 
 import sm.leafy.util.LeafyClient;
 import sm.leafy.util.LogConfig;
 import sm.leafy.util.forandroid.AppContext;
 import sm.leafy.util.forandroid.AppPublisher;
-import sm.leafy.util.forandroid.LeafyClientForAndroid;
+import sm.leafy.util.forandroid.DataFromIntent;
 import sm.leafy.util.forandroid.OnAnyThread;
 import sm.leafy.util.forandroid.Timestamp;
 import sm.lib.acoustic.sound.EmitterGrandParent;
-import sm.lib.acoustic.sound.SoundClient;
-import sm.lib.acoustic.sound.SoundClientPreferences;
 import sm.lib.acoustic.sound.forandroid.DeviceSoundCapabilities;
 import sm.lib.acoustic.sound.forandroid.SettingsForSoundPreferences;
+import sm.lib.acoustic.sound.forandroid.SoundClient;
+import sm.lib.acoustic.sound.forandroid.SoundClientPreferences;
 import sm.lib.acoustic.sound.forandroid.input.BasicListener;
 import sm.lib.acoustic.sound.forandroid.input.SettingsForSoundInput;
 import sm.lib.acoustic.sound.forandroid.input.SettingsForSoundInputDisplay;
 import sm.lib.acoustic.sound.forandroid.input.spectrogram.SpectrogramView;
-import sm.lib.acoustic.sound.forandroid.output.SmartPlayer;
+import sm.lib.acoustic.sound.forandroid.output.AudioPlayer;
 import sm.lib.acoustic.sound.forandroid.quality.SoundQualitySettings;
 
 import static sm.leafy.util.LeafyClient.APP_TYPE_EDU;
 import static sm.leafy.util.LeafyClient.APP_TYPE_FREE;
 import static sm.leafy.util.LeafyClient.APP_TYPE_FREE_WITH_ADS;
 import static sm.leafy.util.LeafyClient.APP_TYPE_PRICED;
+import static sm.leafy.util.forandroid.OnAnyThread.getAppName;
 import static sm.leafy.util.forandroid.OnAnyThread.isOnRealDevice;
 
-//TODO 2017-7-1
-// the about button hides the spectrogram and does not show a text
-
-//TODO 2017-6-3
-/*
-Window window = activity.getWindow();
-window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
-window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
-window.setStatusBarColor(ContextCompat.getColor(activity, R.color.example_color));
-
-android:statusBarColor = @android:color/transparent
-
-    <!-- Make the status bar traslucent -->
-    <style name="AppTheme" parent="AppTheme.Base">
-        <item name="android:windowTranslucentStatus">true</item>
-    </style>
- */
-
-//TODO washere bug no display of sound bins on tablet 2017-5-6
-
-//also takes a long time to start on a tablet (Nexus 9) - white screen for many seconds
-// then black screen with gui but no drawing for many seconds
-// then cursor moving but no display as if mic no working
-/* app frosen when paused and attempt to restart failed:
-05-06 16:32:04.805 5601-5601/sm.app.spectro I/Choreographer: Skipped 595 frames!  The application may be doing too much work on its main thread.
-05-06 16:32:04.831 5601-5601/sm.app.spectro D/SettingsForSoundOutput: dependentsOnVoltageSamplingRate(VoltageSampling vs): entering with vs = sm.lib.acoustic.sound.VoltageSampling@bdfa87c
-05-06 16:32:04.834 5601-5601/sm.app.spectro D/SettingsForSoundOutput: dependentsOnVoltageSamplingRate(vs): xOutputVSPerFS = 1200.0
-                                                                       = vs.RATE_PER_SEC_FLOAT / (float) getXHzSamplingRate().PER_SEC;
-                                                                       vs.RATE_PER_SEC_FLOAT = 48000.0
-                                                                       getXHzSamplingRate().PER_SEC = 40
-...
-05-06 16:37:52.835 11068-11068/sm.app.spectro D/SettingsForSoundOutput: dependentsOnVoltageSamplingRate(VoltageSampling vs): entering with vs = sm.lib.acoustic.sound.VoltageSampling@bdfa87c
-05-06 16:37:52.835 11068-11068/sm.app.spectro D/SettingsForSoundOutput: dependentsOnVoltageSamplingRate(vs): xOutputVSPerFS = 1200.0
-                                                                         = vs.RATE_PER_SEC_FLOAT / (float) getXHzSamplingRate().PER_SEC;
-                                                                         vs.RATE_PER_SEC_FLOAT = 48000.0
-                                                                         getXHzSamplingRate().PER_SEC = 40
-TODO 05-06 16:37:54.848 11068-11081/sm.app.spectro W/AudioSystem: ioConfigChanged() closing unknown input 1350
-
-TODO maybe app audio input source = android default, not mic
- */
-
-
-//TODO washere washere list of sources of ceta sounds; to add in about text
-/* TODO activity with text containing URLs of ceta sounds
-TODO in prominence in play store text
-
-Great to analyse live sounds and recorded sound files.
-This app does not record sound but will play most types of recorded files and will display the histogram of the sound as it is played.
-To do that, one way is to go to the sound file using the Chrome browser and to share the sound to this app.
-To share the sound file, you open the pop-up on the sound file link and you select the share option, which has an icon that looks like three linked dots.
-When the choices of ways to share comes up, you select the icon for this app.
-
-Some web sites do not let their sounds to be shared.
-
-You can also use other sound apps that can share recorded files with this app, often in a similar fashion to using Chrome for sharing.
- */
 /**
  *
  * sm Spectrogram app
  *
- * <p/>COPYRIGHT (C) 2015-2017 Serge Masse
+ * <p/>COPYRIGHT (C) 2015-2018 Serge Masse
  *
  * <p/>
  * It is the wish of the author that this software not be used
@@ -151,29 +103,33 @@ You can also use other sound apps that can share recorded files with this app, o
  * The use of this software with captive cetaceans and
  * other captive large mammals is discouraged.
  *
- * <p/>SmartPlayer is used to play recordings.
- * <pre>SmartPlayer contains public interface Callback {
+ * <p/>AudioPlayer is used to play recordings.
+ * <pre>AudioPlayer contains public interface Callback {
  void onStartingToPlay();
  void onNormalEndOfPlay(boolean audioFocusIsLost);// or when audio focus is lost
  void onAnomalyDetectedByPlayer(Throwable e, String errorMessage);
  void onAudioFocusRefused();
  Context getContextForSmartPlayer();
+ //others
  }</pre>
  *
  * @author Serge Masse
- *
- * <!-- https://developer.android.com/studio/publish/index.html -->
  */
-public class SpectrogramActivity extends Activity implements SoundClient.Callback,
-        SmartPlayer.Callback {
+public class SpectrogramActivity extends Activity implements SoundClient.Callback {
 
     private static final String TAG = SpectrogramActivity.class.getSimpleName();
 
-    //public static volatile SpectrogramActivity main = null;
+    /**
+     * only to be used for issues prior to LogConfig.DEBUG = INIT being set;
+     * normally false in production
+     */
+    public static final boolean LOG_INIT_ENABLED = false;
 
-    //private volatile BasicListener listener = null;
-
-    public static final boolean USER_LOG_INIT = false;
+    /**
+     * only to be used for showing user some init events;
+     * normally false in production
+     */
+    public static final boolean SHOW_USER_INIT_EVENTS_ENABLED = false;
 
     /**
      * true means that the text for our apps is to be shown in a specific window;
@@ -257,24 +213,73 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
      */
     boolean hideBgIsSet = false;
     boolean spectrogramShown = true;
+
+    public static final String PREF_BITMAP_KEY = "bitmap";
+
+
+    // ==== file-to-play data:
+
+    /* *
+     * @ deprecated replaced by file name and size
+     */
+//    public static final String PREF_URL_KEY = "url_to_play";
+
+    // intent data not saved in preferences in this version
+//    public static final String PREF_URL_FILE_SIZE_KEY = "url_to_play_file_size";
+//    public static final String PREF_URL_FILE_NAME_KEY = "url_to_play_file_name";
+
+//    String fileSizeToPlayFromPref = "";
+//    String fileNameToPlayFromPref = "";
+
+    /* *
+     * decoded, used to display in edit text TODO display the user filename, not the internal doc id
+     * @ deprecated not useful in this version
+     */
+//    volatile String urlToPlayString = "";
+
+    /* *
+     * @ deprecated ===TODO=== deprecated TBD
+     */
+//    String urlToPlayFromPref = "";
+
     boolean urlIsPlaying = false;
-    boolean urlShown = true;
+    boolean urlIsShown = true;
     boolean urlIsPaused = false;
 
     /**
-     * decoded, used to display in edit text
+     * from the inbound intent or from restored preferences;
+     * to be displayed on UI.
      */
-    volatile String urlToPlay = "";
-    String urlToPlayFromPref = "";
+    volatile String fileNameToPlay = "";
+
+    /**
+     * from the inbound intent or from restored preferences;
+     * to be displayed on UI.
+     */
+    volatile String fileSizeToPlay = "";
+
+    volatile String fileSizeToPlayForDisplay = "";
+
+    volatile String fileTextDisplayed = "";
+
+    DataFromIntent dataFromIntent = null;
+    Intent intentToPlay = null;
+    boolean intentToPlayIsValid = false;
+
     /**
      * from external source, before decoding, possibly url-encoded
+     * @deprecated
      */
     String urlToPlayRaw = "";
     /**
      * from external source, after decoding
+     * @deprecated
      */
     String urlToPlayDecoded = "";
 
+    /**
+     * @deprecated
+     */
     Uri urlToPlayUri = null;
 
     // use the color that comes with the edittext
@@ -283,6 +288,59 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
     int urlColorForPaused = (Color.YELLOW & 0x00FFFFFF) | 0x80000000;
     int urlColorForError = (Color.RED & 0x00FFFFFF) | 0x80000000;
     int editTextUrlToPlayTextInitialColor = urlColorForInactive;
+
+    /**
+     * not really editable in this version
+     */
+    EditText editTextUrlToPlay;
+    /**
+     * label is "Play" or "Cancel" ===TODO=== TBD
+     */
+    Button playUrlButton;
+    Button hideUrlButton;
+    LinearLayout urlLayout;
+
+    Snackbar urlPrepareSnackbar;
+
+    /**
+     * to disable an Intent type, the corresponding {@code *_ENABLED} flag is set to false and
+     * the {@code <intent-filter>} in the manifest is commented out.
+     */
+    public static final String INBOUND_INTENT_PLAY_TYPE_SPECIAL = "application/vnd.sm.app.spectrogram";
+    /**
+     * ex.: http://url - from browser - disabled in this version
+     */
+    public static final String INBOUND_INTENT_PLAY_TYPE_TEXT = "text/plain";
+    public static final String INBOUND_INTENT_PLAY_TYPE_AUDIO_WAV = "audio/wav";
+    public static final String INBOUND_INTENT_PLAY_TYPE_AUDIO_PREFIX = "audio/";
+    public static final String INBOUND_INTENT_PLAY_TYPE_AUDIO_ANY = "audio/*";
+
+    // use these with SOUND_TO_PLAY_IS_ENABLED
+
+    public static final boolean INBOUND_INTENT_PLAY_TYPE_SPECIAL_ENABLED = true;
+    /**
+     * ex.: http://url - from browser - disabled in this version
+     */
+    public static final boolean INBOUND_INTENT_PLAY_TYPE_TEXT_ENABLED = true;
+    public static final boolean INBOUND_INTENT_PLAY_TYPE_AUDIO_WAV_ENABLED = true;
+    public static final boolean INBOUND_INTENT_PLAY_TYPE_AUDIO_ANY_ENABLED = true;
+
+    public static final boolean INBOUND_INTENT_PLAY_RAW_URL_ENABLED = true;
+
+    //play sound file from intent from other app or from url entered by user;
+    //an intent from other app causes this app to start or restart
+
+    //volatile SmartPlayer player = null;
+
+    /**
+     * not empty if http link for wav, from clip from intent
+     * <!-- maybe not needed -->
+     *     @deprecated
+     */
+    private String clipDataItemText = "";
+
+    // ==== end of file-to-play data
+
 
     boolean textColorBrighter = false;
     final int textColorTransparent = 0x8833b5e5;
@@ -299,12 +357,6 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
     Button about;
     Button ourApps;
     Button emailDev;
-    EditText editTextUrlToPlay;
-    Button playUrlButton;
-    Button hideUrlButton;
-    LinearLayout urlLayout;
-
-    Snackbar urlPrepareSnackbar;
 
     /*
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
@@ -317,7 +369,7 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
 
     private static String[] PERMISSIONS_FOR_RECORD_AUDIO = {
             Manifest.permission.RECORD_AUDIO
-    };
+        };
 
     // Storage Permissions
     private static final int PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS = 1;
@@ -331,7 +383,7 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
     private static String[] PERMISSIONS_FOR_EXTERNAL_STORAGE_ACCESS = {
             Manifest.permission.READ_EXTERNAL_STORAGE,
             Manifest.permission.WRITE_EXTERNAL_STORAGE
-    };
+        };
 
     /**
      * true when storage access permission was asked to user; used to avoid asking permission more
@@ -345,26 +397,13 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
      */
     private volatile Bundle savedInstanceStateTemp = null;
 
-    public static final String INBOUND_INTENT_PLAY_TYPE_SPECIAL = "application/vnd.sm.app.spectrogram";
-    public static final String INBOUND_INTENT_PLAY_TYPE_TEXT = "text/plain";
-    public static final String INBOUND_INTENT_PLAY_TYPE_AUDIO_WAV = "audio/wav";
-    public static final String INBOUND_INTENT_PLAY_TYPE_AUDIO_PREFIX = "audio/";
-    public static final String INBOUND_INTENT_PLAY_TYPE_AUDIO_ANY = "audio/*";
-
-    // use these with SOUND_TO_PLAY_IS_ENABLED
-
-    public static final boolean INBOUND_INTENT_PLAY_TYPE_SPECIAL_ENABLED = true;
-    public static final boolean INBOUND_INTENT_PLAY_TYPE_TEXT_ENABLED = true;
-    public static final boolean INBOUND_INTENT_PLAY_TYPE_AUDIO_WAV_ENABLED = true;
-    public static final boolean INBOUND_INTENT_PLAY_TYPE_AUDIO_ANY_ENABLED = true;
-
-    public static final boolean INBOUND_INTENT_PLAY_RAW_URL_ENABLED = true;
-
-    //play sound file from intent from other app or from url entered by user;
-    //an intent from other app causes this app to start or restart
-
-    volatile SmartPlayer player = null;
+    /**
+     * device capability
+     */
     boolean doesSoundInput = true;
+    /**
+     * device capability
+     */
     boolean doesSoundOutput = true;
 
     /* *
@@ -376,19 +415,30 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
     private final boolean APP_INDEXING_IS_ENABLED = false;
 
     /**
-     * Production: new LogConfig(LogConfig.OFF,LogConfig.OFF,LogConfig.OFF);
+     * Production (prod): new LogConfig(LogConfig.OFF,LogConfig.OFF,LogConfig.OFF)
+     * <br>error off
+     * <br>warning off
+     * <br>debug off
      */
-    private final LogConfig LOG_CONFIG = new LogConfig(LogConfig.ON,LogConfig.ON,LogConfig.UI);
+    private final LogConfig LOG_CONFIG = new LogConfig(LogConfig.OFF,LogConfig.OFF,LogConfig.OFF);
 
     public LogConfig getLogConfig() {
         return LOG_CONFIG;
     }
 
+    @Override
+    public void onError(String s) {
+        if(LogConfig.isAnyLogEnabled(LOG_CONFIG) ){
+            Log.d(TAG,"onError: "+s);
+        }
+    }
 
     /**
      * designed to be reset in children onCreate.
+     * Default = LeafyClient.APP_TYPE_FREE.
      */
-    protected volatile int appType = LeafyClient.APP_TYPE_UNKNOWN;
+    protected volatile int appType = LeafyClient.APP_TYPE_FREE;
+
 
     /**
      * default implementation, may be overwritten by client app
@@ -401,12 +451,12 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
 
     /**
      * Designed to be called by the onCreate method of the main Activity.
+     * Default: LeafyClient.APP_TYPE_FREE
      * @param appType
      */
     public void setAppType(int appType) {
         this.appType = appType;
     }
-
 
     public String getAppTypeString(final Object object, final int appTypeInt) {
         final Context contextGiven = (Context)object;
@@ -445,11 +495,6 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
     @Override
     protected void onCreate(Bundle savedInstanceState) {
 
-        setAppType(LeafyClient.APP_TYPE_FREE);
-        LeafyClientForAndroid.getInstance(this);
-        AppContext.getInstance(this);
-
-
         super.onCreate(savedInstanceState);
 
         if (!isTaskRoot()) {
@@ -460,50 +505,30 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
             http://code.google.com/p/android/issues/detail?id=2373
             http://code.google.com/p/android/issues/detail?id=26658
              */
-            if (getLogConfig().DEBUG==LogConfig.ON || getLogConfig().DEBUG==LogConfig.INIT
-                    || getLogConfig().DEBUG==LogConfig.RESTORE || getLogConfig().ERROR==LogConfig.ON)
-                Log.e(TAG, ".onCreate: finishing because not TaskRoot");
-
-            finish();
-            return;
+            if(LOG_INIT_ENABLED)
+                //Log.e(TAG, ".onCreate: finishing quietly because not TaskRoot");
+                Log.w(TAG, ".onCreate: not TaskRoot and continuing...");
         }
 
-//        main = this;
-//        AppContext.activityContext = this;
-
-        /* for transparent/translucent app/status bar
-        Window window = this.getWindow();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
-            window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
-            window.setStatusBarColor(getResources().getColor(android.R.color.transparent));
-        }
-        */
+        SoundClient.injectCallback(this);
 
 //        tempHackForCpuAtFullSpeed();
 
-//        if(APP_INDEXING_IS_ENABLED) {
-//            // ATTENTION: This was auto-generated to implement the App Indexing API.
-//            // See https://g.co/AppIndexing/AndroidStudio for more information.
-//            client = new GoogleApiClient.Builder(this).addApi(AppIndex.API).build();
-//        }
-
-        if (isDevMode()
-                && (getLogConfig().DEBUG==LogConfig.INIT
-                    || getLogConfig().DEBUG==LogConfig.THREADS
-                    || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT)
-                || getLogConfig().DEBUG==LogConfig.INTENT)
+        if (isDevMode() && (LOG_CONFIG.DEBUG==LogConfig.INIT
+                    || LOG_CONFIG.DEBUG==LogConfig.THREADS
+                    || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT)
+                || LOG_CONFIG.DEBUG==LogConfig.INTENT){
             Log.d(TAG, ".onCreate: entering..." +
                     "app name {" + AppContext.getIt().getAppName()
                     + "} version name {" + AppContext.getIt().getVersionName()
                     + "} AppPublisher.emailAddressForSupport {" + AppPublisher.emailAddressForSupport
-                    + "} Support email subject: "
-                   // + AppPublisher.getSupportEmailSubject() //TODO washere 2017-7-1
+                    +"}"//TODO prio 2 2017-7-1 and use the email support enabled flag in LeafyClient.Callback
                     + "\n" + forDisplay()
                     + "\n" + Thread.currentThread()
             );
+        }
 
-        if(USER_LOG_INIT){
+        if(SHOW_USER_INIT_EVENTS_ENABLED){
             showStatusSnackbar("Getting permissions");
         }
         getPermissionForRecordAudio(savedInstanceState);
@@ -516,17 +541,17 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
      */
     protected void onCreateComplete(final Bundle savedInstanceState) {
         try {
-            if (getLogConfig().DEBUG==LogConfig.ON || getLogConfig().DEBUG==LogConfig.INIT
-                    || getLogConfig().DEBUG==LogConfig.SETTINGS_CHANGED
-                    || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT
-                    || getLogConfig().DEBUG==LogConfig.INTENT
-                    || getLogConfig().DEBUG==LogConfig.RESTORE
-                    || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
+            if (LOG_CONFIG.DEBUG==LogConfig.ON || LOG_CONFIG.DEBUG==LogConfig.INIT
+                    || LOG_CONFIG.DEBUG==LogConfig.SETTINGS_CHANGED
+                    || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
+                    || LOG_CONFIG.DEBUG==LogConfig.INTENT
+                    || LOG_CONFIG.DEBUG==LogConfig.RESTORE
+                    || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
                 Log.d(TAG, ".onCreateComplete: entering...");
 
             setOnRealDeviceOrEmulator();
 
-            if(USER_LOG_INIT){
+            if(SHOW_USER_INIT_EVENTS_ENABLED){
                 showStatusSnackbar("Restoring preferences");
             }
 
@@ -535,18 +560,19 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
             doesSoundInput = setDeviceSoundCapabilities();
             doesSoundOutput = DeviceSoundCapabilities.isDeviceCapableOfSoundOutput();
 
-            if(USER_LOG_INIT){
+            if(SHOW_USER_INIT_EVENTS_ENABLED){
                 String soundInputSupported = doesSoundInput?"supported":"not supported";
                 String soundOutputSupported = doesSoundOutput?"supported":"not supported";;
                 showStatusSnackbar("Sound input "+soundInputSupported
                         +", output "+soundOutputSupported);
             }
 
-            initUI();
+            onCreateUI();
 
             if (!doesSoundInput) {
-                // device does not support sound input
-                if (getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT || getLogConfig().DEBUG==LogConfig.INIT)
+                // ========== device does not support sound input ==========
+                if (LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
+                        || LOG_CONFIG.DEBUG==LogConfig.INIT)
                     Log.d(TAG, ".onCreateComplete: device does not support sound input");
 
                 disableThePauseButton(null);
@@ -555,8 +581,8 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
                         "This device does not support sound input; this app will not work properly.",
                         Toast.LENGTH_LONG).show();
             } else {
-                // does support sound input
-                if(USER_LOG_INIT){
+                // ========== device supports sound input ==========
+                if(SHOW_USER_INIT_EVENTS_ENABLED){
                     showStatusSnackbar("Starting the listener");
                 }
                 BasicListener listener = getListener();
@@ -564,30 +590,31 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
                 if (listener != null) {
 
                     // the listener is started
-                    if(USER_LOG_INIT){
+                    if(SHOW_USER_INIT_EVENTS_ENABLED){
                         showStatusSnackbar("Listener started");
                     }
                     //done upstream: enableThePauseButton("Pause");
 
-                    initUrlToPlay(savedInstanceState, urlToPlayFromPref);
+                    initUrlToPlayLocal(savedInstanceState);
+
                 } else {
                     // the listener failed to start
-                    if(USER_LOG_INIT){
+                    if(SHOW_USER_INIT_EVENTS_ENABLED){
                         showStatusSnackbar("Listener failed to start");
                     }
                     //done upstream: disableThePauseButton(null);
                 }
             }
         } catch (Exception ex) {
-            if(getLogConfig().ERROR==LogConfig.ON)Log.e(TAG,".onCreateComplete: "+ex);
+            if(LOG_CONFIG.ERROR==LogConfig.ON)Log.e(TAG,".onCreateComplete: "+ex);
             disableThePauseButton(null);
-            onExceptionAtInit(ex);//TODO washere 2016-11 does this work???
+            onExceptionAtInit(ex);//TODO prio 2 2016-11 does this work???
         } finally {
-            if (getLogConfig().DEBUG==LogConfig.INIT
-                    || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT
-                    || getLogConfig().DEBUG==LogConfig.INTENT
-                    || getLogConfig().DEBUG==LogConfig.PERMISSIONS
-                    || getLogConfig().DEBUG==LogConfig.PLAY_URL)
+            if (LOG_CONFIG.DEBUG==LogConfig.INIT
+                    || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
+                    || LOG_CONFIG.DEBUG==LogConfig.INTENT
+                    || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS
+                    || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
                 Log.d(TAG, ".onCreateComplete: exiting...");
         }
     }
@@ -597,6 +624,7 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
     private Runnable RUNNABLE_TO_ENABLE_THE_PAUSE_BUTTON = new Runnable() {
         
         public void run() {
+            if(pause==null)return;
             pause.setOnClickListener(ON_CLICK_LISTENER);
             pause.setAlpha(ALPHA_NEUTRAL);
             if (pauseButtonLabel != null) {
@@ -606,7 +634,6 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
     };
 
     private Runnable RUNNABLE_TO_DISABLE_THE_PAUSE_BUTTON = new Runnable() {
-        
         public void run() {
             if(pause==null)return;
             pause.setOnClickListener(null);
@@ -623,7 +650,7 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
      *
      * @param label not used if null
      */
-    public void enableThePauseButton(final String label) {//TODO maybe add this to the same callback as disableThePauseButton
+    public void enableThePauseButton(final String label) {
         pauseButtonLabel = label;
         runOnUiThread(RUNNABLE_TO_ENABLE_THE_PAUSE_BUTTON);
     }
@@ -638,11 +665,14 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
         runOnUiThread(RUNNABLE_TO_DISABLE_THE_PAUSE_BUTTON);
     }
 
-    
-    public void initUrlToPlay(Object o, String s) { //TODO washere
-        initUrlToPlay((Bundle)o, s);
+    /**
+     *
+     * @param o Bundle savedInstanceState or null
+     * @param s url string
+     */
+    public void initUrlToPlay(Object o, String s) { // TODO prio 2 maybe deprecate or remove, tbd
+        initUrlToPlayLocal((Bundle)o);
     }
-
 
     /**
      * for DEV mode only
@@ -669,35 +699,43 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
     }
 
     /**
-     * sound to play from intent from another app; or URL from previous session in urlToPlay.
+     * Init the sound to play from an intent from another app;
+     * or a URL from previous session in urlString.
      *
      * <p/>Designed to be run on the ui thread.
      * All callers are run on the ui thread in this version.
      *
-     * @param savedInstanceState
+     * @param savedInstanceState Bundle or null when starting a new session with a url from incoming intent
      */
-    private void initUrlToPlay(final Bundle savedInstanceState, final String urlFromPref) {
+    private void initUrlToPlayLocal(final Bundle savedInstanceState) {
 
         if (!SOUND_TO_PLAY_IS_ENABLED) return;
 
         if (!doesSoundOutput) return;
 
         if (savedInstanceState == null) {
-            // starting new session, use url from intent (if any) or from previous session
+            // starting new session (with an Intent), use url from intent (if any)
             // this method does nothing if the start intent has no valid url to play
-            if (!handleIncomingIntent(urlFromPref)) {
+            // ======================================
+            if (!handleIncomingIntent()) {
+            // ======================================
                 // no valid intent, then try url from previous session
+
+                // in future maybe
+
             } else {
-                // valid intent; was handled by handleIncomingIntent
+                // valid intent; was handled by handleIncomingIntent; nothing more to do here
+                // TODO log
             }
+
         } else {
             // restoring session (not with intent), use url from previous session, if any
-            setUrlToPlayInUi(urlFromPref);
+            setUrlToPlayInUi();
         }
     }
 
-    @TargetApi(Build.VERSION_CODES.HONEYCOMB)
-    private void initUI() {
+    @TargetApi(Build.VERSION_CODES.HONEYCOMB) //api level 11
+    protected void onCreateUI() {
 
         setContentView(R.layout.activity_spectrogram);
 
@@ -713,8 +751,8 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
         }
 
         largeGuiLayout = (LinearLayout) findViewById(R.id.spectrogram2_gui);
-        if (getLogConfig().DEBUG==LogConfig.UI)
-            Log.d(TAG, "initUI: largeGuiLayout is spectrogram2_gui");
+        if (LOG_CONFIG.DEBUG==LogConfig.UI)
+            Log.d(TAG, "onCreateUI: largeGuiLayout is spectrogram2_gui");
         largeGuiLayout.setOnClickListener(ON_CLICK_LISTENER);
         largeGuiLayout.setClickable(true);
 
@@ -763,8 +801,12 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
 //            contentTextView.setOnLongClickListener(ON_LONG_CLICK_LISTENER);
             //shows layout *url_to_play_layout*
             //called *inflated_for_url_to_play* after this but the stub is not in hierarchy
-            ((ViewStub) findViewById(R.id.stub_for_url_to_play)).setVisibility(View.VISIBLE);
-            editTextUrlToPlay = (EditText) findViewById(R.id.url_to_play);
+            findViewById(R.id.stub_for_url_to_play).setVisibility(View.VISIBLE);
+            editTextUrlToPlay = findViewById(R.id.url_to_play);
+            editTextUrlToPlay.setFocusable(false);
+            editTextUrlToPlay.setEnabled(false);
+            editTextUrlToPlay.setClickable(false);
+            editTextUrlToPlay.setLongClickable(false);
             editTextUrlToPlayTextInitialColor = (editTextUrlToPlay.getCurrentTextColor() & 0x00FFFFFF) | 0x80000000;
             urlColorForInactive = editTextUrlToPlayTextInitialColor;
             //editTextViewUrlToPlay.setFocusableInTouchMode(true);
@@ -777,7 +819,10 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
             hideUrlButton = (Button) findViewById(R.id.button_hide_url);
             //ViewStub:
             urlLayout = (LinearLayout) findViewById(R.id.inflated_for_url_to_play); //url_to_play_layout);
-            if (urlLayout == null) Log.e(TAG, ".initUI: urlLayout is null");
+            if (urlLayout == null) {
+                if(LOG_CONFIG.ERROR==LOG_CONFIG.ON)
+                    Log.e(TAG, ".onCreateUI: urlLayout is null");
+            }
             playUrlButton.setOnClickListener(ON_CLICK_LISTENER);
             hideUrlButton.setOnClickListener(ON_CLICK_LISTENER);
             urlIsPlaying = false;
@@ -788,7 +833,7 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
 //        pause.setClickable(true);
 //        pause.setFocusable(true);
 //        pause.requestFocus();
-        //Log.e(TAG,".initUI: contentTextView is set");
+        //Log.e(TAG,".onCreateUI: contentTextView is set");
     }
 
 //    final View.OnLongClickListener ON_LONG_CLICK_LISTENER = new View.OnLongClickListener() {
@@ -848,7 +893,7 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
     }
 
     private void showBgAndHideText(){
-        if (getLogConfig().DEBUG==LogConfig.UI)
+        if (LOG_CONFIG.DEBUG==LogConfig.UI)
             Log.d(TAG, "showBgAndHideText: " +
                     "aboutShown = " + aboutShown
                     +": deviceShown = "+deviceShown
@@ -866,7 +911,7 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
             contentTextView.setTextColor(textColorTransparent);
         }
         if (largeGuiLayout != null) {
-            if (getLogConfig().DEBUG==LogConfig.UI)
+            if (LOG_CONFIG.DEBUG==LogConfig.UI)
                 Log.d(TAG, "deviceButtonSelected: " +
                         "largeGuiLayout sensitivity is enabled");
             largeGuiLayout.setOnClickListener(ON_CLICK_LISTENER);
@@ -885,7 +930,7 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
     }
 
     private void doHideGui() {
-        if (getLogConfig().DEBUG==LogConfig.UI)
+        if (LOG_CONFIG.DEBUG==LogConfig.UI)
             Log.d(TAG, "doHideGui: entering");
         if (buttonsLayout != null) {
             buttonsLayout.setVisibility(View.GONE);
@@ -898,7 +943,7 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
         doHideUrl(false);
         if (largeGuiLayout != null) {
             //enable screen sensitivity
-            if (getLogConfig().DEBUG==LogConfig.UI)
+            if (LOG_CONFIG.DEBUG==LogConfig.UI)
                 Log.d(TAG, "doHideGui: largeGuiLayout sensitivity is enabled");
             largeGuiLayout.setOnClickListener(ON_CLICK_LISTENER);
             largeGuiLayout.setClickable(true);
@@ -910,16 +955,16 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
     }
 
     private void doShowGui() {
-        if (getLogConfig().DEBUG==LogConfig.UI)
+        if (LOG_CONFIG.DEBUG==LogConfig.UI)
             Log.d(TAG, "doShowGui: entering");
         if (buttonsLayout != null) buttonsLayout.setVisibility(View.VISIBLE);
         if (contentTextView != null) {
             if(contentTextView.getText().length()>0) {
-                if (getLogConfig().DEBUG==LogConfig.UI)
+                if (LOG_CONFIG.DEBUG==LogConfig.UI)
                     Log.d(TAG, "doShowGui: contentTextView made visible because it has some text");
                 contentTextView.setVisibility(View.VISIBLE);
             }else{
-                if (getLogConfig().DEBUG==LogConfig.UI)
+                if (LOG_CONFIG.DEBUG==LogConfig.UI)
                     Log.d(TAG, "doShowGui: contentTextView made gone because it has no text");
                 contentTextView.setVisibility(View.GONE);
             }
@@ -934,23 +979,23 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
     }
 
     private boolean doShowUrlGui() {
-        if (getLogConfig().DEBUG==LogConfig.UI)
+        if (LOG_CONFIG.DEBUG==LogConfig.UI)
             Log.d(TAG, "doShowUrlGui: entering");
 
         if ( ! SOUND_TO_PLAY_IS_ENABLED) {
-            if (getLogConfig().DEBUG==LogConfig.UI)
+            if (LOG_CONFIG.DEBUG==LogConfig.UI)
                 Log.d(TAG, "doShowUrlGui: exiting; SOUND_TO_PLAY_IS_ENABLED is false");
             return false;
         }
 
         if ( ! doesSoundOutput) {
-            if (getLogConfig().DEBUG==LogConfig.UI)
+            if (LOG_CONFIG.DEBUG==LogConfig.UI)
                 Log.d(TAG, "doShowUrlGui: exiting; doesSoundOutput is false");
             return false;
         }
 
         if (urlLayout == null) {
-            if (getLogConfig().DEBUG==LogConfig.UI)
+            if (LOG_CONFIG.DEBUG==LogConfig.UI)
                 Log.d(TAG, "doShowUrlGui: exiting; urlLayout is null");
             return false;
         }
@@ -958,11 +1003,11 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
         if (urlLayout.getVisibility() == View.VISIBLE) {
             //do nothing
 //                urlLayout.setVisibility(View.GONE);
-            if (getLogConfig().DEBUG==LogConfig.UI)
+            if (LOG_CONFIG.DEBUG==LogConfig.UI)
                 Log.d(TAG, "doShowUrlGui: urlLayout is already visible");
         } else {
             //show url gui
-            if (getLogConfig().DEBUG==LogConfig.UI)
+            if (LOG_CONFIG.DEBUG==LogConfig.UI)
                 Log.d(TAG, "doShowUrlGui: urlLayout is being set visible");
             urlLayout.setVisibility(View.VISIBLE);
         }
@@ -993,18 +1038,18 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
         
         public void onClick(View v) {
             try {
-                if (getLogConfig().DEBUG==LogConfig.UI)
+                if (LOG_CONFIG.DEBUG==LogConfig.UI)
                     Log.d(TAG, "ON_CLICK_LISTENER_FOR_SPECTROGRAM.onClick(v): entering");
 
                 if (buttonsLayout.isShown()) {
                     //buttons are activated
-                    if (getLogConfig().DEBUG==LogConfig.UI)
+                    if (LOG_CONFIG.DEBUG==LogConfig.UI)
                         Log.d(TAG, "ON_CLICK_LISTENER_FOR_SPECTROGRAM.onClick(v): " +
                                 "buttonsLayout.isShown() returned true");
                     //do action
                     if (v instanceof Button) {
                         //for a button
-                        if (getLogConfig().DEBUG==LogConfig.UI)
+                        if (LOG_CONFIG.DEBUG==LogConfig.UI)
                             Log.d(TAG, "ON_CLICK_LISTENER_FOR_SPECTROGRAM.onClick(v): " +
                                     ". is instance of button");
 
@@ -1043,7 +1088,7 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
                                             } else {
                                                 // not hide url
                                                 // do nothing here, go to afterButtonSelected downstream
-                                                if (getLogConfig().DEBUG==LogConfig.UI || getLogConfig().ERROR==LogConfig.ON)
+                                                if (LOG_CONFIG.DEBUG==LogConfig.UI || LOG_CONFIG.ERROR==LogConfig.ON)
                                                     Log.e(TAG,
                                                         "ON_CLICK_LISTENER_FOR_SPECTROGRAM.onClick(v): " +
                                                         ". is _not_ a known Button, do nothing: " + v);
@@ -1056,25 +1101,25 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
                         afterButtonSelected(v);
                     } else {
                         // not a button, and some gui shown, but maybe url gui not shown
-                        if (getLogConfig().DEBUG==LogConfig.UI)
+                        if (LOG_CONFIG.DEBUG==LogConfig.UI)
                             Log.d(TAG, "ON_CLICK_LISTENER_FOR_SPECTROGRAM.onClick(v): " +
                                     ". is _not_ an instance of Button: " + v);
                         doShowGui();
                     }
                 } else {
                     // layout not shown (buttons not show), then show it and show the buttons and url
-                    if (getLogConfig().DEBUG==LogConfig.UI)
+                    if (LOG_CONFIG.DEBUG==LogConfig.UI)
                         Log.d(TAG, "ON_CLICK_LISTENER_FOR_SPECTROGRAM.onClick(v): " +
                                 "buttonsLayout.isShown() returned false, then show GUI");
                     doShowGui();
                 }
             } catch (Throwable ex) {
-                if (getLogConfig().DEBUG==LogConfig.UI||getLogConfig().ERROR==LogConfig.ON)
+                if (LOG_CONFIG.DEBUG==LogConfig.UI||LOG_CONFIG.ERROR==LogConfig.ON)
                     Log.e(TAG, "ON_CLICK_LISTENER_FOR_SPECTROGRAM.onClick(v): " + ex
                             + "\n" + Log.getStackTraceString(ex)
                         );
             }
-            if (getLogConfig().DEBUG==LogConfig.UI)
+            if (LOG_CONFIG.DEBUG==LogConfig.UI)
                 Log.d(TAG, "ON_CLICK_LISTENER_FOR_SPECTROGRAM.onClick(v): exiting");
         }
     };
@@ -1085,13 +1130,13 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
      * @param v the button that has been selected
      */
     void afterButtonSelected(View v) {
-        if (getLogConfig().DEBUG==LogConfig.UI)
+        if (LOG_CONFIG.DEBUG==LogConfig.UI)
             Log.d(TAG,"afterButtonSelected: entering");
 
         updateAboutButtonOnUIThread();
 
         if (v.equals(hideUrlButton) || v.equals(playUrlButton)) {
-            if (getLogConfig().DEBUG==LogConfig.UI)
+            if (LOG_CONFIG.DEBUG==LogConfig.UI)
                 Log.d(TAG,"afterButtonSelected: exiting; button is hideUrlButton or playUrlButton");
             return;
         }
@@ -1194,7 +1239,7 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
     }
 
     private void deviceButtonSelected(){
-        if (getLogConfig().DEBUG==LogConfig.UI)
+        if (LOG_CONFIG.DEBUG==LogConfig.UI)
             Log.d(TAG, "ON_CLICK_LISTENER_FOR_SPECTROGRAM.onClick(v): " +
                     "DEVICE button selected");
         if (!deviceShown) {
@@ -1214,7 +1259,7 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
                 contentTextView.setText(getDeviceText());
             }
             if (largeGuiLayout != null) {
-                if (getLogConfig().DEBUG==LogConfig.UI)
+                if (LOG_CONFIG.DEBUG==LogConfig.UI)
                     Log.d(TAG, "deviceButtonSelected: " +
                             "largeGuiLayout sensitivity is disabled");
                 largeGuiLayout.setOnClickListener(null);
@@ -1248,7 +1293,7 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
     }
 
     private void aboutButtonSelected() {
-        if (getLogConfig().DEBUG==LogConfig.UI)
+        if (LOG_CONFIG.DEBUG==LogConfig.UI)
             Log.d(TAG, "aboutButtonSelected: " +
                     "aboutShown = " + aboutShown
                     + "; contentTextView = " + contentTextView
@@ -1271,7 +1316,7 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
                 contentTextView.setVisibility(View.VISIBLE);
             }
             if (largeGuiLayout != null) {
-                if (getLogConfig().DEBUG==LogConfig.UI)
+                if (LOG_CONFIG.DEBUG==LogConfig.UI)
                     Log.d(TAG, "aboutButtonSelected: largeGuiLayout sensitivity is disabled");
                 largeGuiLayout.setOnClickListener(null);
                 largeGuiLayout.setClickable(false);
@@ -1288,7 +1333,7 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
 //                contentTextView.setTextColor(textColorTransparent);
 //            }
 //            if (largeGuiLayout != null) {
-//                if (getLogConfig().DEBUG==LogConfig.UI)
+//                if (LOG_CONFIG.DEBUG==LogConfig.UI)
 //                    Log.d(TAG, "aboutButtonSelected: largeGuiLayout sensitivity is enabled");
 //                largeGuiLayout.setOnClickListener(ON_CLICK_LISTENER);
 //                largeGuiLayout.setClickable(true);
@@ -1297,33 +1342,147 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
         }
     }
 
+    /**
+     * Called when the URL Play/Resume button is used.
+     * There is another method for the Pause/Resume Spectrogram button.
+     */
     private void playUrlButtonSelected(){
-        if (getLogConfig().DEBUG==LogConfig.PLAY_URL)
-            Log.d(TAG, "button playUrlButton selected; " +
+        if (LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+            Log.d(TAG, ".playUrlButtonSelected: " +
                     "urlIsPlaying = " + urlIsPlaying
                     + "; urlIsPaused = " + urlIsPaused);
         clearLastAnomaly();
         if (urlIsPlaying) {
-            // is playing, so do pause url
+            // url is playing, so do pause url, don't play it
+            if (LOG_CONFIG.DEBUG==LogConfig.PLAY_URL){
+                Log.d(TAG,".playUrlButtonSelected: url is playing, so do pause url");
+            }
+            // -----------------------------
             pauseSpectro();
-            doPauseUrl(false);
+            doPauseUrl();
+            // -----------------------------
         } else {
             // url is not playing, then do play url or resume
+            if (LOG_CONFIG.DEBUG==LogConfig.PLAY_URL){
+                Log.d(TAG,".playUrlButtonSelected: url is not playing, play url or resume");
+            }
+            //TODO 2017-8-16 review with new resumeOrRestart version in lib
             if (urlIsPaused) {
+                if (LOG_CONFIG.DEBUG==LogConfig.PLAY_URL){
+                    Log.d(TAG,".playUrlButtonSelected: url is not playing and is paused, so restart spectro and doResumeUrl");
+                }
+                // ---------------
                 restartSpectro();
                 doResumeUrl();
+                // ---------------
             } else {
-                // url was not paused, so play, don't resume
-                // if spectro paused, then resume
-                if (isPaused()) restartSpectro();
-                doPlayUrl(
-                        editTextUrlToPlay.getText().toString());
+                // url was not paused, so play, don't resume;
+                // try to replay the previous intent;
+                // if spectro paused, then resume spectro before playing the intent
+                if (isPaused()) {
+                    if (LOG_CONFIG.DEBUG==LogConfig.PLAY_URL){
+                        Log.d(TAG,".playUrlButtonSelected: spectro is paused, so calling restartSpectro() and then play(dataFromIntent)...");
+                    }
+                    // --------------
+                    restartSpectro();
+                    // --------------
+                }else{
+                    if (LOG_CONFIG.DEBUG==LogConfig.PLAY_URL){
+                        Log.d(TAG,".playUrlButtonSelected: spectro is not paused, so calling play(dataFromIntent)...");
+                    }
+                }
+                // ------------------
+                play(dataFromIntent);
+                // ------------------
             }
         }
     }
 
+    private void playUrlButtonSelected2() {
+        if (LOG_CONFIG.DEBUG == LogConfig.PLAY_URL)
+            Log.d(TAG, "playUrlButtonSelected2: button playUrlButton selected; " +
+                    "urlIsPlaying = " + urlIsPlaying
+                    + "; urlIsPaused = " + urlIsPaused);
+
+        performFileSearch();
+
+    }
+
+    private static final int READ_REQUEST_CODE = 42;
+
+    /**
+     * Fires an intent to spin up the "file chooser" UI and select an image.
+     */
+    public void performFileSearch() {
+
+        // ACTION_OPEN_DOCUMENT is the intent to choose a file via the system's file
+        // browser.
+        Intent intent = null;
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
+            intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        }else{
+            if (LOG_CONFIG.DEBUG == LogConfig.PLAY_URL)
+                Log.d(TAG,"android version is too low");
+            return;
+        }
+
+        // Filter to only show results that can be "opened", such as a
+        // file (as opposed to a list of contacts or timezones)
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+
+        // Filter to show only images, using the image MIME data type.
+        // If one wanted to search for ogg vorbis files, the type would be "audio/ogg".
+        // To search for all documents available via installed storage providers,
+        // it would be "*/*".
+        intent.setType("audio/*");
+
+        if (LOG_CONFIG.DEBUG == LogConfig.PLAY_URL)
+            Log.d(TAG,".performFileSearch: intent {"+intent+"}");
+
+        startActivityForResult(intent, READ_REQUEST_CODE);
+    }
+
+    /**
+     * Designed to be used for the function of launching an external document (recording)
+     * selection process that uses an external app, and this method is called when the
+     * external app is returning with a selected recording in the Intent.
+     *
+     * @param requestCode
+     * @param resultCode
+     * @param resultData
+     */
+    @Override
+    public void onActivityResult(int requestCode, int resultCode,
+                                 Intent resultData) {
+
+        // The ACTION_OPEN_DOCUMENT intent was sent with the request code
+        // READ_REQUEST_CODE. If the request code seen here doesn't match, it's the
+        // response to some other intent, and the code below shouldn't run at all.
+
+        if (requestCode == READ_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
+            // The document selected by the user won't be returned in the intent.
+            // Instead, a URI to that document will be contained in the return intent
+            // provided to this method as a parameter.
+            // Pull that URI using resultData.getData().
+
+//            Uri uri = null;
+//            if (resultData != null) {
+//                uri = resultData.getData();
+//                Log.i(TAG, "Uri: " + uri.toString());
+//                //showImage(uri);
+//            }
+
+            if (LOG_CONFIG.DEBUG == LogConfig.PLAY_URL)
+                Log.d(TAG,".onActivityResult: Intent resultData {"+resultData+"}");
+
+            play(resultData);
+
+        }//TODO message when not ok
+    }
+
+
     private void hideOrCancelUrlButtonSelected(){
-        if (getLogConfig().DEBUG==LogConfig.PLAY_URL)
+        if (LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
             Log.d(TAG, "hideUrlButton selected; urlIsPlaying = " + urlIsPlaying);
         if (urlIsPlaying) {
             // playing, so cancel play
@@ -1338,35 +1497,13 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
         }
     }
 
-//    /**
-//     * Not used in this version.
-//     *
-//     * @param fd
-//     * @param intent
-//     * @return true when possible success, and false when definite failure.
-//     *
-//     * @deprecated in this version
-//     */
-//    private boolean doPlayUrl(final FileDescriptor fd, final Intent intent) {
-//        player = new SmartPlayer();
-//        try {
-//            showUrlPrepareSnackbar();
-//            player.play(fd, this);
-//        } catch (Throwable ex) {
-//            Log.e(TAG, ".doPlayUrl(FileDescriptor) " + ex + " " + Log.getStackTraceString(ex));
-//            doResetUrl(true);
-//            //showAnomalyText(ex, ex.getMessage());
-//            invalidIntent(intent, null);// uses a snackbar
-//            return false;
-//        }
-//        setUrlGuiWhenPlaying();
-//        return true;
-//    }
 
     /**
-     * Designed to be called by onCreate and not the Play URL button.
+     * Designed to be called by onCreate (or by methods called by onCreate)
+     * and not the Play URL button.
      *
      * <P/>Starts a new thread to prepare and play the given URL, and shows a Snackbar.
+     * Calls the AudioPlayer.
      *
      * <p/>Used in this version.
      *
@@ -1376,213 +1513,99 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
      * @param intent referencing a remote audio or media file
      * @throws IllegalArgumentException
      */
-    private boolean doPlayUrl(final Intent intent) {
+    private boolean play(final Intent intent) {
+        if(LOG_CONFIG.DEBUG==LogConfig.PLAY_URL||LOG_CONFIG.DEBUG==LogConfig.INTENT)
+            Log.d(TAG, ".play(Intent) entering with {" + intent + "}");
         isCancelling = false;
-        player = new SmartPlayer();
+        //if(AudioPlayer.getIt()!=null){
+//            try{
+//                AudioPlayer.getIt().shutdown();
+//            }catch(Exception ex){
+//                if(LOG_CONFIG.DEBUG==LogConfig.PLAY_URL||LOG_CONFIG.DEBUG==LogConfig.INTENT
+//                        || LOG_CONFIG.ERROR==LogConfig.ON)
+//                    Log.e(TAG, ".play(Intent) player.shutdown() raised " + ex );
+//            }
+        //}
+        //player = new SmartPlayer(this);
         try {
             showUrlPrepareSnackbar();
-            player.play(intent, this);
+            // ==============================
+            AudioPlayer.getIt().play(intent);
+            // ==============================
         } catch (Throwable ex) {
-            Log.e(TAG, ".doPlayUrl(Intent) " + ex + " " + Log.getStackTraceString(ex));
-            doResetUrl(true);
+            if(LOG_CONFIG.ERROR==LogConfig.ON)
+                Log.e(TAG, ".play(Intent) " + ex + " "
+                        + Log.getStackTraceString(ex));
+            resetUrl(true);
 //            showAnomalyText(ex, ex.getMessage()); //TO DO use snackbar maybe
-            invalidIntent(intent, null);
+            // invalidIntent(intent, null);
             return false;
         }
+        //intentIncoming = intent; //TODO prio 2 2017-7-27 maybe smartplayer could do playLastIntent
         setUrlGuiWhenPlaying();
         return true;
     }
 
-    private volatile boolean permissionRequestedForStorageAccess = false;
-
     /**
-     * Called when the Play button is selected and the URL is to be started or restarted,
-     * not resumed,
-     * i.e., when urlWasPaused is false.
-     * In some cases, the URL has been entered manually instead of coming from an intent.
+     * Creates a new player
      *
-     * <P/>Starts a new thread to prepare and play the given URL, then shows a Snackbar.
-     *
-     * <p/>Used in this version.
-     *
-     * <p/>Designed to be run on the ui thread.
-     * All callers are run on the ui thread in this version.
-     *
-     * @param urlString referencing a remote audio or media file, or a local file;
-     *                  the value is from url edittext view.
-     * @return true when possible success; false when failure.
-     * The returned value is not used in this version of the app.
+     * @param fileUrlString
+     * @return boolean true when ok, false when failure
      */
-    private boolean doPlayUrl(final String urlString) {
+    private boolean play(final String fileUrlString) {
+        if(LOG_CONFIG.DEBUG==LogConfig.PLAY_URL||LOG_CONFIG.DEBUG==LogConfig.INTENT)
+            Log.d(TAG, ".play(fileUrlString) entering with {" + fileUrlString + "}");
+        if(fileUrlString==null||fileUrlString.isEmpty()){
+            return false;
+        }
         isCancelling = false;
-        if (getLogConfig().DEBUG==LogConfig.PLAY_URL || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
-            Log.d(TAG, ".doPlayUrl(String url): entering with urlString {" + urlString
-                    //+"} permissionGrantedForStorageAccess = "+permissionGrantedForStorageAccess
-                    + "}, SOUND_TO_PLAY_IS_ENABLED = " + SOUND_TO_PLAY_IS_ENABLED
-                    + ", doesSoundOutput = " + doesSoundOutput);
-        if (urlString == null) return false;
-        final String urlStrg = urlString.trim();
-        if (urlStrg.isEmpty()) return false;
-        if (!SOUND_TO_PLAY_IS_ENABLED) return false;
-        if (!doesSoundOutput) return false;
-        final String exampleUrl = getString(R.string.url_example);
-        if (urlStrg.equalsIgnoreCase(exampleUrl)) return false;
-
-        // catch local file such as file://...
-        // and don't try if file storage permission access not granted
-
-        if (isLocalFile(urlStrg)) {
-            // is local file, check external storage access permission
-            if (getLogConfig().DEBUG==LogConfig.PLAY_URL || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
-                Log.d(TAG, ".doPlayUrl: is local file {" + urlStrg + "}; get access permission...");
-
-            if (!getPermissionForExternalStorageAccess(urlStrg)) {
-                // external storage access permission was definitively denied
-                // or permission is being requested, don't play
-                if (getLogConfig().DEBUG==LogConfig.PLAY_URL || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
-                    Log.d(TAG, ".doPlayUrl: access denied or being requested...");
-                return false;
-            }
-            // local file access granted, then play it
-            if (getLogConfig().DEBUG==LogConfig.PLAY_URL || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
-                Log.d(TAG, ".doPlayUrl: access granted, try to play local file");
-        } else {
-            // not local file, then remote file, try to play
-            if (getLogConfig().DEBUG==LogConfig.PLAY_URL || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
-                Log.d(TAG, ".doPlayUrl: not local file, try to play remote file");
-        }
-
-        // try to play url
-
-        return playLocalFileAfterStorageAccessGranted(urlStrg);
-    }
-
-    /**
-     * Used in this version.
-     * <p/>
-     * <p/>Designed to be run on the ui thread.
-     * All callers are run on the ui thread in this version.
-     *
-     * @param filePath
-     * @return true when started, false when attempt failed.
-     */
-    private boolean playLocalFileAfterStorageAccessGranted(final String filePath) {
-        if (getLogConfig().DEBUG==LogConfig.PLAY_URL)
-            Log.d(TAG, ".playLocalFileAfterStorageAccessGranted: entering with filePath {" + filePath + "}");
-
-        //=================================================
-        boolean started = playRemoteOrLocalFile(filePath);
-        //=================================================
-
-        if (getLogConfig().DEBUG==LogConfig.PLAY_URL || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
-            Log.d(TAG, ".playLocalFileAfterStorageAccessGranted(String): " +
-                    "playRemoteOrLocalFile(urlString) returned " + started
-                    + " with {" + filePath + "}");
-
-        if (started) setUrlGuiWhenPlaying();
-
-        return started;
-    }
-
-    private boolean isLocalFile(final String urlOrPath) {
-        return (urlOrPath.startsWith("file://") || urlOrPath.startsWith("/"));
-    }
-
-    /**
-     * Not just for http, can also be local file path.
-     *
-     * <p/>Used in this version.
-     *
-     * <p/>Designed to be run on the ui thread.
-     * All callers are run on the ui thread in this version.
-     *
-     * @param urlOrFilePath
-     * @return true is success to start play
-     */
-    private boolean playRemoteOrLocalFile(final String urlOrFilePath) {
+        //if(player!=null){
+//            try{
+//                AudioPlayer.getIt().shutdown();
+//            }catch(Exception ex){
+//                if(LOG_CONFIG.DEBUG==LogConfig.PLAY_URL||LOG_CONFIG.DEBUG==LogConfig.INTENT
+//                        || LOG_CONFIG.ERROR==LogConfig.ON)
+//                    Log.e(TAG, ".play(fileUrlString) player.shutdown() raised " + ex );
+//            }
+        //}
+        //player = new SmartPlayer(this);
         try {
-            if (player == null) {
-                player = new SmartPlayer();
-            }
             showUrlPrepareSnackbar();
-            player.play(urlOrFilePath, this);//throws IllegalArgumentException
+            // =====================================
+            AudioPlayer.getIt().play(fileUrlString);
+            // =====================================
         } catch (Throwable ex) {
-            doResetUrl(true);
-            //showAnomalyText(ex,ex.getMessage());
-            invalidUrl(urlOrFilePath);//uses a snackbar
+            if(LOG_CONFIG.ERROR==LogConfig.ON)
+                Log.e(TAG, ".play(fileUrlString {"+fileUrlString+"}) " + ex + " "
+                        + Log.getStackTraceString(ex));
+            resetUrl(true);
             return false;
         }
         setUrlGuiWhenPlaying();
         return true;
     }
 
-    /**
-     * Not used in this version.
-     *
-     * @param filepath
-     * @return boolean success or failure
-     */
-    private boolean playLocalFile(final String filepath) {
-        isCancelling = false;
-        try {
-            if (player == null) {
-                player = new SmartPlayer();
-            }
-            showUrlPrepareSnackbar();
-            player.play(filepath, this);//throws IllegalArgumentException
-        } catch (Throwable ex) {
-            doResetUrl(true);
-            invalidUrl(filepath);//uses a snackbar
-            return false;
-        }
-        setUrlGuiWhenPlaying();
-        return true;
-    }
+    private boolean play(DataFromIntent dfi){
+        if(LOG_CONFIG.DEBUG==LogConfig.PLAY_URL||LOG_CONFIG.DEBUG==LogConfig.INTENT)
+            Log.d(TAG, ".play(DataFromIntent) entering with {" + dfi.toString() + "}");
 
-    /**
-     * Not used in this version.
-     *
-     * @param path
-     * @return boolean
-     */
-    private boolean playWithoutIntent(final String path) {
-        if (path.startsWith("file://")) {
-            //uri for a local file
+        if(dfi==null)return false;
 
-            return playLocalFile(path);
-
-        } else {
-            //uri is for not a local file; may be for a remote file such as http://... or https://
-
-            if (path.startsWith("http") || path.startsWith("rtsp")) {
-                //uri for a remote file
-
-                return playRemoteOrLocalFile(path);
-            }
+        if(dfi.uriIsContent()){
+            return play(dfi.INTENT);
         }
 
-        return false;
-    }
+        //if(dfi.uriIsHttp()){ //TODO prio 2 review for improvements for other cases of url's
+            return play(dfi.URL_STRING);
+        //}
 
-    /**
-     * Not used in this version.
-     *
-     * @param path
-     * @return boolean
-     */
-    private boolean play(final String path) {
-        if (getLogConfig().DEBUG==LogConfig.INTENT)
-            Log.d(TAG, ".play(String): path {" + path + "}");
-
-        Uri uri = Uri.parse(path);
-        Intent intent = new Intent(Intent.ACTION_SEND, uri);
-
-        return doPlayUrl(intent);
+        //return false;
     }
 
     private final Runnable RUNNABLE_FOR_URL_PREPARE = new Runnable() {
         
         public void run() {
+            if(largeGuiLayout==null)return;
             urlPrepareSnackbar = Snackbar.make(largeGuiLayout,
                     "Please wait, preparing media for playing...",//TODO res
                     Snackbar.LENGTH_INDEFINITE).setAction("null", null);
@@ -1594,11 +1617,9 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
         runOnUiThread(RUNNABLE_FOR_URL_PREPARE);
     }
 
-
     private volatile String statusText = "";
 
     private final Runnable RUNNABLE_FOR_STATUS = new Runnable() {
-        
         public void run() {
             if(largeGuiLayout!=null) {
                 Snackbar statusSnackbar = Snackbar.make(largeGuiLayout,
@@ -1610,7 +1631,7 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
     };
 
     /**
-     * <!-- old: Designed to be used when USER_LOG_INIT is true. -->
+     * <!-- old: Designed to be used when LOG_INIT_ENABLED is true. -->
      *
      * @param givenStatusText
      */
@@ -1631,49 +1652,95 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
      * <p/>Designed to be run on the ui thread.
      * All callers are run on the ui thread in this version.
      */
-    private void doResumeUrl() {
+    private void doResumeUrl() {//TODO prio 2 2017-8-16 review with new resumeOrRestart version in lib
+        if(LOG_CONFIG.DEBUG==LogConfig.PLAY_URL){
+            Log.d(TAG,"doResumeUrl: entering");
+        }
         isCancelling = false;
         //if url is not paused then exit
-        if (!urlIsPaused) return;
-        if (player!=null && player.resumeOrRestart()) {
+        if (!urlIsPaused) {
+            if(LOG_CONFIG.DEBUG==LogConfig.PLAY_URL){
+                Log.d(TAG,"doResumeUrl: exiting; urlIsPaused is false, so play is not paused, so exiting");
+            }
+            return;
+        }
+//        if (player == null) {
+//            if(LOG_CONFIG.DEBUG==LogConfig.PLAY_URL){
+//                Log.d(TAG,"doResumeUrl: player is null, so calling resetUrl and exiting");
+//            }
+//            resetUrl(true);
+//            //TODO play(???
+//            return;
+//        }
+
+        boolean resumeOrRestartOk = false;
+        try {
+            if (LOG_CONFIG.DEBUG==LogConfig.PLAY_URL){
+                Log.d(TAG,".doResumeUrl: player is not null, so calling player.resumeOrRestart()...");
+            }
+            // -------------------------------------------------------
+            resumeOrRestartOk = AudioPlayer.getIt().resumeOrRestart();
+            // -------------------------------------------------------
+            if(LOG_CONFIG.DEBUG==LogConfig.PLAY_URL){
+                Log.d(TAG,"doResumeUrl: player.resumeOrRestart() returned "+resumeOrRestartOk);
+            }
+        } catch (Exception e) {
+            if (LOG_CONFIG.DEBUG==LogConfig.PLAY_URL){
+                Log.d(TAG,".doResumeUrl: player.resumeOrRestart() raised "+e);
+            }
+            notifyPlayAbnormalEnd(e);
+        }
+
+        if (resumeOrRestartOk) {
             setUrlGuiWhenPlaying();
         } else {
-            doResetUrl(true);
+            resetUrl(true);
         }
     }
 
     /**
-     * input: urlToPlay attribute, which has been set when restoring preferences upstream
-     *
-     * <p/>Designed to be run on the ui thread.
+     * Designed to be run on the ui thread.
      * All callers are run on the ui thread in this version.
      *
-     * @param urlString can be URL from preferences.
-     * @return true when url set in GUI; false otherwise.
+     * <p/>Input:
+     * <p/>fileNameToPlay
+     * <p/>fileSizeToPlayForDisplay
+     * <p/>fileTextDisplayed
+     * <p/>editTextUrlToPlay
+     *
+     * <p/>Sets fileTextDisplayed, with filename and size, displayed in UI,
+     * or empty when failed or no valid input.
      */
-    private boolean setUrlToPlayInUi(final String urlString) {//TODO review with setUrlGuiWhenPlaying()
-        //urlToPlay = urlString;
-        if (getLogConfig().DEBUG==LogConfig.RESTORE 
-                || getLogConfig().DEBUG==LogConfig.INTENT
-                || getLogConfig().DEBUG==LogConfig.PLAY_URL)
-            Log.d(TAG, ".setUrlToPlayInUi: urlString {" + urlString + "}");
+    private void setUrlToPlayInUi() {
 
-        if (urlString != null && !urlString.isEmpty()) {
-            // url restored from prefs
+        if (LOG_CONFIG.DEBUG==LogConfig.RESTORE 
+                || LOG_CONFIG.DEBUG==LogConfig.INTENT
+                || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+            Log.d(TAG, ".setUrlToPlayInUi: fileNameToPlay {" + fileNameToPlay + "}");
 
-            if (editTextUrlToPlay != null) {
-                urlToPlay = urlString;
-                editTextUrlToPlay.setText(urlToPlay);
-                return true;
-            } else {
-                // ui widget is null
-                if (getLogConfig().DEBUG==LogConfig.RESTORE 
-                        || getLogConfig().DEBUG==LogConfig.INTENT
-                        || getLogConfig().DEBUG==LogConfig.PLAY_URL)
-                    Log.d(TAG, ".setUrlToPlayInUi: editTextUrlToPlay is null");
-            }
+        if(editTextUrlToPlay==null){
+            // ui widget is null
+            if (LOG_CONFIG.DEBUG==LogConfig.RESTORE
+                    || LOG_CONFIG.DEBUG==LogConfig.INTENT
+                    || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+                Log.e(TAG, ".setUrlToPlayInUi: editTextUrlToPlay widget is null");
+            return;
         }
-        return false;
+
+        if (fileNameToPlay != null && !fileNameToPlay.isEmpty()) {
+            // some value to show
+
+            if(fileSizeToPlayForDisplay!=null && ! fileSizeToPlayForDisplay.isEmpty()) {
+                fileTextDisplayed = fileNameToPlay + " (" + fileSizeToPlayForDisplay + ")";
+            }else{
+                fileTextDisplayed = fileNameToPlay;
+            }
+            editTextUrlToPlay.setText(fileTextDisplayed);
+
+        }else{
+            // no value to show
+            editTextUrlToPlay.setText("");
+        }
     }
 
     /**
@@ -1681,7 +1748,6 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
      * All callers are run on the ui thread in this version.
      */
     private void setUrlGuiWhenPlaying() {
-        //if(urlPrepareSnackbar!=null)urlPrepareSnackbar.dismiss();
         urlIsPlaying = true;
         urlIsPaused = false;
         if (playUrlButton != null) playUrlButton.setText("Pause");
@@ -1690,46 +1756,74 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
     }
 
     /**
-     * Designed to be run on the ui thread.
-     * All callers are run on the ui thread in this version.
+     * To be called when the Play-Url (pause) button selected while the url is playing.
      *
-     * @param ignoreAnomaly when false and there is an anomaly (pause fails),
-     *                      then the url color is set to the error color.
+     * <p/>Designed to be run on the ui thread.
+     * All callers are run on the ui thread in this version.
      */
-    private void doPauseUrl(boolean ignoreAnomaly) {
-        if (player == null) return;
-        if (!urlIsPlaying) return;
-        if (player.pause()) {
-            //pause succeeded
+    private void doPauseUrl() {
+        // if the url is not playing then do nothing
+        if ( ! urlIsPlaying) return;
+        // here when url is playing, and player may be preparing to play or not playing due to invalid audio source
+        // TODO if player is not prepared then reset
+        if( AudioPlayer.getIt().isPreparing()){
+            // player is preparing
+            // ------------------------
+            AudioPlayer.getIt().stop();
+            // ------------------------
+            resetUrl(false);
+            return;
+        }
+        // player is not preparing, and it may not be playing
+        if( ! AudioPlayer.getIt().isPlaying()){
+            // player is not preparing and not playing
+            resetUrl(false);
+            return;
+        }
+        // player is playing (not preparing), then pause it
+        // --------------------------------------------------
+        boolean pauseSucceeded = AudioPlayer.getIt().pause();
+        // --------------------------------------------------
+        if(LOG_CONFIG.DEBUG==LOG_CONFIG.PLAY_URL)
+            Log.d(TAG,".doPauseUrl: player.pause() returned "+pauseSucceeded);
+        if (pauseSucceeded) {
+            //player pause succeeded
             if (urlPrepareSnackbar != null && urlPrepareSnackbar.isShown()) {
-                //preparation is not completed
+                //urlPrepareSnackbar is not completed, then dismiss it
                 urlPrepareSnackbar.dismiss();
-                doResetUrl(false);
-            } else {
-                //preparation was completed earlier
-                urlIsPlaying = false;
-                urlIsPaused = true;
-                if (playUrlButton != null) playUrlButton.setText("Resume");
-                if (hideUrlButton != null) hideUrlButton.setText("Cancel");
-                if (editTextUrlToPlay != null) editTextUrlToPlay.setTextColor(urlColorForPaused);
+                // TODO was player preparation completed ???
+                if(LOG_CONFIG.DEBUG==LOG_CONFIG.PLAY_URL)
+                    Log.w(TAG,".doPauseUrl: urlPrepareSnackbar was showing, was player preparation completed?");
             }
+            urlIsPlaying = false;
+            urlIsPaused = true;
+            if (playUrlButton != null) playUrlButton.setText("Resume");
+            if (hideUrlButton != null) hideUrlButton.setText("Cancel");
+            if (editTextUrlToPlay != null) editTextUrlToPlay.setTextColor(urlColorForPaused);
         } else {
-            //pause failed
-            doResetUrl(!ignoreAnomaly);
+            // player pause failed, then stop the player and reset the labels
+            // urlIsPlaying = false;
+            // urlIsPaused = false;
+            resetUrl(false);
         }
     }
 
     /**
-     * Designed to be run on the ui thread.
+     * Stops the player when this is for an anomaly.
+     * Includes resetting the recording file buttons labels to "Play" and "Hide URL".
+     *
+     * <p/>Designed to be run on the ui thread.
      * All callers are run on the ui thread in this version.
      *
      * @param isForAnomaly when true, the url color is set to the error color
      */
-    private void doResetUrl(boolean isForAnomaly) {
-        if (player != null && isForAnomaly) player.shutdown();
+    private void resetUrl(boolean isForAnomaly) {
         if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
         resetUrlGui();//color is set to urlColorForInactive
-        if (isForAnomaly) editTextUrlToPlay.setTextColor(urlColorForError);
+        if (isForAnomaly) {
+            AudioPlayer.getIt().stop();
+            editTextUrlToPlay.setTextColor(urlColorForError);
+        }
         //TODO prepare anomaly text for display; get text fragment from client method
     }
 
@@ -1737,10 +1831,26 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
      * stop the play; for the hideUrlButton button when label is *Cancel* to stop the play and not hide gui
      */
     private void doCancelUrl() {
-        if (player == null) return;
         isCancelling=true;
-        player.shutdown();
         resetUrlGui();
+        AudioPlayer.getIt().stop(); //shutdown();
+    }
+
+    /**
+     * @param percent the percentage (0-100) of the content
+     *                that has been buffered or played thus far
+     */
+    public void onPlayerBufferingUpdate(int percent){
+        // do nothing in this version TODO prio 2 show percent to user in snackbar
+    }
+
+    /**
+     * A zero or negative value will have the player use the default timeout (ex. 30 sec.).
+     *
+     * @return int seconds to trigger a timeout event for the preparation of a data source.
+     */
+    public int getPlayerPreparationTimeoutSec(){
+        return 15;
     }
 
     /**
@@ -1764,7 +1874,7 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
      * @param withNotif true when caller wants the notification to be shown to user.
      */
     private void doHideUrl(final boolean withNotif) {
-        if (getLogConfig().DEBUG==LogConfig.UI)
+        if (LOG_CONFIG.DEBUG==LogConfig.UI)
             Log.d(TAG, "doHideUrl: entering");
 
         doCancelUrl();
@@ -1772,7 +1882,7 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
         if (urlLayout != null) urlLayout.setVisibility(View.GONE);
 
         if (largeGuiLayout != null) {
-            if (getLogConfig().DEBUG==LogConfig.UI)
+            if (LOG_CONFIG.DEBUG==LogConfig.UI)
                 Log.d(TAG, "doHideUrl: largeGuiLayout sensitivity is enabled");
             largeGuiLayout.setOnClickListener(ON_CLICK_LISTENER);
         }
@@ -1800,6 +1910,7 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
      * false when previously denied (and not requested again)
      * or when permission being requested, i.e., the caller should not try to play.
      */
+    @SuppressLint("WrongConstant")
     public boolean getPermissionForExternalStorageAccess(final String filePath) {
         requestFilesPermission(filePath);
 
@@ -1813,7 +1924,8 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
         }
 
         if (permission == PackageManager.PERMISSION_GRANTED) {
-            if (getLogConfig().DEBUG==LogConfig.PERMISSIONS) {
+            if (LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS
+                    || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL) {
                 Log.d(TAG, ".getPermissionForExternalStorageAccess: " +
                         "checkSelfPermission returned positive; this method is returning true");
             }
@@ -1821,7 +1933,7 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
         }
 
         //no permission; did we asked the user before? if yes, then don't ask again
-        if (getLogConfig().DEBUG==LogConfig.PERMISSIONS) {
+        if (LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS||LOG_CONFIG.DEBUG==LogConfig.PLAY_URL) {
             Log.d(TAG, ".getPermissionForExternalStorageAccess: " +
                     "checkSelfPermission returned negative; storageAccessPermissionWasAsked = "
                     + storageAccessPermissionWasAsked);
@@ -1849,7 +1961,7 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
                 PERMISSIONS_FOR_EXTERNAL_STORAGE_ACCESS,
                 PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS
         );
-        if (getLogConfig().DEBUG==LogConfig.PERMISSIONS) {
+        if (LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS||LOG_CONFIG.DEBUG==LogConfig.PLAY_URL) {
             Log.d(TAG, ".getPermissionForExternalStorageAccess: " +
                     "checkSelfPermission returned negative; storageAccessPermissionWasAsked = "
                     + storageAccessPermissionWasAsked
@@ -1870,8 +1982,9 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
 
     private void getPermissionForRecordAudio(final Bundle savedInstanceStateGiven) {
         savedInstanceStateTemp = savedInstanceStateGiven;
-        if (getLogConfig().DEBUG==LogConfig.INIT || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT
-                || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
+        if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
+                || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS
+                || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
             Log.d(TAG, ".getPermissionForRecordAudio entering...Build.VERSION.SDK_INT = "
                     + Build.VERSION.SDK_INT);
 
@@ -1889,8 +2002,9 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
                     Manifest.permission.RECORD_AUDIO)
                     == PackageManager.PERMISSION_GRANTED;
         }
-        if (getLogConfig().DEBUG==LogConfig.INIT || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT
-                || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
+        if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
+                || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS
+                || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
             Log.d(TAG, ".getPermissionForRecordAudio: aprioriGranted " + aprioriGranted);
 
         if (!aprioriGranted) {
@@ -1903,14 +2017,19 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
                     Manifest.permission.WRITE_EXTERNAL_STORAGE};
 
             if (Build.VERSION.SDK_INT >= 23) {
-                if (getLogConfig().DEBUG==LogConfig.INIT || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT
-                        || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
+                if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
+                        || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS
+                        || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL )
                     Log.d(TAG, ".getPermissionForRecordAudio about to call requestPermissions(...)");
+                // -----------------------------------------------------------------------
                 requestPermissions(permissions, PERMISSIONS_REQUEST_CODE_FOR_RECORD_AUDIO);
+                // -----------------------------------------------------------------------
             } else {
-                if (getLogConfig().DEBUG==LogConfig.INIT || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT
-                        || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
+                if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
+                        || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS
+                        || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
                     Log.d(TAG, ".getPermissionForRecordAudio about to call ActivityCompat.requestPermissions(...)");
+
                 ActivityCompat.requestPermissions(this, permissions,
                         PERMISSIONS_REQUEST_CODE_FOR_RECORD_AUDIO);
             }
@@ -1919,8 +2038,9 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
             // result of the request.
         } else {
             //granted apriori
-            if (getLogConfig().DEBUG==LogConfig.INIT || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT
-                    || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
+            if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
+                    || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS
+                    || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
                 Log.d(TAG, ".getPermissionForRecordAudio: was granted apriori" +
                         "; calling onCreateComplete...");
 
@@ -1929,8 +2049,9 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
         }
         //here when permission granted before running the app, e.g., older version of android
 
-        if (getLogConfig().DEBUG==LogConfig.INIT || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT
-                || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
+        if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
+                || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS
+                || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
             Log.d(TAG, ".getPermissionForRecordAudio exiting...");
     }
 
@@ -1943,9 +2064,10 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
      */
     @Override
     public void onRequestPermissionsResult(int requestCode,
-                                           String[] permissions, int[] grantResults) {
-        if (getLogConfig().DEBUG==LogConfig.INIT || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT
-                || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
+                                           @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
+                || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
             Log.d(TAG, ".onRequestPermissionsResult entering with requestCode {" + requestCode
                     + "}; filePathNeedingAccess {" + filePathNeedingAccess + "}");
 //        readFileAccepted = false;
@@ -1953,9 +2075,9 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
         //permissionGrantedForRecordAudio = false;
         switch (requestCode) {
             case PERMISSIONS_REQUEST_CODE_FOR_RECORD_AUDIO: {
-                if (getLogConfig().DEBUG==LogConfig.INIT
-                        || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT
-                        || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
+                if (LOG_CONFIG.DEBUG==LogConfig.INIT
+                        || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
+                        || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
                     Log.d(TAG, ".onRequestPermissionsResult: " +
                             "PERMISSIONS_REQUEST_CODE_FOR_RECORD_AUDIO; " +
                             "grantResults.length = " + grantResults.length);
@@ -1969,15 +2091,16 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
 
                 if (!permissionGrantedForRecordAudio) {
                     //not granted, cannot run the app
-                    if (getLogConfig().DEBUG==LogConfig.INIT || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT
-                            || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
-                        Log.d(TAG, ".onRequestPermissionsResult: audio permission denied; calling finish()");
-                    finish();
+                    if (LOG_CONFIG.DEBUG!=LogConfig.OFF)
+//                    if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
+//                            || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
+                        Log.d(TAG, ".onRequestPermissionsResult: audio permission denied; calling shutdown withfinish()");
+                    shutdown(true);
                     return;
                 }
                 //here when record audio was granted
-                if (getLogConfig().DEBUG==LogConfig.INIT || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT
-                        || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
+                if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
+                        || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
                     Log.d(TAG, ".onRequestPermissionsResult: audio permission granted");
                 //complete create
                 onCreateComplete(savedInstanceStateTemp);
@@ -1985,9 +2108,9 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
             } // case
 
             case PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS: {
-                if (getLogConfig().DEBUG==LogConfig.INIT
-                        || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT
-                        || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
+                if (LOG_CONFIG.DEBUG==LogConfig.INIT
+                        || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
+                        || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
                     Log.d(TAG, ".onRequestPermissionsResult: " +
                             "PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS; " +
                             "grantResults.length = " + grantResults.length);
@@ -2003,16 +2126,17 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
                 // when false, disable the play url functions for local files
 //                permissionGrantedForStorageAccess = ;
 
-                if (getLogConfig().DEBUG==LogConfig.INIT
-                        || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT
-                        || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
+                if (LOG_CONFIG.DEBUG==LogConfig.INIT
+                        || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
+                        || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
                     Log.d(TAG, ".onRequestPermissionsResult: " +
                             "PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS; " +
                             "readFileAccepted = " + readFileAccepted
                             + "; writeFileAccepted = " + writeFileAccepted);
 
                 if (readFileAccepted || writeFileAccepted) {
-                    playLocalFileAfterStorageAccessGranted(filePathNeedingAccess);
+                    // playLocalFileAfterStorageAccessGranted(filePathNeedingAccess);
+                    // TODO 2017-7-26 does this break intent from external app?
                 } else {
                     // disable the play url functions but only for local files
                 }
@@ -2023,8 +2147,8 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
             // other 'case' lines to check for other
             // permissions this app might request
             default: {
-                if (getLogConfig().DEBUG==LogConfig.INIT || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT
-                        || getLogConfig().DEBUG==LogConfig.PERMISSIONS)
+                if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
+                        || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
                     Log.d(TAG, ".onRequestPermissionsResult: default; requestCode " + requestCode
                             //+"; permissionGrantedForRecordAudio "+ permissionGrantedForRecordAudio
                             //+"; calling onCreateComplete(savedInstanceStateTemp)..."
@@ -2038,8 +2162,8 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
 
     public void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
-        if (getLogConfig().DEBUG==LogConfig.PAUSE || getLogConfig().DEBUG==LogConfig.THREADS
-                || getLogConfig().DEBUG==LogConfig.RESTORE)
+        if (LOG_CONFIG.DEBUG==LogConfig.PAUSE || LOG_CONFIG.DEBUG==LogConfig.THREADS
+                || LOG_CONFIG.DEBUG==LogConfig.RESTORE)
             Log.d(TAG, ".onSaveInstanceState " + Thread.currentThread());
 
         saveBitmap(outState);
@@ -2054,26 +2178,24 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
      */
     protected void onRestoreInstanceState(Bundle savedInstanceState) {//TODO future restore bitmap
         super.onSaveInstanceState(savedInstanceState);
-        if (getLogConfig().DEBUG==LogConfig.PAUSE || getLogConfig().DEBUG==LogConfig.THREADS
-                || getLogConfig().DEBUG==LogConfig.RESTORE)
+        if (LOG_CONFIG.DEBUG==LogConfig.PAUSE || LOG_CONFIG.DEBUG==LogConfig.THREADS
+                || LOG_CONFIG.DEBUG==LogConfig.RESTORE)
             Log.d(TAG, ".onRestoreInstanceState: calling restoreBitmap(savedInstanceState)..."
                     + Thread.currentThread());
 
         restoreBitmap(savedInstanceState);
     }
 
-    public static final String PREF_BITMAP_KEY = "bitmap";
-    public static final String PREF_URL_KEY = "url_to_play";
 
     private void restoreBitmap(final Bundle savedInstanceState) {
         if (!SPECTROGRAM_IMAGE_PERSISTENCE_IS_ENABLED) {
-            if (getLogConfig().DEBUG==LogConfig.PAUSE || getLogConfig().DEBUG==LogConfig.RESTORE)
+            if (LOG_CONFIG.DEBUG==LogConfig.PAUSE || LOG_CONFIG.DEBUG==LogConfig.RESTORE)
                 Log.d(TAG, ".restoreBitmap: exiting because SPECTROGRAM_IMAGE_PERSISTENCE_IS_ENABLED is false");
             return;
         }
         if (savedInstanceState != null) {
             // not new session; restoring the app from Android savedInstanceState
-            if (getLogConfig().DEBUG==LogConfig.PAUSE || getLogConfig().DEBUG==LogConfig.RESTORE)
+            if (LOG_CONFIG.DEBUG==LogConfig.PAUSE || LOG_CONFIG.DEBUG==LogConfig.RESTORE)
                 Log.d(TAG, ".restoreBitmap: restoring");
 //            SpectrogramView.restoring = true; TODO future restoring bitmap function
             //------------------------------------------------------------
@@ -2081,16 +2203,16 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
             //------------------------------------------------------------
             if (ob != null) {
 //                SpectrogramView.bitmap = (Bitmap) ob;
-                if (getLogConfig().DEBUG==LogConfig.PAUSE || getLogConfig().DEBUG==LogConfig.RESTORE)
+                if (LOG_CONFIG.DEBUG==LogConfig.PAUSE || LOG_CONFIG.DEBUG==LogConfig.RESTORE)
                     Log.d(TAG, ".restoreBitmap: restoring; saved bitmap not null");
             } else {
-                if (getLogConfig().DEBUG==LogConfig.PAUSE || getLogConfig().DEBUG==LogConfig.RESTORE)
+                if (LOG_CONFIG.DEBUG==LogConfig.PAUSE || LOG_CONFIG.DEBUG==LogConfig.RESTORE)
                     Log.d(TAG, ".restoreBitmap: restoring; saved bitmap is null");
             }
 
         } else {
             // not restoring; new session
-            if (getLogConfig().DEBUG==LogConfig.PAUSE || getLogConfig().DEBUG==LogConfig.RESTORE)
+            if (LOG_CONFIG.DEBUG==LogConfig.PAUSE || LOG_CONFIG.DEBUG==LogConfig.RESTORE)
                 Log.d(TAG, ".restoreBitmap: not restoring");
 //            SpectrogramView.restoring = false;
 //            SpectrogramView.bitmap = null;
@@ -2099,7 +2221,7 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
 
     private void saveBitmap(Bundle outState) {
         if (!SPECTROGRAM_IMAGE_PERSISTENCE_IS_ENABLED) {
-            if (getLogConfig().DEBUG==LogConfig.PAUSE || getLogConfig().DEBUG==LogConfig.RESTORE)
+            if (LOG_CONFIG.DEBUG==LogConfig.PAUSE || LOG_CONFIG.DEBUG==LogConfig.RESTORE)
                 Log.d(TAG, ".saveBitmap: exiting because SPECTROGRAM_IMAGE_PERSISTENCE_IS_ENABLED is false");
             return;
         }
@@ -2110,10 +2232,10 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
                 //----------------------------------------------
                 outState.putParcelable(PREF_BITMAP_KEY, bitmap);
                 //----------------------------------------------
-                if (getLogConfig().DEBUG==LogConfig.PAUSE || getLogConfig().DEBUG==LogConfig.RESTORE)
+                if (LOG_CONFIG.DEBUG==LogConfig.PAUSE || LOG_CONFIG.DEBUG==LogConfig.RESTORE)
                     Log.d(TAG, ".saveBitmap: bitmap saved");
             } else {
-                if (getLogConfig().DEBUG==LogConfig.PAUSE || getLogConfig().DEBUG==LogConfig.RESTORE)
+                if (LOG_CONFIG.DEBUG==LogConfig.PAUSE || LOG_CONFIG.DEBUG==LogConfig.RESTORE)
                     Log.d(TAG, ".saveBitmap: bitmap is null");
             }
         }
@@ -2130,73 +2252,85 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
 
     private void restartSpectro() {
         try {
-            if (getLogConfig().DEBUG==LogConfig.PAUSE)
-                Log.e(TAG, ".restartSpectro: calling unpause()...");
+            if (LOG_CONFIG.DEBUG==LogConfig.PAUSE
+                    || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+                Log.d(TAG, ".restartSpectro: calling unpause()...");
             unpause();
             pause.setText(getString(R.string.pause_button));
-            if (getLogConfig().DEBUG==LogConfig.PAUSE)
+            if (LOG_CONFIG.DEBUG==LogConfig.PAUSE
+                    || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
                 Log.d(TAG, ".restartSpectro: unpause() ok");
         } catch (Exception e) {
             //e.printStackTrace();
-            if (getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT || getLogConfig().ERROR==LogConfig.ON)
-                Log.e(TAG, ".restartSpectro: unpause() raised: " + e);
+            if (LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
+                    || LOG_CONFIG.ERROR==LogConfig.ON
+                    || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+                Log.e(TAG, ".restartSpectro: unpause() raised: " + e
+                    +"\n"+Log.getStackTraceString(e));
             return;
         }
-//        pauseButton.setText(getString(R.string.pause_button));
+        if(LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+            Log.d(TAG, ".restartSpectro: exiting, isPausedByHUser set to false");
         isPausedByHUser = false;
     }
 
     private void pauseSpectro() {
-        if (getLogConfig().DEBUG==LogConfig.PAUSE)
+        if (LOG_CONFIG.DEBUG==LogConfig.PAUSE)
             Log.d(TAG, ".pauseSpectro entering");
         closeListener();
         pause.setText(getString(R.string.pause_button_restart));
         isPausedByHUser = true;
-        if (getLogConfig().DEBUG==LogConfig.PAUSE)
+        if (LOG_CONFIG.DEBUG==LogConfig.PAUSE)
             Log.d(TAG, ".pauseSpectro exiting");
     }
 
     /**
+     * Called when the spectrogram Pause/Resume button is used (not the URL Play/Pause button).
+     *
      * <p/>Designed to be run on the ui thread.
      * All callers are run on the ui thread in this version.
      */
     private void pauseToggle() {
-        if (getLogConfig().DEBUG==LogConfig.PAUSE)
+        if (LOG_CONFIG.DEBUG==LogConfig.PAUSE || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
             Log.d(TAG, ".pauseToggle: entering; isPausedByHUser " + isPausedByHUser
                             + "; isPaused() " + isPaused()
-//                    + "; button label = "+pauseButton.getText()
             );
         if (isPausedByHUser || isPaused()) {
             // is paused, then restart
+            // --------------
             restartSpectro();
+            // --------------
             // url is not playing, then do play url or resume
+            //TODO prio 2 2017-8-16 review with new resumeOrRestart version in lib
             if (urlIsPaused) {
+                // -----------
                 doResumeUrl();
+                // -----------
             } else {
-                //TODO washere washere bug don't play when restarting spectro and url was not playing
                 // was not paused, so play, don't resume
                 // there is a time limit on attempt to play
-                // doPlayUrl(editTextUrlToPlay.getText().toString());
-                if (getLogConfig().DEBUG==LogConfig.PAUSE)
+                // play(editTextUrlToPlay.getText().toString());
+                if (LOG_CONFIG.DEBUG==LogConfig.PAUSE || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
                     Log.d(TAG, ".pauseToggle: entering; isPausedByHUser " + isPausedByHUser
                             + "; urlIsPaused " + urlIsPaused
                     );
             }
         } else {
             //is running, then pause
+            // -----------------------------
             pauseSpectro();
-            doPauseUrl(false);
+            doPauseUrl();
+            // -----------------------------
         }
-        if (getLogConfig().DEBUG==LogConfig.PAUSE)
+        if (LOG_CONFIG.DEBUG==LogConfig.PAUSE)
             Log.d(TAG, ".pauseToggle: exiting; isPausedByHUser " + isPausedByHUser
                             + "; isPaused() " + isPaused()
-//                    + "; button label = "+pauseButton.getText()
             );
     }
 
 
 //    @ Override
-//    public boolean onCreateOptionsMenu(Menu menu) {
+//    public boolean onCreateOptionsMenu(Menu menu) { TODO do we need an Options Menu???
 //        // Inflate the menu; this adds items to the action bar if it is present.
 ////        getMenuInflater().inflate(R.menu.menu, menu);
 ////        return true;
@@ -2266,7 +2400,7 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
         if (!isSupportEmailEnabled()) return;
         Intent intent = new Intent(Intent.ACTION_VIEW,
                 Uri.parse("mailto:" + AppPublisher.emailAddressForSupport));
-        intent.putExtra(Intent.EXTRA_SUBJECT, "AppPublisher.getSupportEmailSubject()");//TODO washere 2017-7-1
+        intent.putExtra(Intent.EXTRA_SUBJECT, "Email to support");
         intent.putExtra(Intent.EXTRA_TEXT, text);
         startActivity(intent);
     }
@@ -2285,17 +2419,6 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
      * -1L when cleared.
      */
     private volatile long lastAnomalyTimeMillis = -1;
-
-    /* for resources:
-    <string name="my_text">
-  <![CDATA[
-    <b>Autor:</b> Mr Nice Guy<br>
-    <b>Contact:</b> myemail@grail.com<br>
-    <i>Copyright © 2011-2012 Intergalactic Spacebar Confederation </i>
-  ]]>
-</string>
-tv.setText(Html.fromHtml(getString(R.string.my_text)));
-     */
 
     /**
      * @return String or null when none;
@@ -2324,43 +2447,14 @@ tv.setText(Html.fromHtml(getString(R.string.my_text)));
         }
     }
 
-    /* text for the Play store:
-
-    See the sounds surrounding you:
-    - appreciate the visual structural beauty of bird songs
-    - detect sounds that you cannot hear
-    - evaluate the sound quality of your immediate environment
-    - locate anomalous sound sources in your house or at work
-    - get an idea of the quality of your hearing and may help you decide to get a medical hearing test
-
-    This app will also
-    - play a remote media file (e.g., a wa. file) of killer whale vocalizations, for example, or the pre-recorded vocalizations from your cat or dog
-    - test the audio capabilities of your Android device and present the results in a text form
-    - select the best sampling rate supported by your device
-
-    Using the built-in feature of your Android device, you can take screen shots of the spectrogram and share them via email or messenger apps.
-    The app does not include special features for doing this; just use the normal functions of your device.
-
-    External microphones may be compatible with your device, for example, via a USB connector or the RCA audio jack.
-    The app does not have special features for external mic's and you're on your own for determining if a microphone is compatible or not.
-    Future versions may have special functions for testing external mic's.
-    We do not recommend microphones that use Bluetooth at this time due to the inherent limitations of the current Bluetooth technology for audio input.
-
-    This app does not record sound.
-
-    Some current Android devices can perform sampling of sounds at 96,000 samples per second, with a relatively narrow latency (maybe 1/2 second);
-    this latency is the delay between the actual sounds and the availability of the numeric samples to the application.
-    Only Android Marshmallow (i.e., version 6, API level 23), and later versions, do support 96,000 samples per second.
-    This app supports 96,000 samples per second. It analyzes sounds 40 times per second. It uses 1024 samples for each analysis (using FFT).
-    This app automatically adapts itself to the best sampling rate supported by your device.
-     */
-
+    @NonNull
     private String getDeviceText(){
         StringBuilder buf = new StringBuilder();
         buf.append( Html.fromHtml( getDeviceTextInHtml() ));
         return buf.toString();
     }
 
+    @NonNull
     private String getDeviceTextInHtml(){
         StringBuilder buf = new StringBuilder();
 
@@ -2373,6 +2467,7 @@ tv.setText(Html.fromHtml(getString(R.string.my_text)));
         return buf.toString();
     }
 
+    @NonNull
     private String getPerfMeasurementsInHtml(){
         StringBuilder buf = new StringBuilder();
 
@@ -2386,6 +2481,7 @@ tv.setText(Html.fromHtml(getString(R.string.my_text)));
         return buf.toString();
     }
 
+    @NonNull
     private String getContentSectionForDeviceTextInHtml(){
         StringBuilder buf = new StringBuilder();
 
@@ -2399,7 +2495,7 @@ tv.setText(Html.fromHtml(getString(R.string.my_text)));
     }
 
     /**
-     * TODO move to library washere 2017-5
+     * TODO prio 2 move to library 2017-5
      * @param html Stxing text
      * @return android.text.Spanned, implements CharSequence
      */
@@ -2414,12 +2510,13 @@ tv.setText(Html.fromHtml(getString(R.string.my_text)));
         return result;
     }
 
+    @NonNull
     private String getAboutText() {
         StringBuilder buf = new StringBuilder();
 
         buf.append(fromHtml( getAboutTextInHtml() ));
 
-        if(getLogConfig().DEBUG==LogConfig.UI){
+        if(LOG_CONFIG.DEBUG==LogConfig.UI){
             Log.d(TAG,".getAboutText: length = "+buf.length());
         }
 
@@ -2432,18 +2529,28 @@ tv.setText(Html.fromHtml(getString(R.string.my_text)));
      * @return String with html tags compatible with Html.fromHtml.
      */
     private String getAboutTextInHtml() {
-        StringBuilder buf = new StringBuilder("<h2>ABOUT THIS APP - "); //.toUpperCase());
-        buf.append(getString(R.string.app_name)).append("</h2>");
+
+        StringBuilder buf = new StringBuilder(); //.toUpperCase());
 
         String anomaliesText = getLastAnomalyTextInHtml();
+        if( anomaliesText != null && ! anomaliesText.isEmpty()){
+            buf.append(anomaliesText);
+//            buf.append("<p/>Support email: ");
+//            buf.append(AppPublisher.emailAddressForSupport);
+            lastAnomalyTextIsShown = true;
+            return buf.toString();
+        }
+
+        lastAnomalyTextIsShown = false;
+
+        buf.append("<h2>ABOUT THIS APP - ");
+        buf.append(getString(R.string.app_name)).append("</h2>");
 
         buf.append("<h4>Content:</h4>")
         .append("<p/>Copyright");
-        if(!(anomaliesText == null || anomaliesText.length() == 0)){
-            buf.append("<br>Anomaly");
-        }else{
-            buf.append("<br>Contact Info");
-        }
+
+        buf.append("<br>Contact Info");
+
         buf.append("<br>Introduction")
         .append("<br>User Interface Guide")
         .append("<br>Privacy Policy")
@@ -2457,23 +2564,10 @@ tv.setText(Html.fromHtml(getString(R.string.my_text)));
         buf.append("<p/>")
         .append("Some links to cetacean vocalisation recordings are Copyright Aguasonic Acoustics.");
 
-
-        // ##### anomaly text if any #####
-
-        if (anomaliesText == null || anomaliesText.length() == 0) {
-            //no anomalies
-            buf.append("<p/>Questions, defects, suggestions, please contact ")
-                    .append(AppPublisher.emailAddressForSupport);
-            runOnUiThread(RUNNABLE_TO_CLEAR_ANOMALY_TEXT);
-        } else {
-            //anomalies
-            buf.append("<p/>~~~~~~~~~~<p/>");
-            buf.append(anomaliesText);
-            buf.append("<p/>End of anomaly text");
-            buf.append("<p/>~~~~~~~~~~<p/>");
-
-            lastAnomalyTextIsShown = true;
-        }
+        //no anomalies
+        buf.append("<p/>Questions, defects, suggestions, please contact ")
+                .append(AppPublisher.emailAddressForSupport);
+        runOnUiThread(RUNNABLE_TO_CLEAR_ANOMALY_TEXT);
 
         // ##### intro #####
 
@@ -2502,13 +2596,13 @@ tv.setText(Html.fromHtml(getString(R.string.my_text)));
         // ##### FFT Info #####
 
         //buf.append("<p/>~~~~~~~~~~");
-//        buf.append("<p/>") TODO future confirm source of FFT
+//        buf.append("<p/>") TODO prio 2 future confirm source of FFT
 //                .append("The Fast Fourier Transform (FFT) calculations include parts of the NIST (National Institute of Standards) scimark2 program")
 //                .append(", as well as calculations developed by Serge Masse. ")
 //                .append("The original NIST Java code, not all used here, was written by Bruce R. Miller, and was inspired by the GSL"
 //                .append(" (Gnu Scientific Library) FFT written in C by Brian Gough. ");
 
-        //buf.append("The FFT use 'double' primitives."); TODO future use option for de. for float vs double
+        //buf.append("The FFT use 'double' primitives."); TODO prio 2 future use option for dev for float vs double
         //buf.append("<p/>~~~~~~~~~~");
 
         // ##### UI Guide #####
@@ -2528,7 +2622,7 @@ tv.setText(Html.fromHtml(getString(R.string.my_text)));
         return buf.toString();
     }
 
-    /* TODO EULA example from https://www.makingmoneywithandroid.com/2011/05/how-to-eula-android-app/
+    /* TODO prio 2 EULA example from https://www.makingmoneywithandroid.com/2011/05/how-to-eula-android-app/
 
     By downloading any application from <YOURCOMPANYNAME> or Google™ (here after referered to as “The Company”), installing or using this application or any portion thereof (“Application”), you agree to the following terms and conditions (the “Terms and Conditions”).
 
@@ -2576,7 +2670,7 @@ d. The rights granted in these Terms and Conditions may not be assigned or trans
 e. These Terms and Conditions and your relationship with The Company under these Terms and Conditions will be governed by the laws of the State of California without regard to its conflict of laws provisions. You and The Company agree to submit to the exclusive jurisdiction of the courts located within the county of Santa Clara, California to resolve any legal matter arising from these Terms and Conditions. Notwithstanding this, you agree that The Company will still be allowed to apply for injunctive remedies (or an equivalent type of urgent legal relief) in any jurisdiction.
      */
 
-    /* TODO from https://web.archive.org/web/20130205134238/http://www.developer-resource.com/sample-eula.htm
+    /* TODO prio 2 from https://web.archive.org/web/20130205134238/http://www.developer-resource.com/sample-eula.htm
 
     END-USER LICENSE AGREEMENT FOR {INSERT PRODUCT NAME} IMPORTANT PLEASE READ THE TERMS AND CONDITIONS OF THIS LICENSE AGREEMENT CAREFULLY BEFORE CONTINUING WITH THIS PROGRAM INSTALL: {INSERT COMPANY NAME's } End-User License Agreement ("EULA") is a legal agreement between you (either an individual or a single entity) and {INSERT COMPANY NAME}. for the {INSERT COMPANY NAME} software product(s) identified above which may include associated software components, media, printed materials, and "online" or electronic documentation ("SOFTWARE PRODUCT"). By installing, copying, or otherwise using the SOFTWARE PRODUCT, you agree to be bound by the terms of this EULA. This license agreement represents the entire agreement concerning the program between you and {INSERT COMPANY NAME}, (referred to as "licenser"), and it supersedes any prior proposal, representation, or understanding between the parties. If you do not agree to the terms of this EULA, do not install or use the SOFTWARE PRODUCT.
 
@@ -2616,6 +2710,7 @@ All title, including but not limited to copyrights, in and to the SOFTWARE PRODU
 In no event shall {INSERT COMPANY NAME} be liable for any damages (including, without limitation, lost profits, business interruption, or lost information) rising out of 'Authorized Users' use of or inability to use the SOFTWARE PRODUCT, even if {INSERT COMPANY NAME} has been advised of the possibility of such damages. In no event will {INSERT COMPANY NAME} be liable for loss of data or for indirect, special, incidental, consequential (including lost profit), or other damages based in contract, tort or otherwise. {INSERT COMPANY NAME} shall have no liability with respect to the content of the SOFTWARE PRODUCT or any part thereof, including but not limited to errors or omissions contained therein, libel, infringements of rights of publicity, privacy, trademark rights, business interruption, personal injury, loss of privacy, moral rights or the disclosure of confidential information.
      */
 
+    @NonNull
     private String getLicenseAndTermsInHtml() {
         StringBuilder buf = new StringBuilder();
 
@@ -2642,6 +2737,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         return buf.toString();
     }
 
+    @NonNull
     private String getPrivacyPolicyInHtml() {
         StringBuilder buf = new StringBuilder();
 
@@ -2654,6 +2750,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         return buf.toString();
     }
 
+    @NonNull
     private String getUIGuideInHtml() {
         StringBuilder buf = new StringBuilder();
 
@@ -2686,13 +2783,15 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         buf.append("<p/><h3>URL TO PLAY A MEDIA FILE</h3>");
         buf.append("<p/>This app is great to analyse live sounds and recorded sound files.");
         buf.append("<p/>This app does not record sound but will play most types of recorded files and will display the histogram of the sound as it is played.");
-        buf.append(" To do that, one way is to go to the sound file using the Chrome browser and to share the sound to this app.");
-        buf.append(" To share the sound file, you open the pop-up on the sound file link and you select the share option, which has an icon that looks like three linked dots.");
+        buf.append(" To do that, one way is to go to a download sound file and to share the file to this app.");
+        buf.append(" To share the local sound file, you may long-press on the sound file and you select the share option, which has an icon that looks like three linked dots.");
         buf.append(" When the choices of ways to share comes up, you select the icon for this app.");
 
-        buf.append("<p/>You can also use other sound apps that can share recorded files with this app, often in a similar fashion to using Chrome for sharing.");
+        buf.append("<p/>You can also use Chrome, browse the web, and share a remote file directly with this app, as long as the remote file is compatible, or download it to your device and share it.");
 
-        buf.append(" Some web sites do not let their sounds to be shared and many do.");
+        buf.append(" You can also use other sound apps that can share recorded files.");
+
+        //buf.append(" Some web sites do not let their sounds to be shared and many do.");
 
         buf.append("<p/>This site below contains high quality cetacean sounds that you can download to your device")
         .append(" and then share with this app, by using Android downloaded file access or a file management app from a third party.")
@@ -2701,76 +2800,80 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
         .append("<p/>http://www.freesound.org/people/aguasonic/sounds/");
 
-        buf.append("<p/>You can also use other sound apps that can share recorded files with this app, often in a similar fashion to using Chrome for sharing.");
+        buf.append("<p/>I recommend recordings from aguasonic.");
 
-        buf.append("<p/>The URL to play audio files can be used in two ways: you can type (or copy-paste) the URL in the widget or you can");
-        buf.append(" get another app to send an Intent with the appropriate characteristics, and the Spectrogram");
-        buf.append(" app will pick it up and play the URL sent by the third party app.");
+        //buf.append("<p/>You can also use other sound apps that can share recorded files with this app, often in a similar fashion to using Chrome for sharing.");
 
-        buf.append("<p/>For copy-pasting a URL to the widget, ")
-        .append("here is an example with the new WHOI Watkins Marine Mammal Sound database at ")
+//        buf.append("<p/>The URL to play audio files can be used in two ways: you can type (or copy-paste) the URL in the widget or you can");
+//        buf.append(" get another app to send an Intent with the appropriate characteristics, and the Spectrogram");
+//        buf.append(" app will pick it up and play the URL sent by the third party app.");
+
+//        buf.append("<p/>For copy-pasting a URL to the widget, ")
+//        .append("here is an example with the new WHOI Watkins Marine Mammal Sound database at ")
+
+        buf.append("<p/>You may also try the new WHOI Watkins Marine Mammal Sound database at")
 
         .append("<p/>http://cis.whoi.edu/science/B/whalesounds/bestOf.cfm?code=BD15F")
 
-        .append("<p/>The above link is the page for the Stenella frontalis sounds.")
+        .append("<p/>The above link is the page for the Stenella frontalis sounds.");
 
-        .append("<p/>Steps to play and view the spectrogram:")
-        .append("<br>- Ensure that the device output sound level is not zero and sufficient")
-        .append(", usually with the sound buttons on the side of the device.")
-        .append("<br>- You open the above page with your device Chrome browser,")
-        .append("<br>- you long-press the *Download* link for a recording,")
-        .append("<br>- you select the *Copy link address* option,")
-        .append("<br>- you open or go to the sm Spectrogram app,")
-        .append("<br>- if you are viewing this text, then hide it by tapping the ABOUT button,")
-        .append("<br>- you tap the URL widget and select *Paste*, ")
-        .append("and the link from the clipboard will be written by Android onto the URL widget,")
-        .append("<br>- if there was a previous link in the URL widget, ensure that it is entirely replaced by the new link,")
-        .append("<br>- you tap the *Play* button, wait a few seconds for the file to get accessed and played,")
-        .append(" and you should hear the sound and see the spectrogram.");
-        buf.append("<br>- You may want to pause the app in order to better observe the spectrogram being displayed.");
-        buf.append("<br>- You can replay the file as many times as needed.");
+//        .append("<p/>Steps to play and view the spectrogram:")
+//        .append("<br>- Ensure that the device output sound level is not zero and sufficient")
+//        .append(", usually with the sound buttons on the side of the device.")
+//        .append("<br>- You open the above page with your device Chrome browser,")
+//        .append("<br>- you long-press the *Download* link for a recording,")
+//        .append("<br>- you select the *Copy link address* option,")
+//        .append("<br>- you open or go to the sm Spectrogram app,")
+//        .append("<br>- if you are viewing this text, then hide it by tapping the ABOUT button,")
+//        .append("<br>- you tap the URL widget and select *Paste*, ")
+//        .append("and the link from the clipboard will be written by Android onto the URL widget,")
+//        .append("<br>- if there was a previous link in the URL widget, ensure that it is entirely replaced by the new link,")
+//        .append("<br>- you tap the *Play* button, wait a few seconds for the file to get accessed and played,")
+//        .append(" and you should hear the sound and see the spectrogram.");
+//        buf.append("<br>- You may want to pause the app in order to better observe the spectrogram being displayed.");
+//        buf.append("<br>- You can replay the file as many times as needed.");
 
-        buf.append("<p/>The images on this NOAA page below are linked to wav files that are played when you select one.")
-        .append(" Using a browser you may copy-paste the link to the wav files into the url text widget in the app.")
-        .append(" One way of doing this is to use Chrome to long-press an image and then select the *Copy link address* option,")
-        .append(" and then go to the app, touch the url text field and paste the link from the clipboard into the url text field.")
-
+        buf.append("<p/>The images on this NOAA page below are linked to wav files that are played when you select one:")
+//        .append(" Using a browser you may copy-paste the link to the wav files into the url text widget in the app.")
+//        .append(" One way of doing this is to use Chrome to long-press an image and then select the *Copy link address* option,")
+//        .append(" and then go to the app, touch the url text field and paste the link from the clipboard into the url text field.")
+//
         .append("<p/>https://swfsc.noaa.gov/textblock.aspx?Division=PRD&ParentMenuId=148&id=5776")
         ;
 
-        buf.append("<p/>Here is a Google & Chrome-produced list of other sound sources on the web; some of these may not be compatible with this app.");
+//        buf.append("<p/>Here is a Google & Chrome-produced list of other sound sources on the web; some of these may not be compatible with this app.");
+//
+//        buf.append("<p/>https://www.google.ca/webhp?sourceid=chrome-instant&ion=1&espv=2&ie=UTF-8#q=cetacean%20sound%20library");
 
-        buf.append("<p/>https://www.google.ca/webhp?sourceid=chrome-instant&ion=1&espv=2&ie=UTF-8#q=cetacean%20sound%20library");
-
-        buf.append("<p/><p/>For sharing a file from another app, ")
-        .append("most apps sending Intent instances for audio file sharing should normally be compatible with this app")
-        .append(" and the user only needs to perform the ordinary sharing-file functions of the Android system.");
-
-        buf.append("<p/>For developing an app that can send an Intent for sharing with this app, a code example is:");
-        buf.append("<p/>");
-        buf.append("<tt>");
-        buf.append("// Example:");
-        buf.append("<br>String encoded = null;")
-        .append("<br>try {")
-        .append("<br>&nbsp;&nbsp;encoded = URLEncoder.encode(")
-        .append("<br>&nbsp;&nbsp;&nbsp;&nbsp;\"http://www.wavsource.com/snds_2016-02-14_1408938504723674/animals/dog_whine_duke.wav\",")
-        .append("<br>&nbsp;&nbsp;&nbsp;&nbsp;\"UTF-8\");")
-        .append("<br>} catch (UnsupportedEncodingException e) {")
-        .append("<br>&nbsp;&nbsp;// manage the error here")
-        .append("<br>}");
-        buf.append("<br><br>Intent intent = new Intent(Intent.ACTION_SEND);");
-        buf.append("<br><br>intent.setType(\"application/vnd.sm.app.spectrogram\");");
-        buf.append("<br><br>intent.putExtra(Intent.EXTRA_TEXT, encoded);");
-        buf.append("<br><br>// End of example");
-        buf.append("</tt>");
-        buf.append("<p/><p/>Important: The url in the Intent must be encoded with the URLEncoder in Android, and using the UTF-8 character set.");
+//        buf.append("<p/><p/>For sharing a file from another app, ")
+//        .append("most apps sending Intent instances for audio file sharing should normally be compatible with this app")
+//        .append(" and the user only needs to perform the ordinary sharing-file functions of the Android system.");
+//
+//        buf.append("<p/>For developing an app that can send an Intent for sharing with this app, a code example is:");
+//        buf.append("<p/>");
+//        buf.append("<tt>");
+//        buf.append("// Example:");
+//        buf.append("<br>String encoded = null;")
+//        .append("<br>try {")
+//        .append("<br>&nbsp;&nbsp;encoded = URLEncoder.encode(")
+//        .append("<br>&nbsp;&nbsp;&nbsp;&nbsp;\"http://www.wavsource.com/snds_2016-02-14_1408938504723674/animals/dog_whine_duke.wav\",")
+//        .append("<br>&nbsp;&nbsp;&nbsp;&nbsp;\"UTF-8\");")
+//        .append("<br>} catch (UnsupportedEncodingException e) {")
+//        .append("<br>&nbsp;&nbsp;// manage the error here")
+//        .append("<br>}");
+//        buf.append("<br><br>Intent intent = new Intent(Intent.ACTION_SEND);");
+//        buf.append("<br><br>intent.setType(\"application/vnd.sm.app.spectrogram\");");
+//        buf.append("<br><br>intent.putExtra(Intent.EXTRA_TEXT, encoded);");
+//        buf.append("<br><br>// End of example");
+//        buf.append("</tt>");
+//        buf.append("<p/><p/>Important: The url in the Intent must be encoded with the URLEncoder in Android, and using the UTF-8 character set.");
         //buf.append("<p/>");
         //We published two simple apps to demonstrate this play-intent feature, TODO future demo apps text
 
         buf.append("<p/><p/><H3>KNOWN ISSUES</H3>");
-        buf.append("<p/>After taking a screen shot, the app will restart and the previous image will be lost.")
+        buf.append("<p/>1. After taking a screen shot, the app will restart and the previous image will be lost.")
         .append(" This will be improved in a future version.")
-        .append("<p/>Re-orienting your device, e.g., from vertical to horizontal, will cause the app to restart the display in order to use the new image dimensions")
+        .append("<p/>2. Re-orienting your device, e.g., from vertical to horizontal, will cause the app to restart the display in order to use the new image dimensions")
         .append("; this is unavoidable currently, therefore take care to keep the orientation stable if you need to avoid losing the current image.")
         ;
 
@@ -2805,40 +2908,40 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     @Override
     protected void onResume() {
         super.onResume();
-        if (getLogConfig().DEBUG==LogConfig.THREADS || getLogConfig().DEBUG==LogConfig.RESTORE)
+        if (LOG_CONFIG.DEBUG==LogConfig.THREADS || LOG_CONFIG.DEBUG==LogConfig.RESTORE)
             Log.d(TAG, ".onResume: entering");
         if (isPausedByHUser) {
             //don't restart bg threads
-            if (getLogConfig().DEBUG==LogConfig.PAUSE || getLogConfig().DEBUG==LogConfig.THREADS
-                    || getLogConfig().DEBUG==LogConfig.RESTORE)
+            if (LOG_CONFIG.DEBUG==LogConfig.PAUSE || LOG_CONFIG.DEBUG==LogConfig.THREADS
+                    || LOG_CONFIG.DEBUG==LogConfig.RESTORE)
                 Log.d(TAG, ".onResume: isPausedByHUser, don't restart " + Thread.currentThread());
         } else {
             //isPausedByHUser = false
             //was not paused by H user, then restart if paused by system
             if (isPaused()) {
                 // is paused, listener is null
-                if (getLogConfig().DEBUG==LogConfig.PAUSE || getLogConfig().DEBUG==LogConfig.THREADS
-                        || getLogConfig().DEBUG==LogConfig.RESTORE)
+                if (LOG_CONFIG.DEBUG==LogConfig.PAUSE || LOG_CONFIG.DEBUG==LogConfig.THREADS
+                        || LOG_CONFIG.DEBUG==LogConfig.RESTORE)
                     Log.d(TAG, ".onResume: before unpause() "
                             + Thread.currentThread());
                 try {
-                    //============
+                    //========
                     unpause();
-                    //============
+                    //========
 //                    pauseButton.setText(getString(R.string.pause_button));
                 } catch (Exception e) {
-                    if (getLogConfig().DEBUG==LogConfig.PAUSE || getLogConfig().ERROR==LogConfig.ON
-                            || getLogConfig().DEBUG==LogConfig.THREADS || getLogConfig().DEBUG==LogConfig.RESTORE)
+                    if (LOG_CONFIG.DEBUG==LogConfig.PAUSE || LOG_CONFIG.ERROR==LogConfig.ON
+                            || LOG_CONFIG.DEBUG==LogConfig.THREADS || LOG_CONFIG.DEBUG==LogConfig.RESTORE)
                         Log.e(TAG, "onResume: unpause() raised " + e + " " + Thread.currentThread());
                 }
-                if (getLogConfig().DEBUG==LogConfig.PAUSE || getLogConfig().DEBUG==LogConfig.THREADS
-                        || getLogConfig().DEBUG==LogConfig.RESTORE)
+                if (LOG_CONFIG.DEBUG==LogConfig.PAUSE || LOG_CONFIG.DEBUG==LogConfig.THREADS
+                        || LOG_CONFIG.DEBUG==LogConfig.RESTORE)
                     Log.d(TAG, ".onResume: after unpause() "
                             + Thread.currentThread());
             } else {
                 // is not paused
-                if (getLogConfig().DEBUG==LogConfig.PAUSE || getLogConfig().DEBUG==LogConfig.THREADS
-                        || getLogConfig().DEBUG==LogConfig.RESTORE)
+                if (LOG_CONFIG.DEBUG==LogConfig.PAUSE || LOG_CONFIG.DEBUG==LogConfig.THREADS
+                        || LOG_CONFIG.DEBUG==LogConfig.RESTORE)
                     Log.d(TAG, ".onResume: not paused, do nothing " + Thread.currentThread());
             }
         }
@@ -2850,35 +2953,39 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      * Designed to be done very early in the activity startup step.
      */
     private void restorePreferences() {
-        if (getLogConfig().DEBUG==LogConfig.ON)
+        if (LOG_CONFIG.DEBUG==LogConfig.ON)
             Log.d(TAG, ".restorePreferences: entering...");
 
         final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
 
-        if (getLogConfig().DEBUG==LogConfig.ON)
+        if (LOG_CONFIG.DEBUG==LogConfig.ON)
             Log.d(TAG, ".restorePreferences: prefs = " + prefs);
 
         SettingsForSoundPreferences.restoreInputSettings(prefs);
 
-        restoreUrlToPlay(prefs);
+//        restoreUrlToPlay(prefs);
 
-        if (getLogConfig().DEBUG==LogConfig.ON)
+        if (LOG_CONFIG.DEBUG==LogConfig.ON)
             Log.d(TAG, ".restorePreferences: exiting...");
     }
 
-    private void restoreUrlToPlay(final SharedPreferences prefs) {
-        urlToPlay = prefs.getString(PREF_URL_KEY, "");
-        if (getLogConfig().DEBUG==LogConfig.RESTORE)
-            Log.d(TAG, ".restoreUrlToPlay: urlToPlay {" + urlToPlay + "}");
-//        if(urlToPlay!=null){
-//            if(editTextUrlToPlay!=null)editTextUrlToPlay.setText(urlToPlay);
-//        }
-        urlToPlayFromPref = urlToPlay;
-    }
+//    / **
+//     * disabled in this version
+//     * @ param prefs
+//     * /
+//    private void restoreUrlToPlay(final SharedPreferences prefs) {
+//        fileSizeToPlayFromPref = prefs.getString(PREF_URL_FILE_SIZE_KEY, "");
+//
+//        fileNameToPlayFromPref = prefs.getString(PREF_URL_FILE_NAME_KEY, "");
+//
+//        if (LOG_CONFIG.DEBUG==LogConfig.RESTORE || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+//            Log.d(TAG, ".restoreUrlToPlay: fileNameToPlayFromPref {" + fileNameToPlayFromPref
+//                    + "} fileSizeToPlayFromPref {"+ fileSizeToPlayFromPref +"}");
+//    }
 
     private void onExceptionAtInit(Throwable ex) {
         String s = "" + ex; //ex.getLocalizedMessage() + "\n";
-        if (getLogConfig().ERROR==LogConfig.ON || getLogConfig().DEBUG==LogConfig.THREADS) {
+        if (LOG_CONFIG.ERROR==LogConfig.ON || LOG_CONFIG.DEBUG==LogConfig.THREADS) {
             s += "\n" + Log.getStackTraceString(ex);
             Log.e(TAG, ".onExceptionAtInit: " + s + " " + Thread.currentThread());
         }
@@ -2930,8 +3037,8 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         //============================================================
 
         if (!DeviceSoundCapabilities.isDeviceCapableOfSoundInput()) {
-            if (getLogConfig().DEBUG==LogConfig.INIT 
-                    || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT)
+            if (LOG_CONFIG.DEBUG==LogConfig.INIT 
+                    || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT)
                 Log.d(TAG, ".setDeviceSoundCapabilities: device cannot do sound input");
             return false;
         }
@@ -2946,8 +3053,8 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //			writeInMonitor(DeviceSoundCapabilities.getForDisplay(
 //			    true,false,false)); //LeafyLog.SOUND_QUALITY_LOG_ENABLED)); //getDeviceAudioCapabilities();//2014-11
 
-        if (getLogConfig().DEBUG==LogConfig.INIT 
-                || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT)
+        if (LOG_CONFIG.DEBUG==LogConfig.INIT 
+                || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT)
             Log.d(TAG, ".setDeviceSoundCapabilities: " + Timestamp.getNanosForDisplay()
                 + "; first part of initFundamentalsForDevice completed ok;" +
                 "\n xInputHzPerBinFloat = " + SettingsForSoundInput.xInputHzPerBinFloat
@@ -2973,9 +3080,8 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      * the monitor text if the email and report file are disabled.
      *
      * @param text e.g., "in <method>: <details>"
-     * @param ex
+     * @param ex TODO not needed? maybe only use in dev mode
      * @return String "A severe anomaly was detected " with text param
-     * <!-- and with exception if any. -->
      */
     static String getMonitorTextForAnomalyNotif(final String text, final Throwable ex) {
         return "A severe anomaly was detected " + text
@@ -3010,8 +3116,8 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     }
 
     /**
-     * if de. email enabled and networked, then try to send email to dev;
-     * if de. email not enabled or no network, then write Toast (?).
+     * if dev email enabled and networked, then try to send email to dev;
+     * if dev email not enabled or no network, then write Toast (?).
      * <p/>
      * This adds prefix "A severe anomaly was detected " to the text param.
      * <p/>
@@ -3024,8 +3130,8 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     }
 
     /**
-     * if de. email enabled and networked, then try to send email to de. and write in monitor and console (short msg);
-     * <p/>if de. email not enabled or no network, then write in monitor and console (short msg) and to file.
+     * if dev email enabled and networked, then try to send email to dev and write in monitor and console (short msg);
+     * <p/>if dev email not enabled or no network, then write in monitor and console (short msg) and to file.
      *
      * <p/>This adds prefix "A severe anomaly was detected " to the text param.
      *
@@ -3034,15 +3140,17 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      */
     public void notifyForAnomaly(final String text, final Throwable ex) {
 
-        if(getLogConfig().DEBUG==LogConfig.SOUND_QUALITY
-                || getLogConfig().ERROR==LogConfig.ON) {
+        if(LOG_CONFIG.DEBUG==LogConfig.SOUND_QUALITY
+                || LOG_CONFIG.ERROR==LogConfig.ON) {
             Log.e(TAG, "notifyForAnomaly: isSupportEmailEnabled() "
                     + isSupportEmailEnabled()
                     //+"; Settings.anomalyReportToFileIsEnabled "+Settings.anomalyReportToFileIsEnabled
                     + "\n" + text);
         }
 
-        if(USER_LOG_INIT){
+        notifyGenericAnomaly(ex);
+
+        if(SHOW_USER_INIT_EVENTS_ENABLED){
             showStatusSnackbar(text);
         }
 
@@ -3056,7 +3164,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
         if (isSupportEmailEnabled() 
                 && OnAnyThread.IT.isConnected(isSimulatingNoConnection())) {
-            //try to send email to de. and write in monitor and console (short msg referring to monitor, app msgs);
+            //try to send email to dev and write in monitor and console (short msg referring to monitor, app msgs);
 
             sendEmailToSupport(all);
 
@@ -3068,7 +3176,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
             return;
         }
 
-        //here no de. email or no network or appParent not set;
+        //here no dev email or no network or appParent not set;
         //write in monitor and console (short msg) and to file.
 //        if (appParent != null) {
 //            appParent.writeInConsoleByApp(consoleMsg);
@@ -3085,14 +3193,14 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     /**
      * writes results in texts views for user to see
      *
-     * @param statusCode
+     * @param statusCode int
      * @param text
      */
     
     public void results(int statusCode, String text) {
-        if(getLogConfig().DEBUG==LogConfig.ON)
+        if(LOG_CONFIG.DEBUG > LogConfig.OFF)
             Log.d(TAG, ".results: statusCode " + statusCode + ": " + text);
-        if(USER_LOG_INIT) {
+        if(SHOW_USER_INIT_EVENTS_ENABLED) {
             showStatusSnackbar( "results: statusCode " + statusCode + ": " + text );
         }
     }
@@ -3108,11 +3216,11 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      */
     
     public void results(int statusCode, String text, long millis, String user, boolean isNewLine) {
-        if(USER_LOG_INIT) {
+        if(SHOW_USER_INIT_EVENTS_ENABLED) {
             String s = "results: statusCode " + statusCode + ": " + text + "; millis " + millis
                     + "; user " + user + "; isNewLine " + isNewLine;
             showStatusSnackbar(s);
-            if(getLogConfig().DEBUG==LogConfig.ON)
+            if(LOG_CONFIG.DEBUG >= LogConfig.ON)
                 Log.d(TAG, "."+s);
         }
     }
@@ -3158,10 +3266,10 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //            try {
 ////                listener.startSoundInput(this);
 //                listener = BasicListener.getARunningListener(this);
-//                if(getLogConfig().DEBUG==LogConfig.PAUSE)
+//                if(LOG_CONFIG.DEBUG==LogConfig.PAUSE)
 //                    Log.d(TAG, ".startListener(): *listener.startSoundInput(this)* completed ok.");
 //            } catch (Exception e) {
-//                if(getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT || getLogConfig().ERROR==LogConfig.ON)
+//                if(LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT || LOG_CONFIG.ERROR==LogConfig.ON)
 //                    Log.e(TAG,".startListener(): *BasicListener.getARunningListener(this)* raised "+e.getMessage()
 //                            +"\n"+DeviceSoundCapabilities.getFundamentalsSummaryForDisplay());
 //                Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
@@ -3286,17 +3394,17 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     - for sampling rate, offer to user the native rate and some other rates supported by device, and let user pick one
       and let user decide for same encoding for input and output
 
-      TODO keep list of urls to play, give them names, delete, move up/down, export list (share)
+      TODO prio 2 keep list of urls to play, give them names, delete, move up/down, export list (share)
      */
 
     public SoundClientPreferences getSoundClientPreferences(){
         SoundClientPreferences soundPrefs = new SoundClientPreferences();
-        soundPrefs.isMicPreferred = true;//TODO washere washere washere 2016-9 2017-5-6 true or false don't fix the lack of input or display
+        soundPrefs.isMicPreferred = true;
         soundPrefs.isChannelMonoRequested = true;
         soundPrefs.isEncodingPcmFloatPreferred = false;//TODO future true with new code for float processing
         soundPrefs.isNativeSampleRateRequested = true;
         soundPrefs.isSameEncodingPcmForInputAndOutputRequested = false;
-        if(getLogConfig().DEBUG==LogConfig.ON){
+        if(LOG_CONFIG.DEBUG==LogConfig.ON){
             Log.d(TAG,".getSoundClientPreferences: isMicPreferred {"+soundPrefs.isMicPreferred
             +"} isChannelMonoRequested {"+soundPrefs.isChannelMonoRequested
             +"} isEncodingPcmFloatPreferred {"+soundPrefs.isEncodingPcmFloatPreferred
@@ -3304,7 +3412,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
             +"} isSameEncodingPcmForInputAndOutputRequested {"+soundPrefs.isSameEncodingPcmForInputAndOutputRequested
             +"}");
         }
-        if(USER_LOG_INIT){
+        if(SHOW_USER_INIT_EVENTS_ENABLED){
             showStatusSnackbar("SoundClientPreferences were set");
         }
         return soundPrefs;
@@ -3363,7 +3471,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
             } catch (Exception e) {
                 disableThePauseButton(null);
                 showProblemStartingListener();
-                if (getLogConfig().ERROR==LogConfig.ON)
+                if (LOG_CONFIG.ERROR==LogConfig.ON)
                     Log.e(TAG, ".getListener: " + e + " " + Log.getStackTraceString(e));
                 throw e;
             }
@@ -3393,10 +3501,10 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //            try {
 ////                listener.startSoundInput(this);
 //                listener = BasicListener.getARunningListener(this);
-//                if(getLogConfig().DEBUG==LogConfig.PAUSE)
+//                if(LOG_CONFIG.DEBUG==LogConfig.PAUSE)
 //                    Log.d(TAG, ".startListener(): *listener.startSoundInput(this)* completed ok.");
 //            } catch (Exception e) {
-//                if(getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT || getLogConfig().ERROR==LogConfig.ON)
+//                if(LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT || LOG_CONFIG.ERROR==LogConfig.ON)
 //                    Log.e(TAG,".startListener(): *BasicListener.getARunningListener(this)* raised "+e.getMessage()
 //                            +"\n"+DeviceSoundCapabilities.getFundamentalsSummaryForDisplay());
 //                Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
@@ -3419,8 +3527,12 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (LOG_CONFIG.DEBUG!=LogConfig.OFF) Log.d(TAG, ".onDestroy: entering");
         closeListener();
-        if (player != null) player.shutdown();
+        AudioPlayer.getIt().onActivityStop();
+        // remove notification if any showing
+        notifyCancelAll();
+        if (LOG_CONFIG.DEBUG!=LogConfig.OFF) Log.d(TAG, ".onDestroy: exiting");
     }
 
     @Override
@@ -3439,54 +3551,56 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         super.onPause();
         savePrefs();
         isPausedByHUser = false;
-        if (getLogConfig().DEBUG==LogConfig.PAUSE || getLogConfig().DEBUG==LogConfig.THREADS)
+        if (LOG_CONFIG.DEBUG==LogConfig.PAUSE
+                || LOG_CONFIG.DEBUG==LogConfig.THREADS
+                || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL
+                )
             Log.d(TAG, ".onPause: prefs saved; calling closeListener() " + Thread.currentThread());
         closeListener();
-        if (player != null) player.shutdown();//TODO should we null the player?
+
+        AudioPlayer.getIt().pause(); // shutdown();
+
         if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
     }
 
     private void savePrefs() {
 
-        saveUrl();
+        // saveUrl(); disabled in this version
 
         //TODO future more saving e.g. audio settings when user will have some choices
 
     }
 
-    private void saveUrl() {//TODO future maybe also call this when url from intent at onCreate
-        //save url to pref
-        final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        if (editTextUrlToPlay != null) {
-            urlToPlay = editTextUrlToPlay.getText().toString();
-            if (urlToPlay == null) {
-                urlToPlay = "";
-            } else {
-                urlToPlay = urlToPlay.trim();
-            }
-            //save url, even if empty
-            SharedPreferences.Editor editor = prefs.edit();
-            editor.putString(PREF_URL_KEY, urlToPlay);
-            editor.commit();
-            if (getLogConfig().DEBUG==LogConfig.RESTORE 
-                    || getLogConfig().DEBUG==LogConfig.SAVE_PREF) {
-                Log.d(TAG, ".saveUrl: urlToPlay {" + urlToPlay
-                        + "} PREF_URL_KEY {" + PREF_URL_KEY + "}");
-            }
-        }
-    }
+    //disabled in this version
+//    private void saveUrl() {//TO DO future maybe also call this when url from intent at onCreate
+//        //save url to pref
+//        final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+//        SharedPreferences.Editor editor = prefs.edit();
+//        editor.putString(PREF_URL_FILE_NAME_KEY, fileNameToPlay);
+//        editor.putString(PREF_URL_FILE_SIZE_KEY, fileSizeToPlay);
+//        editor.apply();
+//        if (LOG_CONFIG.DEBUG==LogConfig.RESTORE
+//                || LOG_CONFIG.DEBUG==LogConfig.SAVE_PREF
+//                || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL) {
+//            Log.d(TAG, ".saveUrl: fileNameToPlay {" + fileNameToPlay
+//                    + "} PREF_URL_FILE_NAME_KEY {" + PREF_URL_FILE_NAME_KEY + "}");
+//        }
+//    }
 
     private boolean isActionSendIntent(final Intent intent) {
         final String action = intent.getAction();
         return Intent.ACTION_SEND.equals(action);
     }
 
-    /**
-     * not empty if http link for wav, from clip from intent
-     * <!-- maybe not needed -->
-     *     @deprecated
-     */
-    private String clipDataItemText = "";
+    private boolean isInboundIntentOkToPlay(final Intent intent){
+
+        DataFromIntent si = new DataFromIntent(intent);
+
+        if (LOG_CONFIG.DEBUG==LogConfig.INTENT || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+            Log.d(TAG,".isInboundIntentOkToPlay: "+si);
+
+        return si.URI != null;
+    }
 
     /*
     ex.: {Intent { act=android.intent.action.SEND
@@ -3495,13 +3609,13 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     cmp=sm.app.spectrogram/.SpectrogramActivity
     clip={text/plain T:http://sounds.aguasonic.com/files/ag25feb015-from-trk07.wav} (has extras) }}
      */
-    private boolean isInboundIntentToPlay(final Intent intent) {
+    private boolean isInboundIntentOkToPlayOld(final Intent intent) {
         clipDataItemText = "";
         final String action = intent.getAction();
         String type = intent.getType();
         if (!Intent.ACTION_SEND.equals(action) || type == null) {
-            if (getLogConfig().DEBUG==LogConfig.INTENT)
-                Log.d(TAG,".isInboundIntentToPlay: returning false; not SEND or type is null");
+            if (LOG_CONFIG.DEBUG==LogConfig.INTENT || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+                Log.d(TAG,".isInboundIntentOkToPlay: returning false; not SEND or type is null");
             return false;
         }
         type = type.toLowerCase();
@@ -3533,8 +3647,9 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
                     j = i+1;
 
-                    if (getLogConfig().DEBUG==LogConfig.INTENT)
-                        Log.d(TAG,"isInboundIntentToPlay: clipData item "+j+" of "+itemCount+": "
+                    if (LOG_CONFIG.DEBUG==LogConfig.INTENT
+                            || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+                        Log.d(TAG,"isInboundIntentOkToPlay: clipData item "+j+" of "+itemCount+": "
                                 +itemAt
                             +"\nText {"+text+"}"
                             +"\nIntent {"+itemAt.getIntent()+"}"
@@ -3542,8 +3657,9 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
                             );
                     if(isContainingWavUrl(text)){
                         // this will return the last link if more than one
-                        if (getLogConfig().DEBUG==LogConfig.INTENT)
-                            Log.d(TAG,"isInboundIntentToPlay: clipData item "+j+" of "+itemCount
+                        if (LOG_CONFIG.DEBUG==LogConfig.INTENT
+                                || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+                            Log.d(TAG,"isInboundIntentOkToPlay: clipData item "+j+" of "+itemCount
                                 +": clipDataItemText {"+clipDataItemText+"}");
                         clipDataItemText = text;
                         ok = true;
@@ -3554,14 +3670,15 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
             }else{
                 // here when text enabled and version too old for clips
 
-                // is there an http .wa. link in the intent?
+                // is there an http .wav link in the intent?
 
                 return isContainingWavUrl(intent.toString());
             }
         }else{
             // here when not text or is text and text is not enabled
         }
-        if (INBOUND_INTENT_PLAY_TYPE_SPECIAL.equals(type) && INBOUND_INTENT_PLAY_TYPE_SPECIAL_ENABLED)
+        if (INBOUND_INTENT_PLAY_TYPE_SPECIAL.equals(type)
+                && INBOUND_INTENT_PLAY_TYPE_SPECIAL_ENABLED)
             return true;
 
         return false;
@@ -3574,6 +3691,265 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         return (pos1>=0 && pos2 > pos1);
     }
 
+//    /**
+//     * Mostly immutable TODO move to lib
+//     */
+//    public final class DataFromIntent {
+//
+//        private final String TAG = DataFromIntent.class.getSimpleName();
+//
+//        public final Intent INTENT;
+//
+//        public final String TEXT;
+//
+//        public final String ACTION;
+//
+//        public final String TYPE;
+//
+//        public final String TYPE_IN_LOWERCASE;
+//
+//        /**
+//         * can be null
+//         */
+//        public final Uri URI;
+//
+//        /**
+//         * URI.toString() or http(s) url
+//         */
+//        public final String URL_STRING;
+//
+//        /**
+//         * empty array when no clips (e.g., when older Android)
+//         */
+//        public final String[] CLIP_DATA_TEXTS;
+//
+//        public final Intent[] CLIP_DATA_INTENTS;
+//
+//        public final Uri[] CLIP_DATA_URIS;
+//
+//        public final String[] CLIP_DATA_HTML_TEXTS;
+//
+//        public final String[] EXTRA_BUNDLE_KEYS;
+//
+//        public DataFromIntent(final Intent intent){
+//
+//            if(intent==null)throw new IllegalArgumentException("param intent is null");
+//
+//            INTENT = intent;
+//
+//            TEXT = intent.toString();
+//
+//            ACTION = intent.getAction();
+//
+//            TYPE = intent.getType();
+//
+//            TYPE_IN_LOWERCASE = TYPE!=null?TYPE.toLowerCase():null;
+//
+//            extractData(intent);
+//
+//            URI = uriPrivate;
+//
+//            URL_STRING = uriString;
+//
+//            CLIP_DATA_TEXTS = clipTexts!=null?clipTexts.toArray(new String[clipTexts.size()]):new String[0];
+//
+//            CLIP_DATA_INTENTS = clipIntents!=null?clipIntents.toArray(new Intent[clipIntents.size()]):new Intent[0];
+//
+//            CLIP_DATA_URIS = clipUris!=null?clipUris.toArray(new Uri[clipUris.size()]):new Uri[0];
+//
+//            CLIP_DATA_HTML_TEXTS = clipHtmls!=null?clipHtmls.toArray(new String[clipHtmls.size()]):new String[0];
+//
+//            EXTRA_BUNDLE_KEYS = extraBundleKeys!=null?extraBundleKeys.toArray(new String[extraBundleKeys.size()]):new String[0];
+//
+//        }
+//
+//        public String toString(){
+//            StringBuilder buf = new StringBuilder("Data extracted from Intent: ");
+//            buf.append(TEXT);
+//            buf.append("\n Action {"+ACTION+"}");
+//            buf.append("\n Type {"+TYPE+"}");
+//            buf.append("\n Uri {"+URI+"}");
+//            buf.append("\n Nb clips = ").append(nbClips);
+//            buf.append("\n Nb CLIP_DATA_TEXTS = ");
+//            if(CLIP_DATA_TEXTS==null){
+//                buf.append("0");
+//            }else {
+//                buf.append(CLIP_DATA_TEXTS.length);
+//            }
+//
+//            if(EXTRA_BUNDLE_KEYS!=null && EXTRA_BUNDLE_KEYS.length>0) {
+//                buf.append("\n "+EXTRA_BUNDLE_KEYS.length+" Extra Bundle keys:");
+//                int i =0;
+//                for(String s : EXTRA_BUNDLE_KEYS) {
+//                    ++i;
+//                    buf.append("\n  [").append(i).append("]: ").append(s);
+//                    //TODO extra values...
+//                }
+//            } else {
+//                buf.append("\n No Extra Bundle keys");
+//            }
+//
+//            //TODO more ... isHttp...isContent ... protocol? ...
+//            return buf.toString();
+//        }
+//
+//        /**
+//         * the first Uri in the clips, or null if null.
+//         */
+//        private Uri uriPrivate = null;
+//
+//        private String uriString = null;
+//
+//        private List<String> clipTexts = null;
+//
+//        private List<Intent> clipIntents = null;
+//
+//        private List<Uri> clipUris = null;
+//
+//        private List<String> clipHtmls = null;
+//
+//        private int nbClips = 0;
+//
+//        private Set<String> extraBundleKeys = null;
+//
+//        private void extractData(final Intent intent){
+//
+//            extractClips(intent);
+//
+//            uriPrivate = clipUris!=null && ! clipUris.isEmpty() ? clipUris.get(0) : null;
+//
+//            if(uriPrivate==null){
+//                uriPrivate = intent.getData();
+//            }
+//
+//            if(uriPrivate==null){
+//                uriString = clipTexts!=null && !clipTexts.isEmpty() ? clipTexts.get(0) : null;
+//            }else{
+//                uriString = uriPrivate.toString();
+//            }
+//
+//            extractExtras(intent);
+//
+////            intent.getCategories(); TODO
+////
+////            intent.getComponent();
+////
+////            intent.getDataString();
+//
+//        }
+//
+//        protected void extractClips(final Intent intent){
+//            clipTexts = new LinkedList<>();
+//            clipIntents = new LinkedList<>();
+//            clipUris = new LinkedList<>();
+//            clipHtmls = new LinkedList<>();
+//            // this version supports jelly-bean and up
+//            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+//                final ClipData clipData = intent.getClipData();
+//                if(clipData==null)return;
+//                ClipData.Item item;
+//                int j = 0;
+//                nbClips = clipData.getItemCount();
+//                for (int i = 0; i < nbClips; i++) {
+//
+//                    item = clipData.getItemAt(i);
+//
+//                    CharSequence cs = item.getText();
+//
+//                    if(cs!=null) clipTexts.add(cs.toString());
+//
+//                    if(item.getIntent()!=null)clipIntents.add(item.getIntent());
+//
+//                    if(item.getUri()!=null)clipUris.add(item.getUri());
+//
+//                    if(item.getHtmlText()!=null)clipHtmls.add(item.getHtmlText());
+//
+//                    j = i + 1;
+//
+//                    if (LOG_CONFIG.DEBUG == LogConfig.INTENT
+//                            || LOG_CONFIG.DEBUG == LogConfig.PLAY_URL)
+//                        Log.d(TAG, "extractClips: clipData item " + j
+//                                + " of " + nbClips + ": "
+//                                + item
+//                                + "\nText {" + item.getText() + "}"
+//                                + "\nIntent {" + item.getIntent() + "}"
+//                                + "\nUri {" + item.getUri() + "}"
+//                        );
+////                    if (isContainingWavUrl(text)) {
+////                        // this will return the last link if more than one
+////                        if (LOG_CONFIG.DEBUG == LogConfig.INTENT
+////                                || LOG_CONFIG.DEBUG == LogConfig.PLAY_URL)
+////                            Log.d(TAG, "isInboundIntentOkToPlay: clipData item " + j + " of " + itemCount
+////                                    + ": clipDataItemText {" + clipDataItemText + "}");
+////                        clipDataItemText = text;
+////                        ok = true;
+////                        //return true; // this will return the first link
+////                    }
+//                }// for
+//            }else{
+//                // version < JellyBean TODO more prio 2 2017-12-22
+//
+//                //TODO prio 2 get Uri from extra Bundle or getData or ...
+//            }
+//        }// end of method extractClips
+//
+//        public void extractExtras(final Intent intent) {
+//
+//            Bundle bundle = intent.getExtras();
+//
+//            if(bundle==null) return;
+//
+//            extraBundleKeys = bundle.keySet();
+//
+//            //TODO prio 2 extract values
+//
+//        }
+//
+//        /**
+//         * Extract the filename and size from the Uri from the Intent and from the content db.
+//         *
+//         * <p/>The intent contains a Uri for a media file in the content database
+//         *
+//         * @param context
+//         *
+//         * @return [0] = filename, [1] = file size in bytes
+//         * (use formatShortFileSize(context,bytesString) to format the size bytes for a short display).
+//         * Returns ["",""] when Uri from intent is not in content or not in Intent.
+//         */
+//        public String[] getFilenameAndSize(Context context) {
+//            /* Use the file's content URI from the incoming Intent
+//             * to query the server app to get the file's display name and size.
+//             */
+//            if (URI == null) return new String[]{"", ""};
+//            Cursor cursor = context.getContentResolver().query(URI, null, null,
+//                    null, null);
+//            if (cursor == null) return new String[]{"", ""};
+//            /*
+//             * Get the column indexes of the data in the Cursor,
+//             * move to the first row in the Cursor, get the data.
+//             */
+//            int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+//            int sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE);
+//            cursor.moveToFirst();
+//            return new String[]{cursor.getString(nameIndex),
+//                    Long.toString(cursor.getLong(sizeIndex))};
+//        }
+//
+//        public boolean uriIsHttp(){
+//            if(URI==null)return false;
+//            String s = URI.getScheme();
+//            return "http".equalsIgnoreCase(s) || "https".equalsIgnoreCase(s);
+//        }
+//
+//        public boolean uriIsContent(){
+//            if(URI==null)return false;
+//            String s = URI.getScheme();
+//            return "content".equalsIgnoreCase(s);
+//        }
+//
+//    }// end of class DataFromIntent
+
+
     /**
      * Designed to be called from or during onCreate, which would be called when another app sends
      * an intent that matches the filter(s) defined in the manifest.
@@ -3583,130 +3959,188 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      * <p/>Designed to be run on the ui thread.
      * All callers are run on the ui thread in this version.
      *
+     * <p/>Input:
+     * <p/>the Intent that launched the activity
+     *
+     * <p/>Output:
+     * <p/>intentToPlay
+     * <p/>fileNameToPlay
+     * <p/>fileSizeToPlay
+     * <p/>fileSizeToPlayForDisplay
+     * <p/>fileTextDisplayed
+     * <p/>intentToPlayIsValid
+     *
      * @return boolean true when intent is valid; false when no valid intent present or when failure
      */
-    private boolean handleIncomingIntent(final String urlFromPrefs) {
-        if (getLogConfig().DEBUG==LogConfig.INIT || getLogConfig().DEBUG==LogConfig.SOUND_INPUT_INIT
-                || getLogConfig().DEBUG==LogConfig.INTENT || getLogConfig().DEBUG==LogConfig.RESTORE
-                || getLogConfig().DEBUG==LogConfig.PLAY_URL) {
+    private boolean handleIncomingIntent() {
+        if (LOG_CONFIG.DEBUG==LogConfig.INIT
+                || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
+                || LOG_CONFIG.DEBUG==LogConfig.INTENT
+                || LOG_CONFIG.DEBUG==LogConfig.RESTORE
+                || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL) {
             Log.d(TAG, ".handleIncomingIntent: entering");
         }
-        final Intent intent = getIntent();
+
+        intentToPlayIsValid = false;
+        fileNameToPlay = "";
+        fileSizeToPlay = "";
+        fileSizeToPlayForDisplay = "";
+        fileTextDisplayed = "";
+
         try {
+            // get the intent that started this activity, normally one containing a URL to play
+
+            intentToPlay = getIntent();
+
+            /*
+            {Intent { act=android.intent.action.SEND cat=[android.intent.category.DEFAULT]
+            typ=audio/x-wav
+            flg=0x1b080001
+            cmp=sm.app.spectro/.SpectrogramActivity
+            clip={audio/x-wav
+            U:content://com.android.providers.downloads.documents/document/6959} (has extras) }}
+             */
+
             // ex.:
             // {Intent { act=android.intent.action.SEND typ=text/plain
-            // flg=0x13080001 cmp=sm.app.spectrogram/.SpectrogramActivity
+            // flg=0x13080001
+            // cmp=sm.app.spectrogram/.SpectrogramActivity
             // clip={text/uri-list
-            // U:content://com.android.chrome.FileProvider/images/screenshot/1465670376229-1822593518.jpg} (has extras) }
+            // U:content://com.android.chrome.FileProvider/...} (has extras) }
+
             // ex.:
             // {Intent { act=android.intent.action.SEND typ=text/plain flg=0x1b080001
             // cmp=sm.app.spectrogram/.SpectrogramActivity
             // clip={text/plain
             // T:http://sounds.aguasonic.com/files/ag25feb015-from-trk07.wav} (has extras) }}
 
-            if (!isInboundIntentToPlay(intent)) {
-                // the app start intent not valid send intent;
-                // could be normal start without an play intent or invalid send or play intent
+            dataFromIntent = new DataFromIntent(intentToPlay);
 
-                if (getLogConfig().DEBUG==LogConfig.INTENT || getLogConfig().DEBUG==LogConfig.PLAY_URL)
-                    Log.d(TAG, ".handleIncomingIntent: not valid intent to play {" + intent + "}");
-                if (isActionSendIntent(intent)) {
-                    // the start intent is a send one from external app, and it's invalid
+            if (LOG_CONFIG.DEBUG==LogConfig.INTENT || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+                Log.d(TAG,".handleIncomingIntent: "+dataFromIntent);
+
+            if(dataFromIntent.URI == null && dataFromIntent.URL_STRING == null){
+
+                // the intent does not contain a Uri;
+                // could be normal start without an play intent or invalid send or play intent
+                // so don't notify user
+
+                if (LOG_CONFIG.DEBUG==LogConfig.INTENT
+                        || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+                    Log.d(TAG, ".handleIncomingIntent: not valid intent to play {"
+                            + intentToPlay + "}");
+
+                if (isActionSendIntent(intentToPlay)) {
+                    // the start intent was sent by external app, and it's invalid
                     if (largeGuiLayout != null)
                         Snackbar.make(largeGuiLayout,
                                 "The URL from an external app is invalid and is ignored",
                                 Snackbar.LENGTH_LONG).show();
                 } else {
-                    // the start intent is not a send intent, so ignore, probably normal start intent
+                    // the start intent is not a send intent, so ignore,
+                    // probably normal start intent
                 }
-                setUrlToPlayInUi(urlFromPrefs);
-                return false;
+
+                return intentToPlayIsValid; // false here
             }
 
-            //here when type ok for url to play and the function is enabled
-            //ex.: "application/vnd.sm.app.spectrogram" or "text/plain"
+            // here when intent may be ok, the type is ok for media to play
+            // and the function is enabled
+            // ex.: "application/vnd.sm.app.spectrogram" or "text/plain"
+            // extract data from intent
 
-            urlToPlay = getUrlToPlay(intent);
-            setUrlToPlayInUi(urlToPlay);
+            if(dataFromIntent.uriIsContent()){
 
-            if (getLogConfig().DEBUG==LogConfig.INTENT || getLogConfig().DEBUG==LogConfig.PLAY_URL)
-                Log.d(TAG, ".handleIncomingIntent: possibly valid intent to play;" +
-                        " calling play(\nintent {" + intent
-                        + "},\n urlToPlayUri {"+urlToPlayUri
-                        + "},\n urlToPlay {"+urlToPlay+"})");
+                //Uri {content://com.android.providers.downloads.documents/document/6959}
 
-            // ===========================================================
-            boolean intentIsValid = play(intent, urlToPlayUri, urlToPlay);
-            // ===========================================================
+                String[] pair = dataFromIntent.getFilenameAndSize(this);
 
-            if (intentIsValid) {
-                if (getLogConfig().DEBUG==LogConfig.INTENT)
-                    Log.d(TAG,".handleIncomingIntent: true returned by player.play(intent {"
-                            + intent + "}, urlToPlayUri, urlToPlay)");
+                if (LOG_CONFIG.DEBUG == LogConfig.INTENT
+                        || LOG_CONFIG.DEBUG == LogConfig.PLAY_URL)
+                    Log.d(TAG, ".handleIncomingIntent: OnAnyThread.getFileNameAndSizeFromContentDb returned "
+                            + Arrays.toString(pair)
+                    );
+
+                fileNameToPlay = pair[0];
+                fileSizeToPlay = pair[1];
+
+                if (fileNameToPlay.isEmpty()) {
+                    invalidIntent(intentToPlay, fileNameToPlay);
+                    return intentToPlayIsValid; // is false
+                }
+
+                fileSizeToPlayForDisplay = OnAnyThread.formatShortFileSize(this, fileSizeToPlay);
+
+                setUrlToPlayInUi();
+
+                if (LOG_CONFIG.DEBUG==LogConfig.INTENT
+                        || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+                    Log.d(TAG, ".handleIncomingIntent: possibly valid intent to play;" +
+                            " calling play(\n intent {" + intentToPlay
+                            + "})\n fileTextDisplayed {"+fileTextDisplayed
+                            + "}");
+
+                // ======================================
+                intentToPlayIsValid = play(intentToPlay);
+                // ======================================
+
             } else {
-                // the url from the intent is invalid
-                if (getLogConfig().DEBUG==LogConfig.INTENT || getLogConfig().DEBUG==LogConfig.PLAY_URL)
-                    Log.d(TAG, ".handleIncomingIntent: false returned by player.play(intent {"
-                            + intent + "}, urlToPlayUri, urlToPlay)");
-                invalidIntent(intent, urlToPlay);
-                if(urlFromPrefs==null || urlFromPrefs.isEmpty()){
-                    // no url from pref, use the invalid url in gui, set upstream
 
-                }else {
-                    // some url from pref, use it in gui
-                    urlToPlay = urlFromPrefs;
-                    setUrlToPlayInUi(urlFromPrefs);
-                }
+                // URI is not content scheme, could be http scheme or file scheme or other
+                // ex.: http.s file
+                fileNameToPlay = dataFromIntent.URL_STRING;
+                fileSizeToPlay = "";
+                fileSizeToPlayForDisplay = "";
+                fileTextDisplayed = fileNameToPlay;
+
+                setUrlToPlayInUi();
+
+                if (LOG_CONFIG.DEBUG==LogConfig.INTENT
+                        || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+                    Log.d(TAG, ".handleIncomingIntent: possibly valid intent to play;" +
+                            " calling play(\n dfi.URL_STRING {" + dataFromIntent.URL_STRING
+                            + "})");
+
+                // ===================================================
+                intentToPlayIsValid = play(dataFromIntent.URL_STRING);
+                // ===================================================
             }
-            return intentIsValid;
+
+            if (LOG_CONFIG.DEBUG==LogConfig.INTENT
+                    || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+                Log.d(TAG,".handleIncomingIntent: play(intent or dfi.URL_STRING) returned "
+                        +intentToPlayIsValid
+                        +"; intent = "+intentToPlay);
+
+            if (intentToPlayIsValid) {
+                // ok
+
+            } else {
+                // failed;
+                // the url from the intent is invalid
+
+                // what about the previous intent that was valid? ignored in this version
+
+                // this version does not keep intent data in preferences
+
+                invalidIntent(intentToPlay, fileNameToPlay);
+
+            }
+            return intentToPlayIsValid;
 
         } catch (Throwable e) {
-            if (getLogConfig().ERROR==LogConfig.ON)
-                Log.e(TAG, ".handleIncomingIntent: " + e + "; " + Log.getStackTraceString(e));
-            invalidIntent(intent, null);
-            setUrlToPlayInUi("");
-            return false;
-        }
-    }
-
-    /**
-     * Also sets attributes urlToPlayUri (can be null), urlToPlayRaw (can be null),
-     * and urlToPlayDecoded (can be empty).
-     *
-     * <p/>For an intent with a plain text URL, the returned value is not empty
-     * and urlToPlayUri is null.
-     *
-     * @param intent
-     * @return urlToPlayDecoded, can be empty
-     * @throws UnsupportedEncodingException
-     */
-    private String getUrlToPlay(final Intent intent) throws UnsupportedEncodingException {
-        urlToPlayRaw = null;
-        urlToPlayUri = null;
-        urlToPlayDecoded = "";
-        //TODO washere washere spectro bug this does not work for extra_stream for type AUDIO_*
-        urlToPlayRaw = intent.getStringExtra(Intent.EXTRA_TEXT);
-        if (getLogConfig().DEBUG==LogConfig.INTENT)
-            Log.d(TAG, ".handleIncomingIntent: urlToPlayRaw from Intent.EXTRA_TEXT {"
-                    + urlToPlayRaw + "}");
-        if (urlToPlayRaw == null) {
-            //no text url, try extra_stream
-            urlToPlayUri = getUri(intent);
-
-            if (urlToPlayUri != null) {
-                // url is uri, from extra stream or getData
-
-                urlToPlayRaw = urlToPlayUri.toString();
-            } else {
-                //urlToPlayRaw is null; urlToPlayUri is null
+            intentToPlayIsValid = false;
+            try {
+                if (LOG_CONFIG.ERROR == LogConfig.ON)
+                    Log.e(TAG, ".handleIncomingIntent: " + e
+                            + "; " + Log.getStackTraceString(e));
+                invalidIntent(intentToPlay, fileNameToPlay);
+                setUrlToPlayInUi();
+                notifyPlayAbnormalEnd(e);
+            }catch (Throwable ignored){
             }
-        } else {
-            //urlToPlayRaw is not null; urlToPlayUri is null
+            return intentToPlayIsValid;
         }
-        if (urlToPlayRaw != null) {
-            urlToPlayDecoded = URLDecoder.decode(urlToPlayRaw, "UTF-8");
-        }
-        return urlToPlayDecoded;
     }
 
     /**
@@ -3726,31 +4160,33 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         return uri;
     }
 
-    private void invalidUrl(final String urlString) {
-        if (getLogConfig().DEBUG==LogConfig.INTENT)
-            Log.d(TAG, ".invalidUrl: invalid URL text {" + urlString + "}");
-        if (largeGuiLayout != null)
-            Snackbar.make(largeGuiLayout,
-                    "The URL is invalid and is ignored: " + urlString,
-                    Snackbar.LENGTH_LONG).show();
-    }
 
-    private void invalidIntent(final Intent intent, final String invalidUrl) {
-        if (getLogConfig().DEBUG==LogConfig.INTENT)
-            Log.e(TAG, ".invalidIntent: invalid intent {" + intent + "}");
-        String x = invalidUrl == null || invalidUrl.isEmpty() ? "" : ": " + invalidUrl;
+    /**
+     * Informs the user of the invalidity of the intent.
+     *
+     * @param intent
+     * @param filename
+     */
+    private void invalidIntent(final Intent intent, final String filename) {
+        if (LOG_CONFIG.DEBUG==LogConfig.INTENT
+                || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+            Log.d(TAG, ".invalidIntent: invalid intent {" + intent + "}");
+        String x = filename == null || filename.isEmpty() ? "" : ", filename {" + filename+"}";
+        String s = "The Intent is invalid" + x;//from another app ???
+        if (intent != null) {
+            // url for a local file
+            s = s+" Intent: "+intent;
+        }
         if (largeGuiLayout != null) {
-            String s = "The URL from another app is invalid and is ignored" + x;
-            if (intent == null) {
-                // url for a local file
-                s = "The URL is invalid and is ignored" + x;
-            }
             Snackbar.make(largeGuiLayout, s, Snackbar.LENGTH_LONG).show();
         }
+        notifyPlayAbnormalEnd(new Exception(s));
     }
 
     private void showError(final String text) {
-        if (getLogConfig().DEBUG==LogConfig.INTENT || getLogConfig().DEBUG==LogConfig.ON || getLogConfig().ERROR==LogConfig.ON)
+        if (LOG_CONFIG.DEBUG==LogConfig.INTENT
+                || LOG_CONFIG.DEBUG==LogConfig.ON
+                || LOG_CONFIG.ERROR==LogConfig.ON)
             Log.e(TAG, ".showError {" + text + "}");
         if (largeGuiLayout != null) {
             Snackbar.make(largeGuiLayout, text, Snackbar.LENGTH_LONG).show();
@@ -3758,33 +4194,598 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     }
 
     /**
-     * Designed to be run on the ui thread.
-     * All callers are run on the ui thread in this version.
-     * Used in this version.
-     *
-     * @param intent references a remote media file with http or rtsp URL
-     * @param uri    the Uri from the intent
-     * @return true when succeeded, false when failure.
+     * @param ex     Throwable
+     * @param method a text fragment, example: "mediaPlayer.prepare"
      */
-    private boolean play(final Intent intent, final Uri uri, final String urlToPlayGiven) {
-        if (getLogConfig().DEBUG==LogConfig.INTENT || getLogConfig().DEBUG==LogConfig.PLAY_URL)
-            Log.d(TAG, ".play: trying to play intent for remote file {" + intent
-                    + "} uri {" + uri + "} urlToPlayGiven {" + urlToPlayGiven + "}");
-        //urlToPlay = urlToPlayDecoded;
-        editTextUrlToPlay.setText(urlToPlayGiven);
-        // ======================
-        return doPlayUrl(intent);
-        // ======================
+    private void showFailureInMethod(final Throwable ex, final String method) {
+        if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
+        showAnomalyText(ex, method + " raised " + ex);
     }
 
+    //TO DO when is this reset to null after it is set to non-null?
+    private volatile String previousAnomalyText = null;
+    private volatile boolean lastAnomalyTextIsShown = false;
+
+    /**
+     * Designed to be used in runOnUiThread.
+     */
+    private final Runnable RUNNABLE_TO_SHOW_ANOMALY_TEXT = new Runnable() {
+        
+        public void run() {
+            if (LOG_CONFIG.ERROR==LogConfig.ON)
+                Log.e(SpectrogramActivity.TAG, getLastAnomalyTextInHtml());
+
+            notifyForAnomaly("Anomaly detected",lastThrowable);
+
+            if (about != null) {
+//                if(lastAnomalyText==null || lastAnomalyText.isEmpty()){
+//                    about. setText("About");//TO DO use res
+//                }else {
+//                    about. setText("Error");//TO DO use res
+//                }
+                aboutButtonSelected();
+                afterButtonSelected(about);
+//                if(!about.performClick()){
+//                    Log.e(SpectrogramActivity.TAG,
+//                            "secondary issue: *about.performClick()* returned false; " +
+//                                    "the primary issue was: "+ getLastAnomalyTextForHtml());
+//                }
+            }
+        }
+    };
+
+
+    /**
+     * @param e    may be null
+     * @param text
+     */
+    private void showAnomalyText(final Throwable e, final String text) {
+        lastThrowable = e;
+        lastAnomalyText = text;
+        lastAnomalyTimeMillis = System.currentTimeMillis();
+        runOnUiThread(RUNNABLE_TO_SHOW_ANOMALY_TEXT);
+    }
+
+    private void clearLastAnomaly() {
+        lastThrowable = null;
+        lastAnomalyText = null;
+        lastAnomalyTimeMillis = -1L;
+    }
+
+    private final Runnable RUNNABLE_TO_CLEAR_ANOMALY_TEXT = new Runnable() {
+        
+        public void run() {
+            updateAboutButtonOnUIThread();
+        }
+    };
+
+    private void updateAboutButtonOnUIThread() {
+        if (lastAnomalyText == null || lastAnomalyText.length() == 0) {
+            if (about != null) {
+                about.setText("About");//TODO use res
+                if (LOG_CONFIG.DEBUG==LogConfig.UI)
+                    Log.d(TAG,"updateAboutButtonOnUIThread: about button label set to *About*");
+            }
+        } else {
+            if (about != null) {
+                about.setText("Error");//TODO use res
+                if (LOG_CONFIG.DEBUG==LogConfig.UI)
+                    Log.d(TAG,"updateAboutButtonOnUIThread: about button label set to *Error*");
+            }
+        }
+    }
+
+    private void clearAnomalyText() {
+        previousAnomalyText = lastAnomalyText;
+        lastAnomalyText = null;
+        lastAnomalyTextIsShown = false;
+        runOnUiThread(RUNNABLE_TO_CLEAR_ANOMALY_TEXT);
+    }
+
+
+    private final Runnable RUNNABLE_FOR_PLAYER_STARTING_TO_PLAY = new Runnable() {
+        
+        public void run() {
+
+            if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
+
+            notifyPlayStart();
+        }
+    };
+
+    public void onStartingToPlay() {
+        runOnUiThread(RUNNABLE_FOR_PLAYER_STARTING_TO_PLAY);
+    }
+
+    volatile String textForEndOfPlay = "Normal end of play";
+
+    private final Runnable RUNNABLE_FOR_PLAYER_NORMAL_END = new Runnable() {
+        
+        public void run() {
+            notifyPlayNormalEnd();
+            if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
+            if(largeGuiLayout==null)return;
+            Snackbar.make(largeGuiLayout, textForEndOfPlay,
+                    Snackbar.LENGTH_LONG).show();
+            resetUrlGui();
+            clearAnomalyText();
+        }
+    };
+
+    public void onNormalEndOfPlay( boolean audioFocusIsLost) {
+        textForEndOfPlay = "The sound file has ended normally";
+        if(audioFocusIsLost){
+            textForEndOfPlay = "Playback ended due to loss of audio focus";
+        }
+        runOnUiThread(RUNNABLE_FOR_PLAYER_NORMAL_END);
+    }
+
+    private final Runnable RUNNABLE_FOR_ANOMALY_IN_PLAYER = new Runnable() {
+        
+        public void run() {
+            if(editTextUrlToPlay==null)return;
+            notifyPlayAbnormalEnd(throwableFromPlayer);
+            doCancelUrl();
+            if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
+            editTextUrlToPlay.setTextColor(Color.RED);
+            showAnomalyText(throwableFromPlayer, errorMessageFromPlayer);
+            if (largeGuiLayout != null)
+                Snackbar.make(largeGuiLayout, errorMessageFromPlayer, Snackbar.LENGTH_LONG)
+                        .show();
+        }
+    };
+
+    private volatile Throwable throwableFromPlayer = null;
+    private volatile String errorMessageFromPlayer = null;
+
+    private volatile boolean isCancelling = false;
+
+    /**
+     * Called by the AudioPlayer.
+     *
+     * @param e            may be null
+     * @param errorMessage String
+     */
+    public void onAnomalyDetectedByPlayer(final Throwable e, final String errorMessage) {
+        if(isCancelling){
+            return;
+        }
+        throwableFromPlayer = e;
+        errorMessageFromPlayer = errorMessage + (e != null ? ": " + e : "");
+        runOnUiThread(RUNNABLE_FOR_ANOMALY_IN_PLAYER);
+    }
+
+    private final Runnable RUNNABLE_FOR_AUDIO_FOCUS_REFUSED = new Runnable() {
+        
+        public void run() {
+
+            notifyPlayAbnormalEnd(new Exception("Audio focus was refused by the system"));
+
+            doCancelUrl();
+            if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
+            if(editTextUrlToPlay!=null)
+                editTextUrlToPlay.setTextColor(Color.GRAY);
+            String s = "Audio focus refused by Android; try again later";
+            //showAnomalyText(null, s);
+            if (largeGuiLayout != null)
+                Snackbar.make(largeGuiLayout, s, Snackbar.LENGTH_LONG)
+                        .show();
+        }
+    };
+
+    public void onAudioFocusRefused(){
+        runOnUiThread(RUNNABLE_FOR_AUDIO_FOCUS_REFUSED);
+    }
+
+
+    public Context getContextForSmartPlayer(){
+        return this;
+    }
+
+
+    // generic notification =========================================
+
+    /**
+     * disabled until notifications are used better, based on G best practices,
+     * such as with intents and action choices for user to see or do something with the
+     * notifications.
+     */
+    public static final boolean NOTIF_ARE_ENABLED = false;
+
+    /**
+     * Removes all the notifications from the UI.
+     *
+     * Typical usage: called by onDestroy.
+     */
+    private void notifyCancelAll(){
+        NotificationManager notificationManager = (NotificationManager)getSystemService(
+                Context.NOTIFICATION_SERVICE);
+        notificationManager.cancelAll();
+    }
+
+    /**
+     * TODO future add intent for user to show the long anomaly text
+     *
+     * @param e
+     */
+    private void notifyGenericAnomaly(Throwable e){
+        if(!NOTIF_ARE_ENABLED)return;
+        notifySimple(
+                e,
+                "Anomaly detected",
+                getAppName(this),
+                R.drawable.ic_stat_error
+        );
+    }
+
+    // url play notifications ============
+
+    /**
+     * disabled in this version, does nothing.
+     */
+    private void notifyPlayStart(){
+        if(!NOTIF_ARE_ENABLED)return;
+        notifySimple(
+                null,
+                "Sound file paying",
+                getAppName(this),
+                R.drawable.ic_stat_playing
+        );
+    }
+
+    private void notifyPlayNormalEnd(){
+        if(!NOTIF_ARE_ENABLED)return;
+        notifySimple(
+                null,
+                "Sound file ended normally",
+                getAppName(this),
+                R.drawable.ic_stat_recording_ended_normally
+        );
+    }
+
+    private void notifyPlayAbnormalEnd(Throwable e){
+        if(!NOTIF_ARE_ENABLED)return;
+        notifySimple(
+                e,
+                "Sound file ended abnormally",
+                getAppName(this),
+                R.drawable.ic_stat_error
+        );
+    }
+
+    private void notifyPlayFailedToStart(Throwable e){
+        if(!NOTIF_ARE_ENABLED)return;
+        notifySimple(
+                e,
+                "Sound file failed to start playing",
+                getAppName(this),
+                R.drawable.ic_stat_error
+        );
+    }
+
+    private static final String NOTIF_CHANNEL_SM_SPECTRO_NAME = "SM-SPECTRO-20171202";
+    /**
+     * An identifier for a notification unique within this application.
+     * TODO do we need multiple IDs?
+     */
+    private static final int NOTIF_ID =20171202;
+    private static final String NOTIF_CHANNEL_SM_SPECTRO_NAME_FOR_USER = "sm Spectro";
+
+    /**
+     * TODO could be moved to lib, with two new params: channel and id; and maybe also Context,
+     * and maybe also importance attrib.
+     *
+     * @param e Throwable, may be null.
+     * @param title shown as-is.
+     * @param text the error message is appended to it when e is not null.
+     * @param iconId not used when e is not null, then ndroid.R.drawable.stat_notify_error is used.
+     */
+    private void notifySimple(Throwable e, String title, String text, int iconId ) {
+        if(!NOTIF_ARE_ENABLED)return;
+        NotificationCompat.Builder b =
+                new NotificationCompat.Builder(this, NOTIF_CHANNEL_SM_SPECTRO_NAME);
+
+        b.setAutoCancel(true);//.setDefaults(Notification.DEFAULT_ALL);
+
+        if (e == null) {
+            b.setContentTitle(title)
+            .setContentText(text)
+            .setSmallIcon(iconId)
+            .setSound(null); // TODO does not seem to stop sound
+        }
+        else {
+            b.setContentTitle(title)
+                    .setContentText(text+" - "+e.getMessage())
+                    .setSmallIcon(android.R.drawable.stat_notify_error);
+        }
+
+        NotificationManager mgr = (NotificationManager)getSystemService(NOTIFICATION_SERVICE);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                mgr.getNotificationChannel(NOTIF_CHANNEL_SM_SPECTRO_NAME)==null) {
+            // version Oreo+
+            mgr.createNotificationChannel(new NotificationChannel(NOTIF_CHANNEL_SM_SPECTRO_NAME,
+                    NOTIF_CHANNEL_SM_SPECTRO_NAME_FOR_USER,
+                    NotificationManager.IMPORTANCE_LOW));//LOW may not use sound
+        }
+
+        mgr.notify(NOTIF_ID, b.build());
+    }
+
+    // ======================= end of notification methods =============================
+
+
+
+    private long previousBackButtonMs = 0;
+    public static final long BACK_BUTTON_TIMEOUT_MS = 5000;
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if ((keyCode == KeyEvent.KEYCODE_BACK)) {
+            //Log.d(this.getClass().getName(), "back button pressed");
+            String s = "";
+            if (contentTextView.isShown()) {
+                s = "; or tap the button to hide the text";
+            }
+            if (previousBackButtonMs > 0) {
+                //there is a previous back button press time; this is the second back-key
+                if (System.currentTimeMillis() - previousBackButtonMs > BACK_BUTTON_TIMEOUT_MS) {
+                    // timeout exceeded, reset previous one; no exit
+                    previousBackButtonMs = System.currentTimeMillis();
+                    //if a text is showing, add  s = "; to hide the text, touch the text button"
+                    Snackbar.make(largeGuiLayout,
+                            "Please press the Back key again to exit" + s,
+                            Snackbar.LENGTH_LONG)
+                            .show();
+                    // eat the action and do not propagate it
+                    return true;
+                } else {
+                    // timeout not exceeded, then exit; propagate the action
+                    if (LOG_CONFIG.DEBUG!=LogConfig.OFF) Log.d(TAG,".onKeyDown: timeout not exceeded, then exit; propagate the action");
+                    shutdown(true);
+                }
+            } else {
+                // there is no previous back button press time; no exit
+                previousBackButtonMs = System.currentTimeMillis();
+                Snackbar.make(largeGuiLayout,
+                        "Please press the Back key again to exit" + s,
+                        Snackbar.LENGTH_LONG)
+                        .show();
+                // eat the action and do not propagate it
+                return true;
+            }
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
+//    /* *
+//     * Disable app restart and the loss of data (url) when config changes,
+//     * in coordination with THE manifest.xml file.
+//     *
+//     * @ param config
+//     */
+//    @ Override
+//    public void onConfigurationChanged(Configuration config){
+//        super.onConfigurationChanged(config);
+//
+////        restoreUrlToPlay();
+////        if(editTextUrlToPlay!=null)
+////            editTextUrlToPlay.setText(urlToPlayString);
+////        if(LOG_CONFIG.DEBUG==LogConfig.RESTORE){
+////            Log.d(TAG,".onConfigurationChanged: urlToPlayString {"+urlToPlayString+"}");
+////        }
+//    }
+
+    public boolean isDevMode() {
+        return false;// TODO false in prod
+    }
+
+    
+    public boolean isEduVersion() {
+        return false;
+    }
+
+    
+    public boolean isSupportEmailEnabled() {//TODO prio 2 2017-6-28 review with another class
+        return false;
+    }
+
+    
+    public boolean isAdsCapable() {
+        return false;
+    }
+
+    
+    public boolean isShowAdsWhenDonated() {
+        return false;
+    }
+
+    
+    public boolean isDonationsCapable() {
+        return false;
+    }
+
+    
+    public boolean isUseTestPurchase() {
+        return false;
+    }
+
+    
+    public boolean isUseEmptyIabPayload() {
+        return false;
+    }
+
+    
+    public boolean isSimulatingNoConnection() {
+        return false;
+    }
+
+    
+    public boolean isSimulatingNoPurchase() {
+        return false;
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+
+//        if(APP_INDEXING_IS_ENABLED) {//TODO future enable
+//
+//            // ATTENTION: This was auto-generated to implement the App Indexing API.
+//            // See https://g.co/AppIndexing/AndroidStudio for more information.
+//            client.connect();
+//            Action viewAction = Action.newAction(
+//                    Action.TYPE_VIEW,
+//                    "Spectrogram Page", // a title for the content shown.
+//                    // If you have web page content that matches this app activity's content,
+//                    // make sure this auto-generated web page URL is correct.
+//                    // Otherwise, set the URL to null.
+//                    //Uri.parse("http://host/path"),
+//                    null,
+//                    // TO DO: Make sure this auto-generated app URL is correct.
+//                    Uri.parse("android-app://sm.app.spectrogram/http/host/path")
+//            );
+//            AppIndex.AppIndexApi.start(client, viewAction);
+//        }
+    }
+
+    /**
+     * called for finish, onStop
+     */
+    private void shutdown( final boolean withFinish ){
+        if (LOG_CONFIG.DEBUG > LogConfig.OFF) Log.d(TAG, ".shutdown: entering withFinish = "+withFinish);
+        //the player is also shutdown in onPause
+        AudioPlayer.getIt().onActivityStop();
+        resetUrl(false);
+        if(withFinish){
+            finish();
+        }
+        if (LOG_CONFIG.DEBUG > LogConfig.OFF) Log.d(TAG, ".shutdown: exiting");
+    }
+
+    @Override
+    public void onStop() {
+        if (LOG_CONFIG.DEBUG > LogConfig.OFF) Log.d(TAG,".onStop: entering");
+
+        shutdown(false);
+
+        super.onStop();
+
+//        if(APP_INDEXING_IS_ENABLED) { // TODO future enable
+//
+//            // ATTENTION: This was auto-generated to implement the App Indexing API.
+//            // See https://g.co/AppIndexing/AndroidStudio for more information.
+//            Action viewAction = Action.newAction(
+//                    Action.TYPE_VIEW, // TO DO: choose an action type.
+//                    "Spectrogram Page", // TO DO: Define a title for the content shown.
+//                    // TO DO: If you have web page content that matches this app activity's content,
+//                    // make sure this auto-generated web page URL is correct.
+//                    // Otherwise, set the URL to null.
+//                    null, // Uri.parse("http://host/path"),
+//                    // TO DO: Make sure this auto-generated app URL is correct.
+//                    Uri.parse("android-app://sm.app.spectrogram/http/host/path")
+//            );
+//            AppIndex.AppIndexApi.end(client, viewAction);
+//            client.disconnect();
+//        }c
+    }
+
+} // end of class
+
+    //===================== archive ==================================
+
+
+//    /**
+//     * Not used in this version.
+//     *
+//     * @param urlString
+//     */
+//    private void invalidUrl(final String urlString) {
+//        if (LOG_CONFIG.DEBUG==LogConfig.INTENT
+//                || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+//            Log.d(TAG, ".invalidUrl: invalid URL text {" + urlString + "}");
+//        if (largeGuiLayout != null)
+//            Snackbar.make(largeGuiLayout,
+//                    "The URL is invalid and is ignored: " + urlString,
+//                    Snackbar.LENGTH_LONG).show();
+//        notifyPlayAbnormalEnd(new Exception("The URL is invalid {"+urlString+"}"));
+//    }
+
+//    /**
+//     * Also sets attributes urlToPlayUri (can be null), urlToPlayRaw (can be null),
+//     * and urlToPlayDecoded (can be empty).
+//     *
+//     * <p/>For an intent with a plain text URL, the returned value is not empty
+//     * and urlToPlayUri is null.
+//     *
+//     * @param intent
+//     * @return urlToPlayDecoded, can be empty
+//     * @throws UnsupportedEncodingException
+//     */
+//    private String getUrlToPlay(final Intent intent) throws UnsupportedEncodingException {
+//        urlToPlayRaw = null;
+//        urlToPlayUri = null;
+//        urlToPlayDecoded = "";
+//        //TO DO was here was here spectro bug this does not work for extra_stream for type AUDIO_*
+//        urlToPlayRaw = intent.getStringExtra(Intent.EXTRA_TEXT);
+//        if (LOG_CONFIG.DEBUG==LogConfig.INTENT)
+//            Log.d(TAG, ".handleIncomingIntent: urlToPlayRaw from Intent.EXTRA_TEXT {"
+//                    + urlToPlayRaw + "}");
+//        if (urlToPlayRaw == null) {
+//            //no text url, try extra_stream
+//            urlToPlayUri = getUri(intent);
+//
+//            if (urlToPlayUri != null) {
+//                // url is uri, from extra stream or getData
+//
+//                urlToPlayRaw = urlToPlayUri.toString();
+//            } else {
+//                //urlToPlayRaw is null; urlToPlayUri is null
+//            }
+//        } else {
+//            //urlToPlayRaw is not null; urlToPlayUri is null
+//        }
+//        if (urlToPlayRaw != null) {
+//            urlToPlayDecoded = URLDecoder.decode(urlToPlayRaw, "UTF-8");
+//        }
+//        return urlToPlayDecoded;
+//    }
+
+    //=======================================================
+
+//    /**
+//     * Not used in this version.
+//     *
+//     * @param fd
+//     * @param intent
+//     * @return true when possible success, and false when definite failure.
+//     *
+//     * @deprecated in this version
+//     */
+//    private boolean play(final FileDescriptor fd, final Intent intent) {
+//        player = new SmartPlayer();
+//        try {
+//            showUrlPrepareSnackbar();
+//            player.play(fd, this);
+//        } catch (Throwable ex) {
+//            Log.e(TAG, ".play(FileDescriptor) " + ex + " " + Log.getStackTraceString(ex));
+//            doResetUrl(true);
+//            //showAnomalyText(ex, ex.getMessage());
+//            invalidIntent(intent, null);// uses a snackbar
+//            return false;
+//        }
+//        setUrlGuiWhenPlaying();
+//        return true;
+//    }
+
 //    private boolean play(final Intent intent, final String urlToPlayGiven){
-//        if (getLogConfig().DEBUG==LogConfig.INTENT)
+//        if (LOG_CONFIG.DEBUG==LogConfig.INTENT)
 //            Log.d(TAG, ".play: trying to play intent for remote file {" + intent
 //                    + "} urlToPlayGiven {"+urlToPlayGiven+"}");
-//        //urlToPlay = urlToPlayDecoded;
+//        //urlToPlayString = urlToPlayDecoded;
 //        editTextUrlToPlay.setText(urlToPlayGiven);
 //        // ======================
-//        return doPlayUrl(intent);
+//        return play(intent);
 //        // ======================
 //    }
 
@@ -3800,19 +4801,19 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //            throws UnsupportedEncodingException {
 //
 //        urlToPlayDecoded = URLDecoder.decode(urlToPlayRawGiven, "UTF-8");
-//        if (getLogConfig().DEBUG==LogConfig.INTENT)
+//        if (LOG_CONFIG.DEBUG==LogConfig.INTENT)
 //            Log.d(TAG, ".playRemoteFile: url is text; urlToPlayDecoded {"
 //                    + urlToPlayDecoded + "}");
 //
 //        if (urlToPlayDecoded != null && !urlToPlayDecoded.isEmpty()) {
 //            // external url or uri to play may be ok, try it
-//            if (getLogConfig().DEBUG==LogConfig.INTENT || getLogConfig().DEBUG==LogConfig.PLAY_URL)
+//            if (LOG_CONFIG.DEBUG==LogConfig.INTENT || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
 //                Log.e(TAG, ".playRemoteFile: trying to play intent with text URL to remote file {"
 //                        + intent + "}");
-//            urlToPlay = urlToPlayDecoded;
-//            editTextUrlToPlay.setText(urlToPlay);
+//            urlToPlayString = urlToPlayDecoded;
+//            editTextUrlToPlay.setText(urlToPlayString);
 //            // ======================
-//            return doPlayUrl(intent);
+//            return play(intent);
 //            // ======================
 //        } else {
 //            // external url or uri is not ok, ignore it
@@ -3834,7 +4835,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //     * @deprecated
 //     */
 //    private boolean playLocalFile(final Intent intent, final Uri uriGiven, final String filepath) {
-//        if (getLogConfig().DEBUG==LogConfig.INTENT)
+//        if (LOG_CONFIG.DEBUG==LogConfig.INTENT)
 //            Log.d(TAG, ".playLocalFile: entering with filepath {" + filepath + "}");
 //
 ////      Try to open the file for "read" access using the
@@ -3843,25 +4844,25 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //        FileDescriptor fd = getFileDescriptorForPrivateFileWithRetries(filepath);
 //
 //        if (fd == null) {
-//            if (getLogConfig().DEBUG==LogConfig.INTENT)
+//            if (LOG_CONFIG.DEBUG==LogConfig.INTENT)
 //                Log.d(TAG, "playLocalFile: File cannot be opened {" + filepath + "}");
 //            showError("File cannot be opened");
 //            return false;
 //        }
 //
-//        if (getLogConfig().DEBUG==LogConfig.INTENT)
+//        if (LOG_CONFIG.DEBUG==LogConfig.INTENT)
 //            Log.d(TAG, "playLocalFile: File opened!!! {" + filepath + "} descriptor {" + fd + "}");
 //
 //        boolean success = false;
 //        try {
 //            // =========================
-//            success = doPlayUrl(fd, intent); // ===> mediaPlayer.setDataSource(fd)
+//            success = play(fd, intent); // ===> mediaPlayer.setDataSource(fd)
 //            // =========================
 //        } finally {
 ////            try {
 ////                pfd.close();
 ////            } catch (IOException ignore) {
-////                if (getLogConfig().DEBUG==LogConfig.INTENT||getLogConfig().ERROR==LogConfig.ON)
+////                if (LOG_CONFIG.DEBUG==LogConfig.INTENT||LOG_CONFIG.ERROR==LogConfig.ON)
 ////                    Log.e(TAG, "playLocalFile: File found: {"+filepath+"}, descriptor {"+fd+"}"
 ////                    +" IOException "+ignore+" "+Log.getStackTraceString(ignore));
 ////            }
@@ -3869,29 +4870,29 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //        return success;
 //    }
 
-    /**
-     * @param filepath without file separator
-     * @return FileDescriptor or null
-     */
-    private FileDescriptor getFileDescriptorForPrivateFile(final String filepath) {
-        FileDescriptor fd = null;
-        try {
-            fd = openFileInput(filepath).getFD();
-        } catch (IllegalArgumentException e) {
-            if (getLogConfig().DEBUG==LogConfig.INTENT || getLogConfig().ERROR==LogConfig.ON)
-                Log.e(TAG, "getFileDescriptorForPrivateFile: File {" + filepath + "}"
-                        + " IOException " + e + " " + Log.getStackTraceString(e));
-            //showError("File cannot be opened");
-            return null;
-        } catch (IOException e) {
-            if (getLogConfig().DEBUG==LogConfig.INTENT || getLogConfig().ERROR==LogConfig.ON)
-                Log.e(TAG, "getFileDescriptorForPrivateFile: File {" + filepath + "}"
-                        + " IOException " + e + " " + Log.getStackTraceString(e));
-            //showError("File cannot be opened");
-            return null;
-        }
-        return fd;
-    }
+//    /**
+//     * @param filepath without file separator
+//     * @return FileDescriptor or null
+//     */
+//    private FileDescriptor getFileDescriptorForPrivateFile(final String filepath) {
+//        FileDescriptor fd = null;
+//        try {
+//            fd = openFileInput(filepath).getFD();
+//        } catch (IllegalArgumentException e) {
+//            if (LOG_CONFIG.DEBUG==LogConfig.INTENT || LOG_CONFIG.ERROR==LogConfig.ON)
+//                Log.e(TAG, "getFileDescriptorForPrivateFile: File {" + filepath + "}"
+//                        + " IOException " + e + " " + Log.getStackTraceString(e));
+//            //showError("File cannot be opened");
+//            return null;
+//        } catch (IOException e) {
+//            if (LOG_CONFIG.DEBUG==LogConfig.INTENT || LOG_CONFIG.ERROR==LogConfig.ON)
+//                Log.e(TAG, "getFileDescriptorForPrivateFile: File {" + filepath + "}"
+//                        + " IOException " + e + " " + Log.getStackTraceString(e));
+//            //showError("File cannot be opened");
+//            return null;
+//        }
+//        return fd;
+//    }
 
     /*
     if (movieurl.startsWith("rtsp://")) {
@@ -3942,7 +4943,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //        Uri uri = uriGiven;
 //        if (uri == null) {
 //            uri = Uri.parse(filepath);
-//            if (getLogConfig().DEBUG==LogConfig.INTENT)
+//            if (LOG_CONFIG.DEBUG==LogConfig.INTENT)
 //                Log.d(TAG, ".getFileDescriptorWithContentResolverAndPfd: " +
 //                        "Uri.parse(filepath) returned uri {" + uri + "}");
 //        }
@@ -3960,362 +4961,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //        return pfd.getFileDescriptor();
 //    }
 
-    /**
-     * @param ex     Throwable
-     * @param method a text fragment, example: "mediaPlayer.prepare"
-     */
-    private void showFailureInMethod(final Throwable ex, final String method) {
-        if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
-        showAnomalyText(ex, method + " raised " + ex);
-    }
-
-    //TO DO when is this reset to null after it is set to non-null?
-    private volatile String previousAnomalyText = null;
-    private volatile boolean lastAnomalyTextIsShown = false;
-
-    /**
-     * Designed to be used in runOnUiThread.
-     */
-    private final Runnable RUNNABLE_TO_SHOW_ANOMALY_TEXT = new Runnable() {
-        
-        public void run() {
-            if (getLogConfig().DEBUG==LogConfig.RESTORE || getLogConfig().ERROR==LogConfig.ON)
-                Log.e(SpectrogramActivity.TAG, getLastAnomalyTextInHtml());
-            if (about != null) {
-//                if(lastAnomalyText==null || lastAnomalyText.isEmpty()){
-//                    about. setText("About");//TO DO use res
-//                }else {
-//                    about. setText("Error");//TO DO use res
-//                }
-                aboutButtonSelected();
-                afterButtonSelected(about);
-//                if(!about.performClick()){
-//                    Log.e(SpectrogramActivity.TAG,
-//                            "secondary issue: *about.performClick()* returned false; " +
-//                                    "the primary issue was: "+ getLastAnomalyTextForHtml());
-//                }
-            }
-        }
-    };
-
-//    /**
-//     * Button label changed to "Error" and text shown to user
-//     */
-//    private void showAnomalyText() {
-//        runOnUiThread(RUNNABLE_TO_SHOW_ANOMALY_TEXT);
-//    }
-
-    /**
-     * @param e    may be null
-     * @param text
-     */
-    private void showAnomalyText(final Throwable e, final String text) {
-        lastThrowable = e;
-        lastAnomalyText = text;
-        lastAnomalyTimeMillis = System.currentTimeMillis();
-        runOnUiThread(RUNNABLE_TO_SHOW_ANOMALY_TEXT);
-    }
-
-    private void clearLastAnomaly() {
-        lastThrowable = null;
-        lastAnomalyText = null;
-        lastAnomalyTimeMillis = -1L;
-    }
-
-    private final Runnable RUNNABLE_TO_CLEAR_ANOMALY_TEXT = new Runnable() {
-        
-        public void run() {
-            updateAboutButtonOnUIThread();
-        }
-    };
-
-    private void updateAboutButtonOnUIThread() {
-        if (lastAnomalyText == null || lastAnomalyText.length() == 0) {
-            if (about != null) {
-                about.setText("About");//TODO use res
-                if (getLogConfig().DEBUG==LogConfig.UI)
-                    Log.d(TAG,"updateAboutButtonOnUIThread: about button label set to *About*");
-            }
-        } else {
-            if (about != null) {
-                about.setText("Error");//TODO use res
-                if (getLogConfig().DEBUG==LogConfig.UI)
-                    Log.d(TAG,"updateAboutButtonOnUIThread: about button label set to *Error*");
-            }
-        }
-    }
-
-    private void clearAnomalyText() {
-        previousAnomalyText = lastAnomalyText;
-        lastAnomalyText = null;
-        lastAnomalyTextIsShown = false;
-        runOnUiThread(RUNNABLE_TO_CLEAR_ANOMALY_TEXT);
-    }
-
-    private final Runnable RUNNABLE_FOR_PLAYER_STARTING_TO_PLAY = new Runnable() {
-        
-        public void run() {
-            if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
-        }
-    };
-
-    
-    public void onStartingToPlay() {
-        runOnUiThread(RUNNABLE_FOR_PLAYER_STARTING_TO_PLAY);
-    }
-
-    volatile String textForEndOfPlay = "Normal end of play";
-
-    private final Runnable RUNNABLE_FOR_PLAYER_NORMAL_END = new Runnable() {
-        
-        public void run() {
-            if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
-            Snackbar.make(largeGuiLayout, textForEndOfPlay,
-                    Snackbar.LENGTH_LONG).show();
-            resetUrlGui();
-            clearAnomalyText();
-        }
-    };
-
-    
-    public void onNormalEndOfPlay( boolean audioFocusIsLost) {
-        textForEndOfPlay = "The sound file has ended normally";
-        if(audioFocusIsLost){
-            textForEndOfPlay = "Playback ended due to loss of audio focus";
-        }
-        runOnUiThread(RUNNABLE_FOR_PLAYER_NORMAL_END);
-    }
-
-    private final Runnable RUNNABLE_FOR_ANOMALY_IN_PLAYER = new Runnable() {
-        
-        public void run() {
-            doCancelUrl();
-            if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
-            editTextUrlToPlay.setTextColor(Color.RED);
-            showAnomalyText(throwableFromPlayer, errorMessageFromPlayer);
-            if (largeGuiLayout != null)
-                Snackbar.make(largeGuiLayout, errorMessageFromPlayer, Snackbar.LENGTH_LONG)
-                        .show();
-        }
-    };
-
-    private volatile Throwable throwableFromPlayer = null;
-    private volatile String errorMessageFromPlayer = null;
-
-    private volatile boolean isCancelling = false;
-
-    /**
-     * @param e            may be null
-     * @param errorMessage String
-     */
-    
-    public void onAnomalyDetectedByPlayer(final Throwable e, final String errorMessage) {
-        if(isCancelling){
-            return;
-        }
-        throwableFromPlayer = e;
-        errorMessageFromPlayer = errorMessage + (e != null ? ": " + e : "");
-        runOnUiThread(RUNNABLE_FOR_ANOMALY_IN_PLAYER);
-    }
-
-    private final Runnable RUNNABLE_FOR_AUDIO_FOCUS_REFUSED = new Runnable() {
-        
-        public void run() {
-            doCancelUrl();
-            if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
-            editTextUrlToPlay.setTextColor(Color.GRAY);
-            String s = "Audio focus refused by Android; try again later";
-            //showAnomalyText(null, s);
-            if (largeGuiLayout != null)
-                Snackbar.make(largeGuiLayout, s, Snackbar.LENGTH_LONG)
-                        .show();
-        }
-    };
-
-    
-    public void onAudioFocusRefused(){
-        runOnUiThread(RUNNABLE_FOR_AUDIO_FOCUS_REFUSED);
-    }
-
-    
-    public Context getContextForSmartPlayer(){
-        return this;
-    }
-
-    private long previousBackButtonMs = 0;
-    public static final long BACK_BUTTON_TIMEOUT_MS = 5000;
-
-    @Override
-    public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if ((keyCode == KeyEvent.KEYCODE_BACK)) {
-            //Log.d(this.getClass().getName(), "back button pressed");
-            String s = "";
-            if (contentTextView.isShown()) {
-                s = "; or to hide the text, tap the applicable text button";
-            }
-            if (previousBackButtonMs > 0) {
-                //there is a previous back button press time; this is the second back-key
-                if (System.currentTimeMillis() - previousBackButtonMs > BACK_BUTTON_TIMEOUT_MS) {
-                    // timeout exceeded, reset previous one; no exit
-                    previousBackButtonMs = System.currentTimeMillis();
-                    //if a text is showing, add  s = "; to hide the text, touch the text button"
-                    Snackbar.make(largeGuiLayout,
-                            "Please press the Back key again shortly to confirm exiting the app" + s,
-                            Snackbar.LENGTH_LONG)
-                            .show();
-                    // eat the action and do not propagate it
-                    return true;
-                } else {
-                    // timeout not exceeded, then exit; propagate the action
-                    finish();
-                }
-            } else {
-                // there is no previous back button press time; no exit
-                previousBackButtonMs = System.currentTimeMillis();
-                Snackbar.make(largeGuiLayout,
-                        "Please press the Back key again shortly to confirm exiting the app" + s,
-                        Snackbar.LENGTH_LONG)
-                        .show();
-                // eat the action and do not propagate it
-                return true;
-            }
-        }
-        return super.onKeyDown(keyCode, event);
-    }
-
-//    /* *
-//     * Disable app restart and the loss of data (url) when config changes,
-//     * in coordination with THE manifest.xml file.
-//     *
-//     * @param config
-//     */
-//    @ Override
-//    public void onConfigurationChanged(Configuration config){
-//        super.onConfigurationChanged(config);
-//
-////        restoreUrlToPlay();
-////        if(editTextUrlToPlay!=null)
-////            editTextUrlToPlay.setText(urlToPlay);
-////        if(getLogConfig().DEBUG==LogConfig.RESTORE){
-////            Log.d(TAG,".onConfigurationChanged: urlToPlay {"+urlToPlay+"}");
-////        }
-//    }
-
-    public boolean isDevMode() {
-        return true;
-    }
-
-    
-    public boolean isEduVersion() {
-        return false;
-    }
-
-    
-    public boolean isSupportEmailEnabled() {//TODO washere 2017-6-28 complete a bunch
-        return false;
-    }
-
-    
-    public boolean isAdsCapable() {
-        return false;
-    }
-
-    
-    public boolean isShowAdsWhenDonated() {
-        return false;
-    }
-
-    
-    public boolean isDonationsCapable() {
-        return false;
-    }
-
-    
-    public boolean isUseTestPurchase() {
-        return false;
-    }
-
-    
-    public boolean isUseEmptyIabPayload() {
-        return false;
-    }
-
-    
-    public boolean isSimulatingNoConnection() {
-        return false;
-    }
-
-    
-    public boolean isSimulatingNoPurchase() {
-        return false;
-    }
-
-    /**
-     * 
-     * @return
-     * @deprecated replaced by method in AppContext
-     */
-    public int getVersionCode() {
-        return 0; //AppContext.getIt().getVersionCode(); //TODO new lib version
-    }
-
-    /**
-     * 
-     * @return
-     * @deprecated replaced by method in AppContext
-     */
-    public String getVersionName() {
-        return AppContext.getIt().getVersionName();
-    }
-
-    @Override
-    public void onStart() {
-        super.onStart();
-
-//        if(APP_INDEXING_IS_ENABLED) {//TODO future enable
-//
-//            // ATTENTION: This was auto-generated to implement the App Indexing API.
-//            // See https://g.co/AppIndexing/AndroidStudio for more information.
-//            client.connect();
-//            Action viewAction = Action.newAction(
-//                    Action.TYPE_VIEW,
-//                    "Spectrogram Page", // a title for the content shown.
-//                    // If you have web page content that matches this app activity's content,
-//                    // make sure this auto-generated web page URL is correct.
-//                    // Otherwise, set the URL to null.
-//                    //Uri.parse("http://host/path"),
-//                    null,
-//                    // TO DO: Make sure this auto-generated app URL is correct.
-//                    Uri.parse("android-app://sm.app.spectrogram/http/host/path")
-//            );
-//            AppIndex.AppIndexApi.start(client, viewAction);
-//        }
-    }
-
-    @Override
-    public void onStop() {
-        super.onStop();
-
-        if(player!=null)player.shutdown();
-
-//        if(APP_INDEXING_IS_ENABLED) { // TODO future enable
-//
-//            // ATTENTION: This was auto-generated to implement the App Indexing API.
-//            // See https://g.co/AppIndexing/AndroidStudio for more information.
-//            Action viewAction = Action.newAction(
-//                    Action.TYPE_VIEW, // TO DO: choose an action type.
-//                    "Spectrogram Page", // TO DO: Define a title for the content shown.
-//                    // TO DO: If you have web page content that matches this app activity's content,
-//                    // make sure this auto-generated web page URL is correct.
-//                    // Otherwise, set the URL to null.
-//                    null, // Uri.parse("http://host/path"),
-//                    // TO DO: Make sure this auto-generated app URL is correct.
-//                    Uri.parse("android-app://sm.app.spectrogram/http/host/path")
-//            );
-//            AppIndex.AppIndexApi.end(client, viewAction);
-//            client.disconnect();
-//        }
-    }
+    //=======================================================
 
 //    //send fake screen touches to prevent cpu from slowing down
 //    TimerTask sendFakeTouch = new TimerTask(){
@@ -4334,4 +4980,287 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //        touchTimer.schedule(sendFakeTouch, 1000, 1000);
 //    }
 
-}
+
+
+//    private boolean doPlayUrlString(final String urlString){//TO DO use to test 2017-7-26 when using the Play button
+//        if (LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+//            Log.d(TAG, ".doPlayUrlString: entering with urlString {" + urlString + "}");
+//        try {
+//            Intent intent = makeIntentFromString(urlString); //Intent.parseUri(urlString,Intent.FLAG_GRANT_READ_URI_PERMISSION);
+//
+//            return play(intent);
+//
+//        } catch (Throwable ex) {
+//            //e.printStackTrace();
+//            if(LOG_CONFIG.ERROR==LogConfig.ON)
+//                Log.e(TAG, ".doPlayUrlString(String {"+urlString+"}) " + ex + " "
+//                        + Log.getStackTraceString(ex));
+//        }
+//
+//        return false;
+//    }
+
+    /* this works from download app:
+     *
+     * 07-26 13:52:35.141 15987-15987/sm.app.spectro D/SmartPlayer: .play(Intent,Callback) entering:
+     * Intent {Intent {
+     * act=android.intent.action.SEND
+     * cat=[android.intent.category.DEFAULT]
+     * typ=audio/mpeg
+     * flg=0x1b080001
+     * cmp=sm.app.spectro/.SpectrogramActivity
+     * clip={audio/mpeg U:content://com.android.providers.downloads.documents/document/5834}
+     * (has extras) }}
+     *
+     * this does not work from my app:
+     *
+     * 07-26 14:45:34.472 29210-29210/sm.app.spectro D/SmartPlayer: .play(Intent,Callback) entering:
+     * Intent {Intent {
+     * act=android.intent.action.VIEW
+     * cat=[android.intent.category.DEFAULT]
+     * typ=audio/*
+     * (has extras) }}
+     *
+     *
+     * Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+     *
+     */
+
+//    private Intent makeIntentFromString(final String urlString){
+//        final Intent intent = new Intent(Intent.ACTION_VIEW); //progressive download
+//
+//        String errorText = "";
+//        String s = null;
+//        try {
+//            s = URLEncoder.encode(urlString, "UTF-8");
+//        } catch (UnsupportedEncodingException e) {
+//            e.printStackTrace();
+//            errorText = "UnsupportedEncodingException "+e.getMessage();
+//            throw new IllegalArgumentException(errorText,e);
+//        }
+//
+//        intent.addCategory("android.intent.category.DEFAULT");
+//
+//        intent.setType(INBOUND_INTENT_PLAY_TYPE_AUDIO_ANY);
+//                //"application/vnd.sm.sm.app.seadragon.sm.app.seadragon.v21.spectrogram");
+//
+//        intent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION); //0x1b080001);
+//
+//        intent.putExtra(Intent.EXTRA_TEXT, s);
+//
+//        Uri uri = Uri.parse(urlString);
+//
+//        intent.putExtra(Intent.EXTRA_STREAM, uri); //TO DO 2017-7-26 stream must be a parcellable extra
+//
+//        intent.setDataAndType(uri,INBOUND_INTENT_PLAY_TYPE_AUDIO_ANY);
+//
+//        /*
+//        TO DO 2017-7-26
+//             * cmp=sm.app.spectro/.SpectrogramActivity
+//     * clip={audio/mpeg U:content://com.android.providers.downloads.documents/document/5834}
+//
+//         */
+//
+//        return intent;
+//    }
+
+//    private volatile boolean permissionRequestedForStorageAccess = false;
+//
+//    /**
+//     * Called when the Play button is selected and the URL is to be started or restarted,
+//     * not resumed,
+//     * i.e., when urlWasPaused is false.
+//     * In some cases, the URL has been entered manually instead of coming from an intent.
+//     *
+//     * <P/>Starts a new thread to prepare and play the given URL, then shows a Snackbar.
+//     *
+//     * <p/>Used in this version.
+//     *
+//     * <p/>Designed to be run on the ui thread.
+//     * All callers are run on the ui thread in this version.
+//     *
+//     * @param urlString referencing a remote audio or media file, or a local file;
+//     *                  the value is from url edittext view.
+//     * @return true when possible success; false when failure.
+//     * The returned value is not used in this version of the app.
+//     */
+//    private boolean doPlayUrl(final String urlString) {
+//        isCancelling = false;
+//        if (LOG_CONFIG.DEBUG==LogConfig.PLAY_URL
+//                || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
+//            Log.d(TAG, ".play(String url): entering with urlString {" + urlString
+//                    //+"} permissionGrantedForStorageAccess = "+permissionGrantedForStorageAccess
+//                    + "}, SOUND_TO_PLAY_IS_ENABLED = " + SOUND_TO_PLAY_IS_ENABLED
+//                    + ", doesSoundOutput = " + doesSoundOutput);
+//
+//        if (urlString == null) return false;
+//        final String urlStrg = urlString.trim();
+//        if (urlStrg.isEmpty()) return false;
+//        if (!SOUND_TO_PLAY_IS_ENABLED) return false;
+//        if (!doesSoundOutput) return false;
+//        final String exampleUrl = getString(R.string.url_example);
+//        if (urlStrg.equalsIgnoreCase(exampleUrl)) return false;
+//
+//        // catch local file such as file://...
+//        // and don't try if file storage permission access not granted
+//
+//        if (isLocalFile(urlStrg)) {
+//            // is local file, check external storage access permission
+//            if (LOG_CONFIG.DEBUG==LogConfig.PLAY_URL
+//                    || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
+//                Log.d(TAG, ".play: is local file {" + urlStrg + "}; get access permission...");
+//
+//            if ( ! getPermissionForExternalStorageAccess(urlStrg)) {
+//                // external storage access permission was definitively denied
+//                // or permission is being requested, don't play
+//                if (LOG_CONFIG.DEBUG==LogConfig.PLAY_URL
+//                        || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
+//                    Log.d(TAG, ".play: access denied or being requested...");
+//                return false;
+//            }
+//            // local file access granted, then play it
+//            if (LOG_CONFIG.DEBUG==LogConfig.PLAY_URL
+//                    || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
+//                Log.d(TAG, ".play: access granted, try to play local file");
+//        } else {
+//            // not local file, then remote file, try to play
+//            if (LOG_CONFIG.DEBUG==LogConfig.PLAY_URL
+//                    || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
+//                Log.d(TAG, ".play: not local file, try to play remote file");
+//        }
+//
+//        // try to play url
+//
+//        return playLocalFileAfterStorageAccessGranted(urlStrg);
+//    }
+
+//    /**
+//     * NOT Used in this version.
+//     *
+//     * <p/>Designed to be run on the ui thread.
+//     * All callers are run on the ui thread in this version.
+//     *
+//     * @param filePath
+//     * @return true when started, false when attempt failed.
+//     */
+//    private boolean playLocalFileAfterStorageAccessGranted(final String filePath) {// TO DO 2017-7-26 called twice !!!  bug
+//        if (LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+//            Log.d(TAG, ".playLocalFileAfterStorageAccessGranted: entering with filePath {" + filePath + "}");
+//
+//        //=================================================
+//        boolean started = playRemoteOrLocalFile(filePath);
+//                            //doPlayUrlString(filePath);//TO DO 2017-7-26 testing
+//        //=================================================
+//
+//        if (LOG_CONFIG.DEBUG==LogConfig.PLAY_URL || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
+//            Log.d(TAG, ".playLocalFileAfterStorageAccessGranted(String): "
+//                    //+"playRemoteOrLocalFile(urlString) returned "
+//                    +"doPlayUrlString returned "
+//                    + started
+//                    + " with param {" + filePath + "}");
+//
+//        if (started) setUrlGuiWhenPlaying();
+//
+//        return started;
+//    }
+//
+//    private boolean isLocalFile(final String urlOrPath) {
+//        return (urlOrPath.startsWith("file://")
+//                || urlOrPath.startsWith("/")
+//                || urlOrPath.startsWith("content://")
+//        );
+//    }
+
+//    /**
+//     * Not just for http, can also be local file path.
+//     *
+//     * <p/>NOT Used in this version.
+//     *
+//     * <p/>Designed to be run on the ui thread.
+//     * All callers are run on the ui thread in this version.
+//     *
+//     * @param urlOrFilePath
+//     * @return true is success to start play
+//     */
+//    private boolean playRemoteOrLocalFile(final String urlOrFilePath) {
+//        try {
+//            if (player == null) {
+//                player = new SmartPlayer(this);//TO DO review 2017-7-26
+//            }
+//            showUrlPrepareSnackbar();
+//            player.play(urlOrFilePath);//throws IllegalArgumentException
+//        } catch (Throwable ex) {
+//            if(LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+//                Log.d(TAG,".playRemoteOrLocalFile: player.play(urlOrFilePath, this) raised "+ex);
+//            doResetUrl(true);
+//            //showAnomalyText(ex,ex.getMessage());
+//            invalidUrl(urlOrFilePath);//uses a snackbar
+//            return false;
+//        }
+//        setUrlGuiWhenPlaying();
+//        return true;
+//    }
+
+//    /**
+//     * Not used in this version.
+//     *
+//     * @param filepath
+//     * @return boolean success or failure
+//     */
+//    private boolean playLocalFile(final String filepath) {
+//        isCancelling = false;
+//        try {
+//            if (player == null) {
+//                player = new SmartPlayer(this);
+//            }
+//            showUrlPrepareSnackbar();
+//            player.play(filepath);//throws IllegalArgumentException
+//        } catch (Throwable ex) {
+//            doResetUrl(true);
+//            invalidUrl(filepath);//uses a snackbar
+//            return false;
+//        }
+//        setUrlGuiWhenPlaying();
+//        return true;
+//    }
+
+//    /**
+//     * Not used in this version.
+//     *
+//     * @param path
+//     * @return boolean
+//     */
+//    private boolean playWithoutIntent(final String path) {
+//        if (path.startsWith("file://")) {
+//            //uri for a local file
+//
+//            return playLocalFile(path);
+//
+//        } else {
+//            //uri is for not a local file; may be for a remote file such as http://... or https://
+//
+//            if (path.startsWith("http") || path.startsWith("rtsp")) {
+//                //uri for a remote file
+//
+//                return playRemoteOrLocalFile(path);
+//            }
+//        }
+//
+//        return false;
+//    }
+
+//    /**
+//     * Not used in this version.
+//     *
+//     * @param path
+//     * @return boolean
+//     */
+//    private boolean play(final String path) {
+//        if (LOG_CONFIG.DEBUG==LogConfig.INTENT)
+//            Log.d(TAG, ".play(String): path {" + path + "}");
+//
+//        Uri uri = Uri.parse(path);
+//        Intent intent = new Intent(Intent.ACTION_SEND, uri);
+//
+//        return play(intent);
+//    }
