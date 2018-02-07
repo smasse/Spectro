@@ -98,7 +98,7 @@ import static sm.leafy.util.forandroid.OnAnyThread.isOnRealDevice;
  * <p/>COPYRIGHT (C) 2015-2018 Serge Masse
  *
  * <p/>
- * It is the wish of the author that this software not be used
+ * This software is not to be used
  * for the purpose of killing, harming, or capturing animals.
  * The use of this software with captive cetaceans and
  * other captive large mammals is discouraged.
