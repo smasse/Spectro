@@ -59,8 +59,7 @@ text "@string/url_example"
     android:text="Play"
     android:alpha="0.5"
     android:layout_gravity="center_vertical"
-    style="?android:attr/buttonStyleSmall"
-    />
+    /><!-- style="?android:attr/buttonStyleSmall" -->
 <Button
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
@@ -70,7 +69,6 @@ text "@string/url_example"
     android:text="Hide Url"
     android:alpha="0.5"
     android:layout_gravity="right|center_vertical"
-    style="?android:attr/buttonStyleSmall"
     />
 
 </LinearLayout>

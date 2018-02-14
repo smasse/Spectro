@@ -31,14 +31,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
-import android.provider.OpenableColumns;
 import android.support.annotation.NonNull;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
@@ -61,9 +59,6 @@ import android.widget.Toast;
 import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 import java.util.Date;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
 
 import sm.leafy.util.LeafyClient;
 import sm.leafy.util.LogConfig;
@@ -155,11 +150,29 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
      */
     public static final boolean SPECTROGRAM_IMAGE_PERSISTENCE_IS_ENABLED = false;
 
-    private final float ALPHA_DARK = 0.45f;
-    private final float ALPHA_NOT_SET = 0.55f;
-    private final float ALPHA_NEUTRAL = 0.65f;
-    private final float ALPHA_SET = 0.75f;
-    private final float ALPHA_LIGHT = 0.85f;
+//    private final float ALPHA_DARK_DISABLED = 0.45f;
+//    private final float ALPHA_NOT_SET = 0.55f;
+//    private final float ALPHA_NEUTRAL_ENABLED = 0.65f;
+//    private final float ALPHA_LIGHT_SET = 0.75f;
+//    private final float ALPHA_LIGHT = 0.85f;
+
+    //for dark device screens such as the samsung tablet sgh-i467m
+    /**
+     * to show a disable button
+     */
+    private final float ALPHA_DARK_DISABLED = 0.6f;
+    /**
+     * to show an active button which has not been recently selected
+     */
+    private final float ALPHA_NEUTRAL_ENABLED = 0.75f;
+    /**
+     * to show a button recently selected where the function is active
+     */
+    private final float ALPHA_LIGHT_SET = 0.9f;
+    /* *
+     * not used in this version
+     */
+    //private final float ALPHA_LIGHT = 0.95f;
 
     /*
         0% = #00
@@ -355,8 +368,8 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
     Button hideGui;
     Button device;
     Button about;
-    Button ourApps;
-    Button emailDev;
+    //Button ourApps;
+    //Button emailDev;
 
     /*
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
@@ -420,7 +433,7 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
      * <br>warning off
      * <br>debug off
      */
-    private final LogConfig LOG_CONFIG = new LogConfig(LogConfig.OFF,LogConfig.OFF,LogConfig.OFF);
+    private final LogConfig LOG_CONFIG = new LogConfig(LogConfig.OFF,LogConfig.OFF,LogConfig.OFF); //LogConfig.DEVICE_SOUND_CAPABILITIES);
 
     public LogConfig getLogConfig() {
         return LOG_CONFIG;
@@ -626,7 +639,7 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
         public void run() {
             if(pause==null)return;
             pause.setOnClickListener(ON_CLICK_LISTENER);
-            pause.setAlpha(ALPHA_NEUTRAL);
+            pause.setAlpha(ALPHA_NEUTRAL_ENABLED);
             if (pauseButtonLabel != null) {
                 pause.setText(pauseButtonLabel);
             }
@@ -638,7 +651,7 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
             if(pause==null)return;
             pause.setOnClickListener(null);
             pause.setClickable(false);
-            pause.setAlpha(ALPHA_DARK);
+            pause.setAlpha(ALPHA_DARK_DISABLED);
             if (pauseButtonLabel != null) {
                 pause.setText(pauseButtonLabel);
             }
@@ -758,32 +771,36 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
 
         buttonsLayout = (LinearLayout) findViewById(R.id.spectrogram2_buttons);
 
-        hideGui = (Button) findViewById(R.id.spectrogram2_hide);
+        hideGui = findViewById(R.id.spectrogram2_hide);
+        //hideGui.setBackgroundColor(Color.LTGRAY);
         hideGui.setOnClickListener(ON_CLICK_LISTENER);
         hideGui.setClickable(true);
-        hideGui.setAlpha(ALPHA_NOT_SET);
+        hideGui.setAlpha(ALPHA_NEUTRAL_ENABLED); //TODO washere
         hideBgIsSet = false;
 
-        pause = (Button) findViewById(R.id.spectrogram2_pause);
+        pause = findViewById(R.id.spectrogram2_pause);
         enableThePauseButton(null);
+//        pause.setBackgroundColor(Color.LTGRAY);
 //        pause.setOnClickListener(ON_CLICK_LISTENER);
 //        pause.setClickable(true);
 //        pause.setAlpha(ALPHA_NOT_SET);
 //        pause.setText("Pause");
 
-        device = (Button) findViewById(R.id.spectrogram2_device);
+        device = findViewById(R.id.spectrogram2_device);
+        //device.setBackgroundColor(Color.LTGRAY);
         device.setOnClickListener(ON_CLICK_LISTENER);
         device.setClickable(true);
-        device.setAlpha(ALPHA_NOT_SET);
+        device.setAlpha(ALPHA_NEUTRAL_ENABLED);
         deviceShown = false;
 
-        about = (Button) findViewById(R.id.spectrogram2_about);
+        about = findViewById(R.id.spectrogram2_about);
+        //about.setBackgroundColor(Color.LTGRAY);
         about.setOnClickListener(ON_CLICK_LISTENER);
         about.setClickable(true);
-        about.setAlpha(ALPHA_NOT_SET);
+        about.setAlpha(ALPHA_NEUTRAL_ENABLED);
         aboutShown = false;
 
-        contentTextView = (TextView) findViewById(R.id.content_spectrogram2);
+        contentTextView = findViewById(R.id.content_spectrogram2);
         contentTextView.setMovementMethod(new ScrollingMovementMethod());
         contentTextView.setGravity(Gravity.LEFT); // View.LAYOUT_DIRECTION_LOCALE);
         contentTextView.setVerticalScrollBarEnabled(true);
@@ -815,8 +832,10 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
 //            imm.hideSoftInputFromWindow(editTextViewUrlToPlay.getWindowToken(), 0); //InputMethodManager.HIDE_NOT_ALWAYS);
             //imm.showSoftInput(editTextViewUrlToPlay, InputMethodManager.SHOW_FORCED);
             //imm.showSoftInput(editTextViewUrlToPlay, InputMethodManager.SHOW_IMPLICIT);
-            playUrlButton = (Button) findViewById(R.id.button_play);
-            hideUrlButton = (Button) findViewById(R.id.button_hide_url);
+            playUrlButton = findViewById(R.id.button_play);
+            //playUrlButton.setBackgroundColor(Color.LTGRAY);
+            hideUrlButton = findViewById(R.id.button_hide_url);
+            //hideUrlButton.setBackgroundColor(Color.LTGRAY);
             //ViewStub:
             urlLayout = (LinearLayout) findViewById(R.id.inflated_for_url_to_play); //url_to_play_layout);
             if (urlLayout == null) {
@@ -827,8 +846,8 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
             hideUrlButton.setOnClickListener(ON_CLICK_LISTENER);
             urlIsPlaying = false;
             urlIsPaused = false;
-            playUrlButton.setAlpha(ALPHA_NEUTRAL);
-            hideUrlButton.setAlpha(ALPHA_NEUTRAL);
+            playUrlButton.setAlpha(ALPHA_NEUTRAL_ENABLED);
+            hideUrlButton.setAlpha(ALPHA_NEUTRAL_ENABLED);
         }
 //        pause.setClickable(true);
 //        pause.setFocusable(true);
@@ -855,15 +874,13 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
 
     private void disableTheHideGuiButton(){
         if(hideGui==null)return;
-        hideGui.setAlpha(ALPHA_DARK);
+        hideGui.setAlpha(ALPHA_DARK_DISABLED);
     }
 
     private void enableTheHideGuiButton(){
         if(hideGui==null)return;
-        hideGui.setAlpha(ALPHA_NEUTRAL);
+        hideGui.setAlpha(ALPHA_NEUTRAL_ENABLED);
     }
-
-    //
 
     /**
      * Designed to be used when the Hide-Xx button is "Hide Bg", and not "Hide Gui".
@@ -1143,10 +1160,10 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
 
         //setting the pause button
         if (isPaused()) {
-            pause.setAlpha(ALPHA_SET);
+            pause.setAlpha(ALPHA_LIGHT_SET);
         } else {
             //is not paused
-            if (pause != null) pause.setAlpha(ALPHA_NOT_SET);
+            if (pause != null) pause.setAlpha(ALPHA_NEUTRAL_ENABLED);
 //                if(spectrogramShown){
 //                    //not paused and spectro should be shown, then show it
 //                    if(guiLayout!=null)guiLayout.setBackgroundColor(Color.TRANSPARENT);
@@ -1156,45 +1173,45 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
         // setting dependents on device text
         if (v.equals(device) && deviceShown) {
             // user just selected the device button
-            device.setAlpha(ALPHA_SET);
+            device.setAlpha(ALPHA_LIGHT_SET);
             aboutShown = false;
-            if (about != null) about.setAlpha(ALPHA_NOT_SET);
+            if (about != null) about.setAlpha(ALPHA_NEUTRAL_ENABLED);
             ourAppsShown = false;
         } else {
-            if (!deviceShown && device != null) device.setAlpha(ALPHA_NOT_SET);
+            if (!deviceShown && device != null) device.setAlpha(ALPHA_NEUTRAL_ENABLED);
         }
 
         //setting dependents on about text
         if (v.equals(about) && aboutShown) {
-            about.setAlpha(ALPHA_SET);
+            about.setAlpha(ALPHA_LIGHT_SET);
             deviceShown = false;
-            if (device != null) device.setAlpha(ALPHA_NOT_SET);
+            if (device != null) device.setAlpha(ALPHA_NEUTRAL_ENABLED);
             ourAppsShown = false;
         } else {
-            if (!aboutShown && about != null) about.setAlpha(ALPHA_NOT_SET);
+            if (!aboutShown && about != null) about.setAlpha(ALPHA_NEUTRAL_ENABLED);
         }
 
         //TODO deprecated
-        if (SEPARATE_OUR_APPS_GUI_IS_ENABLED) {
-            if (v.equals(ourApps) && ourAppsShown) {
-                ourApps.setAlpha(ALPHA_SET);
-                deviceShown = false;
-                aboutShown = false;
-                if (device != null) device.setAlpha(ALPHA_NOT_SET);
-                if (about != null) about.setAlpha(ALPHA_NOT_SET);
-
-            } else {
-                if (!ourAppsShown && ourApps != null) ourApps.setAlpha(ALPHA_NOT_SET);
-            }
-        }
+//        if (SEPARATE_OUR_APPS_GUI_IS_ENABLED) {
+//            if (v.equals(ourApps) && ourAppsShown) {
+//                ourApps.setAlpha(ALPHA_LIGHT_SET);
+//                deviceShown = false;
+//                aboutShown = false;
+//                if (device != null) device.setAlpha(ALPHA_NOT_SET);
+//                if (about != null) about.setAlpha(ALPHA_NOT_SET);
+//
+//            } else {
+//                if (!ourAppsShown && ourApps != null) ourApps.setAlpha(ALPHA_NOT_SET);
+//            }
+//        }
         //TODO deprecated
-        if (SEPARATE_EMAIL_DEV_GUI_IS_ENABLED) {
-            if (v.equals(emailDev)) {
-                emailDev.setAlpha(ALPHA_SET);
-            } else {
-                emailDev.setAlpha(ALPHA_NOT_SET);
-            }
-        }
+//        if (SEPARATE_EMAIL_DEV_GUI_IS_ENABLED) {
+//            if (v.equals(emailDev)) {
+//                emailDev.setAlpha(ALPHA_LIGHT_SET);
+//            } else {
+//                emailDev.setAlpha(ALPHA_NOT_SET);
+//            }
+//        }
 
         //setting the hide xx button
         if (deviceShown || aboutShown) {
@@ -1205,15 +1222,15 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
                     hideBgIsSet = true;
                 }
                 if (v.equals(hideGui)) {
-                    hideGui.setAlpha(ALPHA_SET);
+                    hideGui.setAlpha(ALPHA_LIGHT_SET);
                 } else {
-                    if (hideGui != null) hideGui.setAlpha(ALPHA_NEUTRAL);
+                    if (hideGui != null) hideGui.setAlpha(ALPHA_NEUTRAL_ENABLED);
                 }
             }else{
 //                if (v.equals(hideGui)) {
-//                    hideGui.setAlpha(ALPHA_SET);
+//                    hideGui.setAlpha(ALPHA_LIGHT_SET);
 //                } else {
-//                    if (hideGui != null) hideGui.setAlpha(ALPHA_NEUTRAL);
+//                    if (hideGui != null) hideGui.setAlpha(ALPHA_NEUTRAL_ENABLED);
 //                }
             }
         } else {
@@ -1224,15 +1241,15 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
                     hideBgIsSet = false;
                 }
                 if (v.equals(hideGui)) {
-                    hideGui.setAlpha(ALPHA_SET);
+                    hideGui.setAlpha(ALPHA_LIGHT_SET);
                 } else {
-                    if (hideGui != null) hideGui.setAlpha(ALPHA_NOT_SET);
+                    if (hideGui != null) hideGui.setAlpha(ALPHA_NEUTRAL_ENABLED);
                 }
             }else{
 //                if (v.equals(hideGui)) {
-//                    hideGui.setAlpha(ALPHA_SET);
+//                    hideGui.setAlpha(ALPHA_LIGHT_SET);
 //                } else {
-//                    if (hideGui != null) hideGui.setAlpha(ALPHA_NEUTRAL);
+//                    if (hideGui != null) hideGui.setAlpha(ALPHA_NEUTRAL_ENABLED);
 //                }
             }
         }
@@ -2558,15 +2575,16 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
         .append("<p/>")
                 ;
 
-        //buf.append("<p/>Small icon © 2000-2015 AguaSonic.com - Icon made from cetacean sound");
         buf.append("<p/>").append(AppPublisher.copyright);
 
         buf.append("<p/>")
-        .append("Some links to cetacean vocalisation recordings are Copyright Aguasonic Acoustics.");
+        .append("Some links to cetacean vocalisation recordings are Copyright Aguasonic Acoustics.")
+        .append(" Some icons were made using a fascinating recording by www.aguasonic.com of a group of dolphins, probably Tursiops, where sometimes at least 5 individuals are whistling at the same time.");
 
         //no anomalies
         buf.append("<p/>Questions, defects, suggestions, please contact ")
                 .append(AppPublisher.emailAddressForSupport);
+
         runOnUiThread(RUNNABLE_TO_CLEAR_ANOMALY_TEXT);
 
         // ##### intro #####
@@ -3038,9 +3056,19 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
         if (!DeviceSoundCapabilities.isDeviceCapableOfSoundInput()) {
             if (LOG_CONFIG.DEBUG==LogConfig.INIT 
-                    || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT)
+                    || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
+                    || LOG_CONFIG.DEBUG==LogConfig.DEVICE_SOUND_CAPABILITIES
+                    ) {
                 Log.d(TAG, ".setDeviceSoundCapabilities: device cannot do sound input");
+                boolean outputOk = DeviceSoundCapabilities.isDeviceCapableOfSoundOutput();
+                Log.d(TAG, ".setDeviceSoundCapabilities: DeviceSoundCapabilities.isDeviceCapableOfSoundOutput() returned {"+outputOk+"}");
+            }
             return false;
+        }
+        if(LOG_CONFIG.DEBUG==LogConfig.DEVICE_SOUND_CAPABILITIES){
+            Log.d(TAG, ".setDeviceSoundCapabilities: device can do sound input");
+            boolean outputOk = DeviceSoundCapabilities.isDeviceCapableOfSoundOutput();
+            Log.d(TAG, ".setDeviceSoundCapabilities: DeviceSoundCapabilities.isDeviceCapableOfSoundOutput() returned {"+outputOk+"}");
         }
 
         SettingsForSoundInput.dependentsOnVoltageSamplingRate(
@@ -3054,7 +3082,8 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //			    true,false,false)); //LeafyLog.SOUND_QUALITY_LOG_ENABLED)); //getDeviceAudioCapabilities();//2014-11
 
         if (LOG_CONFIG.DEBUG==LogConfig.INIT 
-                || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT)
+                || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
+                || LOG_CONFIG.DEBUG==LogConfig.DEVICE_SOUND_CAPABILITIES)
             Log.d(TAG, ".setDeviceSoundCapabilities: " + Timestamp.getNanosForDisplay()
                 + "; first part of initFundamentalsForDevice completed ok;" +
                 "\n xInputHzPerBinFloat = " + SettingsForSoundInput.xInputHzPerBinFloat
@@ -3062,7 +3091,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
                 //+ "\n cTimeIncSecDouble = " + Settings.cTimeIncSec
                 + "\n MAX_PCM_ADJUSTED_FORMAT = " + SoundQualitySettings.MAX_PCM_ADJUSTED_FORMAT
                 + " is close to the maximum value for a pcm value " +
-                "(out of the A/D subsystem, or as input to the D/A subsysstem)" +
+                "(out of the A/D subsystem, or as input to the D/A subsystem)" +
                 ", adjusted to a little below max to" +
                 " avoid numerical side effects at, or near, the maximum values (peaks);" +
                 " typical value: 0.9 * (Math.pow(2,PCM_BITS_PER_SAMPLE-1)-1) = (2^15 - 1) * 0.9"

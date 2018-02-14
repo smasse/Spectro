@@ -4,11 +4,11 @@
 #### The app is currently published on Google Play: ####
 https://play.google.com/store/apps/details?id=sm.app.spectro&hl=en
 
+Version 2 is the current production version, released Feb 8, 2018.
+
 [//]: <>(TODO 2017-6-7 Mic button: tries next mic in list of available sound sources; 
 device text shows the current mic details at top, then output channel...
 )
-
-##### Version 3: 2018-1-2 #####
 
 ## Overview ##
 sm Spectro is a complete spectrogram app for Android.
@@ -230,3 +230,16 @@ add license text at top of all classes (all apps and libs)
 
 work on the other 2 apps, Recog and DolphinComm
 
+### samsung SGH-I467M SDK 19 test results 2018-2-10 ###
+
+todo www.samsung.com/kies
+
+fixed no output for < v21
+
+buttons too dark
+
+done move device basic at top of text 
+
+done add in about: icon is made using a screenshot of a recording by www.aguasonic.com of a very animated
+discussion (vocalisations) by a group of dolphins, probably Tursiops, with often some 5 individuals
+whistling at the same time.
