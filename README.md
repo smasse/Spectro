@@ -20,7 +20,7 @@ from the same author. The library from android-acoustic-lib is an
 The executable app does not use other libraries than 
 the basic Android ones and the library from the same author.
 
-Copyright 2018 Serge Masse
+Copyright 2016-2018 Serge Masse
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

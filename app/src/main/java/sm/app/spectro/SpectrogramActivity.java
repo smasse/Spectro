@@ -14,7 +14,7 @@
  * limitations under the License.
  *
  * It is the wish of the copyright holder that this software not be used
- * for the purpose of killing, harming, or capturing animals.
+ * for the purpose of killing, harming, harrassing, or capturing animals.
  * The use of this software with captive cetaceans and other large mammals
  * in captivity is discouraged.
  */
@@ -83,7 +83,7 @@ import static sm.leafy.util.LeafyClient.APP_TYPE_EDU;
 import static sm.leafy.util.LeafyClient.APP_TYPE_FREE;
 import static sm.leafy.util.LeafyClient.APP_TYPE_FREE_WITH_ADS;
 import static sm.leafy.util.LeafyClient.APP_TYPE_PRICED;
-import static sm.leafy.util.forandroid.OnAnyThread.getAppName;
+//import static sm.leafy.util.forandroid.OnAnyThread.getAppName;
 import static sm.leafy.util.forandroid.OnAnyThread.isOnRealDevice;
 
 /**
@@ -110,7 +110,7 @@ import static sm.leafy.util.forandroid.OnAnyThread.isOnRealDevice;
  *
  * @author Serge Masse
  */
-public class SpectrogramActivity extends Activity implements SoundClient.Callback {
+public final class SpectrogramActivity extends Activity implements SoundClient.Callback {
 
     private static final String TAG = SpectrogramActivity.class.getSimpleName();
 
@@ -123,6 +123,7 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
     /**
      * only to be used for showing user some init events;
      * normally false in production
+     * @deprecated maybe remove or replace with isDevMode()
      */
     public static final boolean SHOW_USER_INIT_EVENTS_ENABLED = false;
 
@@ -378,14 +379,14 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
     <uses-permission android:name="android.permission.WAKE_LOCK" /> not dangerous
     <uses-permission android:name="android.permission.INTERNET" /> not dangerous
     */
-    private static final int PERMISSIONS_REQUEST_CODE_FOR_RECORD_AUDIO = 0;
+    private static final int PERMISSIONS_REQUEST_CODE_FOR_RECORD_AUDIO = 20180221;
 
     private static String[] PERMISSIONS_FOR_RECORD_AUDIO = {
             Manifest.permission.RECORD_AUDIO
         };
 
     // Storage Permissions
-    private static final int PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS = 1;
+    private static final int PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS = 20180223;
 
     /**
      * Used to move the value from method getPermissionForRecordAudio to onRequestPermissionsResult,
@@ -406,18 +407,21 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
 
     /**
      * Used to move the value from method getPermissionForRecordAudio to onRequestPermissionsResult, and
-     * to feed onCreateComplete.
+     * to feed onCreateComplete, when there could be an intent to play by the caller of the app.
+     * Needed in this version.
      */
     private volatile Bundle savedInstanceStateTemp = null;
+
+    private volatile boolean isOnRealDevice = true;
 
     /**
      * device capability
      */
-    boolean doesSoundInput = true;
+    private volatile boolean doesSoundInput = true;
     /**
      * device capability
      */
-    boolean doesSoundOutput = true;
+    private volatile boolean doesSoundOutput = true;
 
     /* *
      * ATTENTION: This was auto-generated to implement the App Indexing API.
@@ -433,8 +437,9 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
      * <br>warning off
      * <br>debug off
      */
-    private final LogConfig LOG_CONFIG = new LogConfig(LogConfig.OFF,LogConfig.OFF,LogConfig.OFF); //LogConfig.DEVICE_SOUND_CAPABILITIES);
+    private final LogConfig LOG_CONFIG = new LogConfig(LogConfig.OFF,LogConfig.OFF,LogConfig.ON); //LogConfig.DEVICE_SOUND_CAPABILITIES);
 
+    @Override
     public LogConfig getLogConfig() {
         return LOG_CONFIG;
     }
@@ -458,6 +463,7 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
      *
      * @return int such as LeafyClient.APP_TYPE_FREE
      */
+    @Override
     public int getAppType() {
         return appType;
     }
@@ -467,10 +473,12 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
      * Default: LeafyClient.APP_TYPE_FREE
      * @param appType
      */
+    @Override
     public void setAppType(int appType) {
         this.appType = appType;
     }
 
+    @Override
     public String getAppTypeString(final Object object, final int appTypeInt) {
         final Context contextGiven = (Context)object;
         switch (appTypeInt) {
@@ -486,24 +494,26 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
         return contextGiven.getString(R.string.app_type_unknown);
     }
 
+    @Override
     public String getAppTypeString(){
         return getAppTypeString(AppContext.getIt().APP_CONTEXT,appType);
     }
 
-    
+    @Override
     public boolean isDbCapable() {
         return false;
     }
 
-    
+    @Override
     public String getDbProviderAuthority() {
         return "N/A";
     }
 
-    
+    @Override
     public String getDbProviderAuthorityFragment() {
         return "N/A";
     }
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -527,10 +537,9 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
 
 //        tempHackForCpuAtFullSpeed();
 
-        if (isDevMode() && (LOG_CONFIG.DEBUG==LogConfig.INIT
-                    || LOG_CONFIG.DEBUG==LogConfig.THREADS
-                    || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT)
-                || LOG_CONFIG.DEBUG==LogConfig.INTENT){
+        restorePreferences();
+
+        if (LogConfig.isAnyLogEnabled(LOG_CONFIG)){
             Log.d(TAG, ".onCreate: entering..." +
                     "app name {" + AppContext.getIt().getAppName()
                     + "} version name {" + AppContext.getIt().getVersionName()
@@ -541,212 +550,367 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
             );
         }
 
-        if(SHOW_USER_INIT_EVENTS_ENABLED){
-            showStatusSnackbar("Getting permissions");
+        savedInstanceStateTemp = savedInstanceState;
+        if(getPermissionForRecordAudio(permissions,PERMISSIONS_REQUEST_CODE_FOR_RECORD_AUDIO)){
+            onCreateComplete(savedInstanceState);
         }
-        getPermissionForRecordAudio(savedInstanceState);
+    }
+
+    private static final String[] permissions = new String[]{
+            Manifest.permission.RECORD_AUDIO,
+            Manifest.permission.READ_EXTERNAL_STORAGE,
+            Manifest.permission.WRITE_EXTERNAL_STORAGE,
+            Manifest.permission.ACCESS_NETWORK_STATE};
+
+    /**
+     *
+     * @param permissionsGiven
+     * @param requestCode
+     * @return true when apriori granted and caller may call onCreateComplete;
+     * false when thread asking permission to system and possibly user and caller
+     * must not call onCreateComplete as this will be done on another thread
+     * if permissions get granted.
+     */
+    private boolean getPermissionForRecordAudio(final String[] permissionsGiven, final int requestCode) {
+        //savedInstanceStateTemp = savedInstanceStateGiven;
+        if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
+                || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS
+                || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+            Log.d(TAG, ".getPermissionForRecordAudio entering...Build.VERSION.SDK_INT = "
+                    + Build.VERSION.SDK_INT);
+
+//        getPermissionForExternalStorageAccess();//TO DO was here integrate with the rest of this method
+//        if(permissionGrantedForRecordAudio)return true;
+        /*
+        PackageManager.PERMISSION_GRANTED if you have the permission, or PackageManager.PERMISSION_DENIED if not.
+         */
+        boolean aprioriGranted = false;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            aprioriGranted = checkSelfPermission(Manifest.permission.RECORD_AUDIO)
+                    == PackageManager.PERMISSION_GRANTED;
+        } else {
+            aprioriGranted = ContextCompat.checkSelfPermission(this,
+                    Manifest.permission.RECORD_AUDIO)
+                    == PackageManager.PERMISSION_GRANTED;
+        }
+        if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
+                || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS
+                || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+            Log.d(TAG, ".getPermissionForRecordAudio: aprioriGranted " + aprioriGranted);
+
+        if (!aprioriGranted) {
+            // we don't have permission yet, ask user;
+            // No explanation needed to give user, we can request the permission.
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
+                        || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS
+                        || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL )
+                    Log.d(TAG, ".getPermissionForRecordAudio about to call requestPermissions(...)");
+                // -----------------------------------------------------------------------
+                requestPermissions(permissionsGiven, requestCode);
+                // -----------------------------------------------------------------------
+            } else {
+                if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
+                        || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS
+                        || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+                    Log.d(TAG, ".getPermissionForRecordAudio about to call ActivityCompat.requestPermissions(...)");
+
+                ActivityCompat.requestPermissions(this, permissionsGiven, requestCode);
+            }
+            // PERMISSIONS_REQUEST_CODE_FOR_RECORD_AUDIO is an
+            // app-defined int constant. The callback method gets the
+            // result of the request.
+        } else {
+            //granted apriori
+            if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
+                    || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS
+                    || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+                Log.d(TAG, ".getPermissionForRecordAudio: was granted apriori" +
+                        "; calling onCreateComplete...");
+
+//            permissionGrantedForRecordAudio = true;
+//            onCreateComplete(savedInstanceStateGiven);
+            return true;
+        }
+        //here when permission granted before running the app, e.g., older version of android
+
+        if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
+                || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS
+                || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+            Log.d(TAG, ".getPermissionForRecordAudio exiting...");
+
+        return false;
+    }
+    /**
+     * Called by Android on the ui thread after the permissions statuses have been determined.
+     *
+     * @param requestCode  int
+     * @param permissions  array of String instances
+     * @param grantResults array of int primitives
+     */
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
+                || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
+            Log.d(TAG, ".onRequestPermissionsResult entering with requestCode {" + requestCode
+                    + "}; filePathNeedingAccess {" + filePathNeedingAccess + "}");
+//        readFileAccepted = false;
+//        writeFileAccepted = false;
+        //permissionGrantedForRecordAudio = false;
+        switch (requestCode) {
+            case PERMISSIONS_REQUEST_CODE_FOR_RECORD_AUDIO: {
+                if (LOG_CONFIG.DEBUG==LogConfig.INIT
+                        || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
+                        || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
+                    Log.d(TAG, ".onRequestPermissionsResult: " +
+                            "PERMISSIONS_REQUEST_CODE_FOR_RECORD_AUDIO; " +
+                            "grantResults.length = " + grantResults.length);
+                // If request is cancelled, the result arrays are empty.
+                boolean permissionGrantedForRecordAudio = false;
+                if (grantResults.length > 0) {
+                    permissionGrantedForRecordAudio = grantResults[0] == PackageManager.PERMISSION_GRANTED;
+                } else {
+                    //not granted
+                }
+
+                if (!permissionGrantedForRecordAudio) {
+                    // not granted, cannot run the spectrogram, only the Device text is useful
+                    if (LOG_CONFIG.DEBUG!=LogConfig.OFF)
+//                    if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
+//                            || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
+                        Log.d(TAG, ".onRequestPermissionsResult: audio permission denied; calling shutdown withfinish()");
+
+                    //TODO prio 2 2016-12 call an activity to display the status
+
+                    shutdown(true);
+                    return;
+                }
+                //here when record audio was granted
+                if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
+                        || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
+                    Log.d(TAG, ".onRequestPermissionsResult: audio permission granted");
+                //complete create
+                onCreateComplete(savedInstanceStateTemp);
+                break;
+            } // case
+
+            case PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS: {
+                if (LOG_CONFIG.DEBUG==LogConfig.INIT
+                        || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
+                        || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
+                    Log.d(TAG, ".onRequestPermissionsResult: " +
+                            "PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS; " +
+                            "grantResults.length = " + grantResults.length);
+                // If request is cancelled, the result arrays are empty.
+                boolean readFileAccepted = false;
+                boolean writeFileAccepted = false;
+                if (grantResults.length > 0) {
+                    readFileAccepted = grantResults[0] == PackageManager.PERMISSION_GRANTED;
+
+                    if (grantResults.length > 1)
+                        writeFileAccepted = grantResults[1] == PackageManager.PERMISSION_GRANTED;
+                }
+                // when false, disable the play url functions for local files
+//                permissionGrantedForStorageAccess = ;
+
+                if (LOG_CONFIG.DEBUG==LogConfig.INIT
+                        || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
+                        || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
+                    Log.d(TAG, ".onRequestPermissionsResult: " +
+                            "PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS; " +
+                            "readFileAccepted = " + readFileAccepted
+                            + "; writeFileAccepted = " + writeFileAccepted);
+
+                if (readFileAccepted || writeFileAccepted) {
+                    // playLocalFileAfterStorageAccessGranted(filePathNeedingAccess);
+                    // TODO 2017-7-26 does this break intent from external app?
+                } else {
+                    // disable the play url functions but only for local files
+                }
+
+                break;
+            }
+
+            // other 'case' lines to check for other
+            // permissions this app might request
+            default: {
+                if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
+                        || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
+                    Log.d(TAG, ".onRequestPermissionsResult: default; requestCode " + requestCode
+                            //+"; permissionGrantedForRecordAudio "+ permissionGrantedForRecordAudio
+                            //+"; calling onCreateComplete(savedInstanceStateTemp)..."
+                    );
+//                onCreateComplete(savedInstanceStateTemp);
+            }
+        }//switch
+
     }
 
     /**
-     * Called on ui thread after initial permissions are processed.
+     * Request permission to access device storage (aka. external storage, i.e., external to the app).
+     * <p/>
+     * If the app does not have permission yet, then the user will be prompted to grant permission.
      *
-     * @param savedInstanceState
+     * @return return true when permission granted and the caller can try to play,
+     * false when previously denied (and not requested again)
+     * or when permission being requested, i.e., the caller should not try to play.
      */
-    protected void onCreateComplete(final Bundle savedInstanceState) {
+    @SuppressLint("WrongConstant")
+    public boolean getPermissionForExternalStorageAccess(final String filePath) {
+        requestFilesPermission(filePath);
+
+        // Check if we have write permission
+        int permission = 0;
+        if (Build.VERSION.SDK_INT >= 23) {
+            permission = checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+        } else {
+            permission = ActivityCompat.checkSelfPermission(this,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE);
+        }
+
+        if (permission == PackageManager.PERMISSION_GRANTED) {
+            if (LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS
+                    || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL) {
+                Log.d(TAG, ".getPermissionForExternalStorageAccess: " +
+                        "checkSelfPermission returned positive; this method is returning true");
+            }
+            return true;
+        }
+
+        //no permission; did we asked the user before? if yes, then don't ask again
+        if (LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS||LOG_CONFIG.DEBUG==LogConfig.PLAY_URL) {
+            Log.d(TAG, ".getPermissionForExternalStorageAccess: " +
+                    "checkSelfPermission returned negative; storageAccessPermissionWasAsked = "
+                    + storageAccessPermissionWasAsked);
+        }
+        if (storageAccessPermissionWasAsked) {
+            // previously denied by user
+            if (largeGuiLayout != null)
+                Snackbar.make(largeGuiLayout,
+                        "The file cannot be played"
+                                + ": it is in external storage and access was denied by you",
+                        Snackbar.LENGTH_LONG).show();
+            return false;
+        }
+
+        storageAccessPermissionWasAsked = true;
+
+        // We don't have permission so prompt the user;
+        // this function will be continued in onRequestPermissionsResult
+
+        // to be used after permission is granted, if it is
+        filePathNeedingAccess = filePath;
+
+        ActivityCompat.requestPermissions(
+                this,
+                PERMISSIONS_FOR_EXTERNAL_STORAGE_ACCESS,
+                PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS
+        );
+        if (LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS||LOG_CONFIG.DEBUG==LogConfig.PLAY_URL) {
+            Log.d(TAG, ".getPermissionForExternalStorageAccess: " +
+                    "checkSelfPermission returned negative; storageAccessPermissionWasAsked = "
+                    + storageAccessPermissionWasAsked
+                    + "; user was asked; this method returning false");
+        }
+        return false;
+    }
+
+    private void requestFilesPermission(final String filePath) {
+        filePathNeedingAccess = filePath;
+
+        ActivityCompat.requestPermissions(
+                this,
+                PERMISSIONS_FOR_EXTERNAL_STORAGE_ACCESS,
+                PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS
+        );
+    }
+
+    /**
+     * Called on ui thread after initial permissions are processed by Android.
+     *
+     * @param savedInstanceStateGiven Bundle from onCreate; used for intent to play
+     */
+    protected void onCreateComplete(final Bundle savedInstanceStateGiven) {
         try {
-            if (LOG_CONFIG.DEBUG==LogConfig.ON || LOG_CONFIG.DEBUG==LogConfig.INIT
-                    || LOG_CONFIG.DEBUG==LogConfig.SETTINGS_CHANGED
-                    || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
-                    || LOG_CONFIG.DEBUG==LogConfig.INTENT
-                    || LOG_CONFIG.DEBUG==LogConfig.RESTORE
-                    || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
+            if (LeafyClient.isLogDebugEnabled())
                 Log.d(TAG, ".onCreateComplete: entering...");
 
-            setOnRealDeviceOrEmulator();
+            // 1. sound capabilities
 
-            if(SHOW_USER_INIT_EVENTS_ENABLED){
-                showStatusSnackbar("Restoring preferences");
-            }
-
-            restorePreferences();
+            isOnRealDevice = isOnRealDeviceOrEmulator();
 
             doesSoundInput = setDeviceSoundCapabilities();
+
             doesSoundOutput = DeviceSoundCapabilities.isDeviceCapableOfSoundOutput();
 
-            if(SHOW_USER_INIT_EVENTS_ENABLED){
-                String soundInputSupported = doesSoundInput?"supported":"not supported";
-                String soundOutputSupported = doesSoundOutput?"supported":"not supported";;
-                showStatusSnackbar("Sound input "+soundInputSupported
-                        +", output "+soundOutputSupported);
+            if (LeafyClient.isLogDebugEnabled()) {
+                String soundInputSupported = doesSoundInput?"supported":"_not_ supported";
+                String soundOutputSupported = doesSoundOutput?"supported":"_not_ supported";;
+                Log.d(TAG, ".onCreateComplete: isOnRealDevice = " +isOnRealDevice+
+                        "; Sound input " + soundInputSupported
+                        + ", output " + soundOutputSupported);
             }
+
+            // 2. ui
 
             onCreateUI();
 
-            if (!doesSoundInput) {
+            // 3. status to user
+
+            disableThePauseButton("Starting");
+
+            if ( ! doesSoundInput) {
                 // ========== device does not support sound input ==========
-                if (LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
-                        || LOG_CONFIG.DEBUG==LogConfig.INIT)
-                    Log.d(TAG, ".onCreateComplete: device does not support sound input");
-
-                disableThePauseButton(null);
-
+                disableThePauseButton("No audio");
+                //TODO prio 2 do a better UI for this major issue, possibly a bug, etc...
                 Toast.makeText(this,
                         "This device does not support sound input; this app will not work properly.",
                         Toast.LENGTH_LONG).show();
-            } else {
-                // ========== device supports sound input ==========
-                if(SHOW_USER_INIT_EVENTS_ENABLED){
-                    showStatusSnackbar("Starting the listener");
-                }
-                BasicListener listener = getListener();
-
-                if (listener != null) {
-
-                    // the listener is started
-                    if(SHOW_USER_INIT_EVENTS_ENABLED){
-                        showStatusSnackbar("Listener started");
-                    }
-                    //done upstream: enableThePauseButton("Pause");
-
-                    initUrlToPlayLocal(savedInstanceState);
-
-                } else {
-                    // the listener failed to start
-                    if(SHOW_USER_INIT_EVENTS_ENABLED){
-                        showStatusSnackbar("Listener failed to start");
-                    }
-                    //done upstream: disableThePauseButton(null);
-                }
+                return;
             }
+
+            // here when can do sound input
+
+            // ===== main process =====
+
+            //=====================================
+            BasicListener listener = getListener();
+            //=====================================
+
+            if (listener == null) {
+                // the listener failed to start
+                disableThePauseButton("Failed");
+                //TODO better info to user for this critical issue
+                if(SHOW_USER_INIT_EVENTS_ENABLED){
+                    showStatusSnackbar("Listener failed to start");
+                }
+                return;
+            }
+
+            // here when listener started ok; try playing a url if any from trigger app
+
+            enableThePauseButton("Pause");
+
+            //------------------------------------------
+            initUrlToPlayLocal(savedInstanceStateGiven);
+            //------------------------------------------
+
         } catch (Exception ex) {
-            if(LOG_CONFIG.ERROR==LogConfig.ON)Log.e(TAG,".onCreateComplete: "+ex);
-            disableThePauseButton(null);
+            if(LeafyClient.isAnyLogEnabled())Log.e(TAG,".onCreateComplete: "+ex);
+            disableThePauseButton("Error");
             onExceptionAtInit(ex);//TODO prio 2 2016-11 does this work???
         } finally {
-            if (LOG_CONFIG.DEBUG==LogConfig.INIT
-                    || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
-                    || LOG_CONFIG.DEBUG==LogConfig.INTENT
-                    || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS
-                    || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+            if (LeafyClient.isLogDebugEnabled())
                 Log.d(TAG, ".onCreateComplete: exiting...");
         }
     }
 
-    private volatile String pauseButtonLabel = null;
-
-    private Runnable RUNNABLE_TO_ENABLE_THE_PAUSE_BUTTON = new Runnable() {
-        
-        public void run() {
-            if(pause==null)return;
-            pause.setOnClickListener(ON_CLICK_LISTENER);
-            pause.setAlpha(ALPHA_NEUTRAL_ENABLED);
-            if (pauseButtonLabel != null) {
-                pause.setText(pauseButtonLabel);
-            }
-        }
-    };
-
-    private Runnable RUNNABLE_TO_DISABLE_THE_PAUSE_BUTTON = new Runnable() {
-        public void run() {
-            if(pause==null)return;
-            pause.setOnClickListener(null);
-            pause.setClickable(false);
-            pause.setAlpha(ALPHA_DARK_DISABLED);
-            if (pauseButtonLabel != null) {
-                pause.setText(pauseButtonLabel);
-            }
-        }
-    };
-
     /**
-     * It ensures that it is run on the ui thread.
-     *
-     * @param label not used if null
+     * called by onCreateComplete
      */
-    public void enableThePauseButton(final String label) {
-        pauseButtonLabel = label;
-        runOnUiThread(RUNNABLE_TO_ENABLE_THE_PAUSE_BUTTON);
-    }
-
-    /**
-     * It ensures that it is run on the ui thread.
-     *
-     * @param label not change if param is null
-     */
-    public void disableThePauseButton(final String label) {
-        pauseButtonLabel = label;
-        runOnUiThread(RUNNABLE_TO_DISABLE_THE_PAUSE_BUTTON);
-    }
-
-    /**
-     *
-     * @param o Bundle savedInstanceState or null
-     * @param s url string
-     */
-    public void initUrlToPlay(Object o, String s) { // TODO prio 2 maybe deprecate or remove, tbd
-        initUrlToPlayLocal((Bundle)o);
-    }
-
-    /**
-     * for DEV mode only
-     *
-     * @return String, empty when not dev.
-     */
-    public String forDisplay() {
-        if (!isDevMode()) return getClass().getSimpleName();
-        boolean isDbCapable = isDbCapable();
-        return "isDevMode() " + isDevMode()
-                + ", isAdsCapable() " + isAdsCapable()
-                + ", isEduVersion() " + isEduVersion()
-                + ", isDonationsCapable() " + isDonationsCapable()
-                + ", isUseTestPurchase() " + isUseTestPurchase()
-                + ", isUseEmptyIabPayload() " + isUseEmptyIabPayload()
-                + ", isVerifyIabPayload() " + isVerifyIabPayload()
-                + ", isSimulatingNoConnection() " + isSimulatingNoConnection()
-                + ", isSimulatingNoPurchase() " + isSimulatingNoPurchase()
-                + ", isDbCapable " + isDbCapable
-                + (isDbCapable ? ", getDbProviderAuthority() "+getDbProviderAuthority():"")
-                + ", isShowAdsWhenDonated() " + isShowAdsWhenDonated()
-                + ", getDbProviderAuthorityFragment() " + getDbProviderAuthorityFragment()
-                ;
-    }
-
-    /**
-     * Init the sound to play from an intent from another app;
-     * or a URL from previous session in urlString.
-     *
-     * <p/>Designed to be run on the ui thread.
-     * All callers are run on the ui thread in this version.
-     *
-     * @param savedInstanceState Bundle or null when starting a new session with a url from incoming intent
-     */
-    private void initUrlToPlayLocal(final Bundle savedInstanceState) {
-
-        if (!SOUND_TO_PLAY_IS_ENABLED) return;
-
-        if (!doesSoundOutput) return;
-
-        if (savedInstanceState == null) {
-            // starting new session (with an Intent), use url from intent (if any)
-            // this method does nothing if the start intent has no valid url to play
-            // ======================================
-            if (!handleIncomingIntent()) {
-            // ======================================
-                // no valid intent, then try url from previous session
-
-                // in future maybe
-
-            } else {
-                // valid intent; was handled by handleIncomingIntent; nothing more to do here
-                // TODO log
-            }
-
-        } else {
-            // restoring session (not with intent), use url from previous session, if any
-            setUrlToPlayInUi();
-        }
-    }
-
     @TargetApi(Build.VERSION_CODES.HONEYCOMB) //api level 11
     protected void onCreateUI() {
 
@@ -775,7 +939,7 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
         //hideGui.setBackgroundColor(Color.LTGRAY);
         hideGui.setOnClickListener(ON_CLICK_LISTENER);
         hideGui.setClickable(true);
-        hideGui.setAlpha(ALPHA_NEUTRAL_ENABLED); //TODO washere
+        hideGui.setAlpha(ALPHA_NEUTRAL_ENABLED);
         hideBgIsSet = false;
 
         pause = findViewById(R.id.spectrogram2_pause);
@@ -839,7 +1003,7 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
             //ViewStub:
             urlLayout = (LinearLayout) findViewById(R.id.inflated_for_url_to_play); //url_to_play_layout);
             if (urlLayout == null) {
-                if(LOG_CONFIG.ERROR==LOG_CONFIG.ON)
+                if(LOG_CONFIG.ERROR>=LOG_CONFIG.ON)
                     Log.e(TAG, ".onCreateUI: urlLayout is null");
             }
             playUrlButton.setOnClickListener(ON_CLICK_LISTENER);
@@ -854,6 +1018,127 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
 //        pause.requestFocus();
         //Log.e(TAG,".onCreateUI: contentTextView is set");
     }
+
+    private volatile String pauseButtonLabel = null;
+
+    private Runnable RUNNABLE_TO_ENABLE_THE_PAUSE_BUTTON = new Runnable() {
+        @Override
+        public void run() {
+            if(pause==null)return;
+            pause.setOnClickListener(ON_CLICK_LISTENER);
+            pause.setAlpha(ALPHA_NEUTRAL_ENABLED);
+            if (pauseButtonLabel != null) {
+                pause.setText(pauseButtonLabel);
+            }
+        }
+    };
+
+    private Runnable RUNNABLE_TO_DISABLE_THE_PAUSE_BUTTON = new Runnable() {
+        @Override
+        public void run() {
+            if(pause==null)return;
+            pause.setOnClickListener(null);
+            pause.setClickable(false);
+            pause.setAlpha(ALPHA_DARK_DISABLED);
+            if (pauseButtonLabel != null) {
+                pause.setText(pauseButtonLabel);
+            }
+        }
+    };
+
+    /**
+     * It ensures that it is run on the ui thread.
+     *
+     * @param label not used if null
+     */
+    @Override
+    public void enableThePauseButton(final String label) {
+        pauseButtonLabel = label;
+        runOnUiThread(RUNNABLE_TO_ENABLE_THE_PAUSE_BUTTON);
+    }
+
+    /**
+     * It ensures that it is run on the ui thread.
+     *
+     * @param label not change if param is null
+     */
+    @Override
+    public void disableThePauseButton(final String label) {
+        pauseButtonLabel = label;
+        runOnUiThread(RUNNABLE_TO_DISABLE_THE_PAUSE_BUTTON);
+    }
+
+//    /**
+//     *
+//     * @param o Bundle savedInstanceState or null
+//     * @param s url string
+//     */
+//    //@Override
+//    public void initUrlToPlay(Object o, String s) { // TODO prio 2 maybe deprecate or remove, tbd
+//        initUrlToPlayLocal((Bundle)o);
+//    }
+
+    /**
+     * for DEV mode only
+     *
+     * @return String, empty when not dev.
+     */
+    @Override
+    public String forDisplay() {
+        if (!isDevMode()) return getClass().getSimpleName();
+        boolean isDbCapable = isDbCapable();
+        return "isDevMode() " + isDevMode()
+                + ", isAdsCapable() " + isAdsCapable()
+                + ", isEduVersion() " + isEduVersion()
+                + ", isDonationsCapable() " + isDonationsCapable()
+                + ", isUseTestPurchase() " + isUseTestPurchase()
+                + ", isUseEmptyIabPayload() " + isUseEmptyIabPayload()
+                + ", isVerifyIabPayload() " + isVerifyIabPayload()
+                + ", isSimulatingNoConnection() " + isSimulatingNoConnection()
+                + ", isSimulatingNoPurchase() " + isSimulatingNoPurchase()
+                + ", isDbCapable " + isDbCapable
+                + (isDbCapable ? ", getDbProviderAuthority() "+getDbProviderAuthority():"")
+                + ", isShowAdsWhenDonated() " + isShowAdsWhenDonated()
+                + ", getDbProviderAuthorityFragment() " + getDbProviderAuthorityFragment()
+                ;
+    }
+
+    /**
+     * Init the sound to play from an intent from another app;
+     * or a URL from previous session in urlString.
+     *
+     * <p/>Designed to be run on the ui thread.
+     * All callers are run on the ui thread in this version.
+     *
+     * @param savedInstanceState Bundle or null when starting a new session with a url from incoming intent
+     */
+    private void initUrlToPlayLocal(final Bundle savedInstanceState) {
+
+        if (!SOUND_TO_PLAY_IS_ENABLED) return;
+
+        if (!doesSoundOutput) return;
+
+        if (savedInstanceState == null) {
+            // starting new session (with an Intent), use url from intent (if any)
+            // this method does nothing if the start intent has no valid url to play
+            // ======================================
+            if (!handleIncomingIntent()) {
+            // ======================================
+                // no valid intent, then try url from previous session
+
+                // in future maybe
+
+            } else {
+                // valid intent; was handled by handleIncomingIntent; nothing more to do here
+                // TODO log
+            }
+
+        } else {
+            // restoring session (not with intent), use url from previous session, if any
+            setUrlToPlayInUi();
+        }
+    }
+
 
 //    final View.OnLongClickListener ON_LONG_CLICK_LISTENER = new View.OnLongClickListener() {
 //
@@ -1046,13 +1331,12 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
      * </ul>
      */
     final View.OnClickListener ON_CLICK_LISTENER = new View.OnClickListener() {
-
         /**
          * Performs the action after a gui has been selected (a button or the screen, for example).
          *
          * @param v The user-selected view (button or other gui)
          */
-        
+        @Override
         public void onClick(View v) {
             try {
                 if (LOG_CONFIG.DEBUG==LogConfig.UI)
@@ -1620,7 +1904,7 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
     }
 
     private final Runnable RUNNABLE_FOR_URL_PREPARE = new Runnable() {
-        
+        @Override
         public void run() {
             if(largeGuiLayout==null)return;
             urlPrepareSnackbar = Snackbar.make(largeGuiLayout,
@@ -1637,6 +1921,7 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
     private volatile String statusText = "";
 
     private final Runnable RUNNABLE_FOR_STATUS = new Runnable() {
+        @Override
         public void run() {
             if(largeGuiLayout!=null) {
                 Snackbar statusSnackbar = Snackbar.make(largeGuiLayout,
@@ -1648,16 +1933,17 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
     };
 
     /**
-     * <!-- old: Designed to be used when LOG_INIT_ENABLED is true. -->
+     * Designed to show status updates from library logic.
      *
      * @param givenStatusText
      */
+    @Override
     public void showStatusSnackbar(final String givenStatusText) {//TODO 2017-7-1 add param isIndefinite and OK action with listener to dismiss it
         statusText = givenStatusText;
         runOnUiThread(RUNNABLE_FOR_STATUS);
     }
 
-    
+    @Override
     public boolean isVerifyIabPayload() {
         return false;
     }
@@ -1857,6 +2143,7 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
      * @param percent the percentage (0-100) of the content
      *                that has been buffered or played thus far
      */
+    @Override
     public void onPlayerBufferingUpdate(int percent){
         // do nothing in this version TODO prio 2 show percent to user in snackbar
     }
@@ -1866,6 +2153,7 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
      *
      * @return int seconds to trigger a timeout event for the preparation of a data source.
      */
+    @Override
     public int getPlayerPreparationTimeoutSec(){
         return 15;
     }
@@ -1918,265 +2206,7 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
         }
     }
 
-    /**
-     * Request permission to access device storage (aka. external storage, i.e., external to the app).
-     * <p/>
-     * If the app does not have permission yet, then the user will be prompted to grant permission.
-     *
-     * @return return true when permission granted and the caller can try to play,
-     * false when previously denied (and not requested again)
-     * or when permission being requested, i.e., the caller should not try to play.
-     */
-    @SuppressLint("WrongConstant")
-    public boolean getPermissionForExternalStorageAccess(final String filePath) {
-        requestFilesPermission(filePath);
-
-        // Check if we have write permission
-        int permission = 0;
-        if (Build.VERSION.SDK_INT >= 23) {
-            permission = checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE);
-        } else {
-            permission = ActivityCompat.checkSelfPermission(this,
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE);
-        }
-
-        if (permission == PackageManager.PERMISSION_GRANTED) {
-            if (LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS
-                    || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL) {
-                Log.d(TAG, ".getPermissionForExternalStorageAccess: " +
-                        "checkSelfPermission returned positive; this method is returning true");
-            }
-            return true;
-        }
-
-        //no permission; did we asked the user before? if yes, then don't ask again
-        if (LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS||LOG_CONFIG.DEBUG==LogConfig.PLAY_URL) {
-            Log.d(TAG, ".getPermissionForExternalStorageAccess: " +
-                    "checkSelfPermission returned negative; storageAccessPermissionWasAsked = "
-                    + storageAccessPermissionWasAsked);
-        }
-        if (storageAccessPermissionWasAsked) {
-            // previously denied by user
-            if (largeGuiLayout != null)
-                Snackbar.make(largeGuiLayout,
-                        "The file cannot be played"
-                                + ": it is in external storage and access was denied by you",
-                        Snackbar.LENGTH_LONG).show();
-            return false;
-        }
-
-        storageAccessPermissionWasAsked = true;
-
-        // We don't have permission so prompt the user;
-        // this function will be continued in onRequestPermissionsResult
-
-        // to be used after permission is granted, if it is
-        filePathNeedingAccess = filePath;
-
-        ActivityCompat.requestPermissions(
-                this,
-                PERMISSIONS_FOR_EXTERNAL_STORAGE_ACCESS,
-                PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS
-        );
-        if (LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS||LOG_CONFIG.DEBUG==LogConfig.PLAY_URL) {
-            Log.d(TAG, ".getPermissionForExternalStorageAccess: " +
-                    "checkSelfPermission returned negative; storageAccessPermissionWasAsked = "
-                    + storageAccessPermissionWasAsked
-                    + "; user was asked; this method returning false");
-        }
-        return false;
-    }
-
-    private void requestFilesPermission(final String filePath) {
-        filePathNeedingAccess = filePath;
-
-        ActivityCompat.requestPermissions(
-                this,
-                PERMISSIONS_FOR_EXTERNAL_STORAGE_ACCESS,
-                PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS
-        );
-    }
-
-    private void getPermissionForRecordAudio(final Bundle savedInstanceStateGiven) {
-        savedInstanceStateTemp = savedInstanceStateGiven;
-        if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
-                || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS
-                || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
-            Log.d(TAG, ".getPermissionForRecordAudio entering...Build.VERSION.SDK_INT = "
-                    + Build.VERSION.SDK_INT);
-
-//        getPermissionForExternalStorageAccess();//TO DO was here integrate with the rest of this method
-//        if(permissionGrantedForRecordAudio)return true;
-        /*
-        PackageManager.PERMISSION_GRANTED if you have the permission, or PackageManager.PERMISSION_DENIED if not.
-         */
-        boolean aprioriGranted = false;
-        if (Build.VERSION.SDK_INT >= 23) {
-            aprioriGranted = checkSelfPermission(Manifest.permission.RECORD_AUDIO)
-                    == PackageManager.PERMISSION_GRANTED;
-        } else {
-            aprioriGranted = ContextCompat.checkSelfPermission(this,
-                    Manifest.permission.RECORD_AUDIO)
-                    == PackageManager.PERMISSION_GRANTED;
-        }
-        if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
-                || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS
-                || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
-            Log.d(TAG, ".getPermissionForRecordAudio: aprioriGranted " + aprioriGranted);
-
-        if (!aprioriGranted) {
-            // we don't have permission yet, ask user;
-            // No explanation needed to give user, we can request the permission.
-
-            String[] permissions = new String[]{
-                    Manifest.permission.RECORD_AUDIO,
-                    Manifest.permission.READ_EXTERNAL_STORAGE,
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE};
-
-            if (Build.VERSION.SDK_INT >= 23) {
-                if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
-                        || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS
-                        || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL )
-                    Log.d(TAG, ".getPermissionForRecordAudio about to call requestPermissions(...)");
-                // -----------------------------------------------------------------------
-                requestPermissions(permissions, PERMISSIONS_REQUEST_CODE_FOR_RECORD_AUDIO);
-                // -----------------------------------------------------------------------
-            } else {
-                if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
-                        || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS
-                        || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
-                    Log.d(TAG, ".getPermissionForRecordAudio about to call ActivityCompat.requestPermissions(...)");
-
-                ActivityCompat.requestPermissions(this, permissions,
-                        PERMISSIONS_REQUEST_CODE_FOR_RECORD_AUDIO);
-            }
-            // PERMISSIONS_REQUEST_CODE_FOR_RECORD_AUDIO is an
-            // app-defined int constant. The callback method gets the
-            // result of the request.
-        } else {
-            //granted apriori
-            if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
-                    || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS
-                    || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
-                Log.d(TAG, ".getPermissionForRecordAudio: was granted apriori" +
-                        "; calling onCreateComplete...");
-
-//            permissionGrantedForRecordAudio = true;
-            onCreateComplete(savedInstanceStateGiven);
-        }
-        //here when permission granted before running the app, e.g., older version of android
-
-        if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
-                || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS
-                || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
-            Log.d(TAG, ".getPermissionForRecordAudio exiting...");
-    }
-
-    /**
-     * Called by Android on the ui thread.
-     *
-     * @param requestCode  int
-     * @param permissions  array of String instances
-     * @param grantResults array of int primitives
-     */
     @Override
-    public void onRequestPermissionsResult(int requestCode,
-                                           @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-        if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
-                || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
-            Log.d(TAG, ".onRequestPermissionsResult entering with requestCode {" + requestCode
-                    + "}; filePathNeedingAccess {" + filePathNeedingAccess + "}");
-//        readFileAccepted = false;
-//        writeFileAccepted = false;
-        //permissionGrantedForRecordAudio = false;
-        switch (requestCode) {
-            case PERMISSIONS_REQUEST_CODE_FOR_RECORD_AUDIO: {
-                if (LOG_CONFIG.DEBUG==LogConfig.INIT
-                        || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
-                        || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
-                    Log.d(TAG, ".onRequestPermissionsResult: " +
-                            "PERMISSIONS_REQUEST_CODE_FOR_RECORD_AUDIO; " +
-                            "grantResults.length = " + grantResults.length);
-                // If request is cancelled, the result arrays are empty.
-                boolean permissionGrantedForRecordAudio = false;
-                if (grantResults.length > 0) {
-                    permissionGrantedForRecordAudio = grantResults[0] == PackageManager.PERMISSION_GRANTED;
-                } else {
-                    //not granted
-                }
-
-                if (!permissionGrantedForRecordAudio) {
-                    //not granted, cannot run the app
-                    if (LOG_CONFIG.DEBUG!=LogConfig.OFF)
-//                    if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
-//                            || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
-                        Log.d(TAG, ".onRequestPermissionsResult: audio permission denied; calling shutdown withfinish()");
-                    shutdown(true);
-                    return;
-                }
-                //here when record audio was granted
-                if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
-                        || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
-                    Log.d(TAG, ".onRequestPermissionsResult: audio permission granted");
-                //complete create
-                onCreateComplete(savedInstanceStateTemp);
-                break;
-            } // case
-
-            case PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS: {
-                if (LOG_CONFIG.DEBUG==LogConfig.INIT
-                        || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
-                        || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
-                    Log.d(TAG, ".onRequestPermissionsResult: " +
-                            "PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS; " +
-                            "grantResults.length = " + grantResults.length);
-                // If request is cancelled, the result arrays are empty.
-                boolean readFileAccepted = false;
-                boolean writeFileAccepted = false;
-                if (grantResults.length > 0) {
-                    readFileAccepted = grantResults[0] == PackageManager.PERMISSION_GRANTED;
-
-                    if (grantResults.length > 1)
-                        writeFileAccepted = grantResults[1] == PackageManager.PERMISSION_GRANTED;
-                }
-                // when false, disable the play url functions for local files
-//                permissionGrantedForStorageAccess = ;
-
-                if (LOG_CONFIG.DEBUG==LogConfig.INIT
-                        || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
-                        || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
-                    Log.d(TAG, ".onRequestPermissionsResult: " +
-                            "PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS; " +
-                            "readFileAccepted = " + readFileAccepted
-                            + "; writeFileAccepted = " + writeFileAccepted);
-
-                if (readFileAccepted || writeFileAccepted) {
-                    // playLocalFileAfterStorageAccessGranted(filePathNeedingAccess);
-                    // TODO 2017-7-26 does this break intent from external app?
-                } else {
-                    // disable the play url functions but only for local files
-                }
-
-                break;
-            }
-
-            // other 'case' lines to check for other
-            // permissions this app might request
-            default: {
-                if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
-                        || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
-                    Log.d(TAG, ".onRequestPermissionsResult: default; requestCode " + requestCode
-                            //+"; permissionGrantedForRecordAudio "+ permissionGrantedForRecordAudio
-                            //+"; calling onCreateComplete(savedInstanceStateTemp)..."
-                    );
-//                onCreateComplete(savedInstanceStateTemp);
-            }
-        }//switch
-
-    }
-
-
     public void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
         if (LOG_CONFIG.DEBUG==LogConfig.PAUSE || LOG_CONFIG.DEBUG==LogConfig.THREADS
@@ -2193,6 +2223,7 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
      *
      * @param savedInstanceState
      */
+    @Override
     protected void onRestoreInstanceState(Bundle savedInstanceState) {//TODO future restore bitmap
         super.onSaveInstanceState(savedInstanceState);
         if (LOG_CONFIG.DEBUG==LogConfig.PAUSE || LOG_CONFIG.DEBUG==LogConfig.THREADS
@@ -2559,33 +2590,34 @@ public class SpectrogramActivity extends Activity implements SoundClient.Callbac
         }
 
         lastAnomalyTextIsShown = false;
+        runOnUiThread(RUNNABLE_TO_CLEAR_ANOMALY_TEXT);
 
         buf.append("<h2>ABOUT THIS APP - ");
         buf.append(getString(R.string.app_name)).append("</h2>");
 
         buf.append("<h4>Content:</h4>")
-        .append("<p/>Copyright");
-
-        buf.append("<br>Contact Info");
-
-        buf.append("<br>Introduction")
+        .append("<p/>Copyright and Credits")
+        .append("<br>Version and Contact Info")
+        .append("<br>Introduction")
         .append("<br>User Interface Guide")
         .append("<br>Privacy Policy")
-        .append("<br>Terms")
+        .append("<br>Terms of Use")
         .append("<p/>")
-                ;
+        ;
 
         buf.append("<p/>").append(AppPublisher.copyright);
 
         buf.append("<p/>")
         .append("Some links to cetacean vocalisation recordings are Copyright Aguasonic Acoustics.")
-        .append(" Some icons were made using a fascinating recording by www.aguasonic.com of a group of dolphins, probably Tursiops, where sometimes at least 5 individuals are whistling at the same time.");
+        .append(" And some icons were made using a fascinating recording by www.aguasonic.com " +
+                "of a group of dolphins, probably Tursiops, where sometimes at least 5 individuals are whistling at the same time.");
 
-        //no anomalies
-        buf.append("<p/>Questions, defects, suggestions, please contact ")
+        buf.append("<p/>").append("Application Version Code: ")
+        .append(AppContext.getIt().getVersionCode())
+        .append("<br>Version Name: ")
+        .append(AppContext.getIt().getVersionName())
+        .append("<p/>Questions, defects, suggestions, please contact ")
                 .append(AppPublisher.emailAddressForSupport);
-
-        runOnUiThread(RUNNABLE_TO_CLEAR_ANOMALY_TEXT);
 
         // ##### intro #####
 
@@ -2971,19 +3003,19 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      * Designed to be done very early in the activity startup step.
      */
     private void restorePreferences() {
-        if (LOG_CONFIG.DEBUG==LogConfig.ON)
+        if (LOG_CONFIG.DEBUG>=LogConfig.ON)
             Log.d(TAG, ".restorePreferences: entering...");
 
         final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
 
-        if (LOG_CONFIG.DEBUG==LogConfig.ON)
+        if (LOG_CONFIG.DEBUG>=LogConfig.ON)
             Log.d(TAG, ".restorePreferences: prefs = " + prefs);
 
         SettingsForSoundPreferences.restoreInputSettings(prefs);
 
 //        restoreUrlToPlay(prefs);
 
-        if (LOG_CONFIG.DEBUG==LogConfig.ON)
+        if (LOG_CONFIG.DEBUG>=LogConfig.ON)
             Log.d(TAG, ".restorePreferences: exiting...");
     }
 
@@ -3015,32 +3047,9 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      *
      * @return true when on real device or false when on emulator.
      */
-    private boolean setOnRealDeviceOrEmulator() {
+    private boolean isOnRealDeviceOrEmulator() {
 
-        String onEmulatorText = null;
-
-        if (isOnRealDevice()) {
-            //license check is disabled
-            //---------------------------------------------------------------------
-//				final boolean licenseCheckStarted = startCheckLicense(
-//						Installation.getID(this));
-            //---------------------------------------------------------------------
-//				if (LeafyLog.SMARTPLAYER_LOG_ENABLED||LeafyLog.INIT_LOG_ENABLED){
-//					Log.d(TAG + ".onCreateComplete", "on real device; licenseCheckStarted = "
-//							+ licenseCheckStarted);
-//					if(! licenseCheckStarted){
-//						Log.d(TAG + ".onCreateComplete", "on real device; no license check in this session; previous license check results {"
-//								+ OnAnyThread.getLicenseCheckResults(this)+"}");
-//					}
-//				}
-        } else {
-            onEmulatorText = "on emulator, not real device";
-        }
-
-//        if (onEmulatorText != null) {
-//            writeInMonitor(onEmulatorText);
-//        }
-        return onEmulatorText == null;
+        return isOnRealDevice();
     }
 
     /**
@@ -3225,7 +3234,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      * @param statusCode int
      * @param text
      */
-    
+    @Override
     public void results(int statusCode, String text) {
         if(LOG_CONFIG.DEBUG > LogConfig.OFF)
             Log.d(TAG, ".results: statusCode " + statusCode + ": " + text);
@@ -3243,7 +3252,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      * @param user       String ID; ex.: H, C, A
      * @param isNewLine  boolean; true will force a new line to be started
      */
-    
+    @Override
     public void results(int statusCode, String text, long millis, String user, boolean isNewLine) {
         if(SHOW_USER_INIT_EVENTS_ENABLED) {
             String s = "results: statusCode " + statusCode + ": " + text + "; millis " + millis
@@ -3254,7 +3263,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         }
     }
 
-    
+    @Override
     public boolean isPaused() {//TODO future review with preserve bg image when app interrupted
         if (DeviceSoundCapabilities.getFundamentalsInitialized()) {
             //initialized, then depends on listener being null or not
@@ -3264,7 +3273,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         return false;
     }
 
-    
+    @Override
     public void unpause() throws Exception {
         getListener();
     }
@@ -3309,12 +3318,12 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //        return listener;
 //    }
 
-    
+    @Override
     public String getHUser() {
         return "H";
     }
 
-    
+    @Override
     public String getNonHUser() {
         return "X";
     }
@@ -3425,7 +3434,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
       TODO prio 2 keep list of urls to play, give them names, delete, move up/down, export list (share)
      */
-
+    @Override
     public SoundClientPreferences getSoundClientPreferences(){
         SoundClientPreferences soundPrefs = new SoundClientPreferences();
         soundPrefs.isMicPreferred = true;
@@ -3450,7 +3459,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     /**
      * @return float volume percent
      */
-    
+    @Override
     public float notifyVolume() {
         return 0;
     }
@@ -3460,7 +3469,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      *
      * @param tf boolean; emission success status; true or false.
      */
-    
+    @Override
     public void emissionCompletionStatus(boolean tf) {
     }
 
@@ -3469,7 +3478,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      *
      * @return null for EmitterGrandParent
      */
-    
+    @Override
     public EmitterGrandParent getEmitter() {
         return null;
     }
@@ -3486,6 +3495,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      * @return A BasicListener which is started. Is null when failure.
      * @throws Exception
      */
+    @Override
     public BasicListener getListener() throws Exception {
         //REL_FOR_LISTENER.hasQueuedThreads();
         synchronized (LOCK_FOR_LISTENER) {
@@ -3548,7 +3558,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         BasicListener.shutdownTheRunningListener();
     }
 
-    
+    @Override
     public Context getAndroidActivityContext() {
         return this;
     }
@@ -4239,7 +4249,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      * Designed to be used in runOnUiThread.
      */
     private final Runnable RUNNABLE_TO_SHOW_ANOMALY_TEXT = new Runnable() {
-        
+        @Override
         public void run() {
             if (LOG_CONFIG.ERROR==LogConfig.ON)
                 Log.e(SpectrogramActivity.TAG, getLastAnomalyTextInHtml());
@@ -4282,7 +4292,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     }
 
     private final Runnable RUNNABLE_TO_CLEAR_ANOMALY_TEXT = new Runnable() {
-        
+        @Override
         public void run() {
             updateAboutButtonOnUIThread();
         }
@@ -4313,7 +4323,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
 
     private final Runnable RUNNABLE_FOR_PLAYER_STARTING_TO_PLAY = new Runnable() {
-        
+        @Override
         public void run() {
 
             if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
@@ -4322,6 +4332,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         }
     };
 
+    @Override
     public void onStartingToPlay() {
         runOnUiThread(RUNNABLE_FOR_PLAYER_STARTING_TO_PLAY);
     }
@@ -4329,7 +4340,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     volatile String textForEndOfPlay = "Normal end of play";
 
     private final Runnable RUNNABLE_FOR_PLAYER_NORMAL_END = new Runnable() {
-        
+        @Override
         public void run() {
             notifyPlayNormalEnd();
             if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
@@ -4341,6 +4352,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         }
     };
 
+    @Override
     public void onNormalEndOfPlay( boolean audioFocusIsLost) {
         textForEndOfPlay = "The sound file has ended normally";
         if(audioFocusIsLost){
@@ -4350,7 +4362,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     }
 
     private final Runnable RUNNABLE_FOR_ANOMALY_IN_PLAYER = new Runnable() {
-        
+        @Override
         public void run() {
             if(editTextUrlToPlay==null)return;
             notifyPlayAbnormalEnd(throwableFromPlayer);
@@ -4375,6 +4387,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      * @param e            may be null
      * @param errorMessage String
      */
+    @Override
     public void onAnomalyDetectedByPlayer(final Throwable e, final String errorMessage) {
         if(isCancelling){
             return;
@@ -4385,7 +4398,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     }
 
     private final Runnable RUNNABLE_FOR_AUDIO_FOCUS_REFUSED = new Runnable() {
-        
+        @Override
         public void run() {
 
             notifyPlayAbnormalEnd(new Exception("Audio focus was refused by the system"));
@@ -4402,11 +4415,12 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         }
     };
 
+    @Override
     public void onAudioFocusRefused(){
         runOnUiThread(RUNNABLE_FOR_AUDIO_FOCUS_REFUSED);
     }
 
-
+    @Override
     public Context getContextForSmartPlayer(){
         return this;
     }
@@ -4442,7 +4456,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         notifySimple(
                 e,
                 "Anomaly detected",
-                getAppName(this),
+                AppContext.getIt().getAppName(),
                 R.drawable.ic_stat_error
         );
     }
@@ -4457,7 +4471,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         notifySimple(
                 null,
                 "Sound file paying",
-                getAppName(this),
+                AppContext.getIt().getAppName(),
                 R.drawable.ic_stat_playing
         );
     }
@@ -4467,7 +4481,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         notifySimple(
                 null,
                 "Sound file ended normally",
-                getAppName(this),
+                AppContext.getIt().getAppName(),
                 R.drawable.ic_stat_recording_ended_normally
         );
     }
@@ -4477,7 +4491,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         notifySimple(
                 e,
                 "Sound file ended abnormally",
-                getAppName(this),
+                AppContext.getIt().getAppName(),
                 R.drawable.ic_stat_error
         );
     }
@@ -4487,7 +4501,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         notifySimple(
                 e,
                 "Sound file failed to start playing",
-                getAppName(this),
+                AppContext.getIt().getAppName(),
                 R.drawable.ic_stat_error
         );
     }
@@ -4605,51 +4619,52 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 ////        }
 //    }
 
+    @Override
     public boolean isDevMode() {
         return false;// TODO false in prod
     }
 
-    
+    @Override
     public boolean isEduVersion() {
         return false;
     }
 
-    
+    @Override
     public boolean isSupportEmailEnabled() {//TODO prio 2 2017-6-28 review with another class
         return false;
     }
 
-    
+    @Override
     public boolean isAdsCapable() {
         return false;
     }
 
-    
+    @Override
     public boolean isShowAdsWhenDonated() {
         return false;
     }
 
-    
+    @Override
     public boolean isDonationsCapable() {
         return false;
     }
 
-    
+    @Override
     public boolean isUseTestPurchase() {
         return false;
     }
 
-    
+    @Override
     public boolean isUseEmptyIabPayload() {
         return false;
     }
 
-    
+    @Override
     public boolean isSimulatingNoConnection() {
         return false;
     }
 
-    
+    @Override
     public boolean isSimulatingNoPurchase() {
         return false;
     }
@@ -4685,7 +4700,6 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         if (LOG_CONFIG.DEBUG > LogConfig.OFF) Log.d(TAG, ".shutdown: entering withFinish = "+withFinish);
         //the player is also shutdown in onPause
         AudioPlayer.getIt().onActivityStop();
-        resetUrl(false);
         if(withFinish){
             finish();
         }
