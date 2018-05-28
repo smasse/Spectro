@@ -1,22 +1,33 @@
 /*
- * Copyright 2016-2018 Serge Masse
+ * Copyright (c) 2018 Serge Masse
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Redistribution and use in source and binary forms, with or without modification, are permitted
+ * provided that the following conditions are met:
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ * 1. Redistributions of source code must retain the above copyright notice, this list of conditions
+ * and the following disclaimer.
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * 2. Redistributions in binary form must reproduce the above copyright notice, this list of
+ * conditions and the following disclaimer in the documentation and/or other materials
+ * provided with the distribution.
  *
- * It is the wish of the copyright holder that this software not be used
- * for the purpose of killing, harming, harrassing, or capturing animals.
- * The use of this software with captive cetaceans and other large mammals
- * in captivity is discouraged.
+ * 3. Neither the name of the copyright holder nor the names of its contributors may be used
+ * to endorse or promote products derived from this software without specific prior written
+ * permission.
+ *
+ * 4. This software, as well as products derived from it, must not be used for the purpose of
+ * killing, harming, harassing, or capturing animals.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+ * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 package sm.app.spectro;
 
@@ -38,7 +49,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
-import android.support.design.widget.Snackbar;
+import android.support.design.widget.CoordinatorLayout;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.ContextCompat;
@@ -60,57 +71,34 @@ import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 import java.util.Date;
 
-import sm.leafy.util.LeafyClient;
+import sm.leafy.util.LogClient;
 import sm.leafy.util.LogConfig;
 import sm.leafy.util.forandroid.AppContext;
 import sm.leafy.util.forandroid.AppPublisher;
 import sm.leafy.util.forandroid.DataFromIntent;
 import sm.leafy.util.forandroid.OnAnyThread;
 import sm.leafy.util.forandroid.Timestamp;
+import sm.lib.acoustic.Acoustic;
+import sm.lib.acoustic.AcousticConfig;
+import sm.lib.acoustic.comm.xspecies.Signal;
 import sm.lib.acoustic.sound.EmitterGrandParent;
 import sm.lib.acoustic.sound.forandroid.DeviceSoundCapabilities;
 import sm.lib.acoustic.sound.forandroid.SettingsForSoundPreferences;
-import sm.lib.acoustic.sound.forandroid.SoundClient;
-import sm.lib.acoustic.sound.forandroid.SoundClientPreferences;
 import sm.lib.acoustic.sound.forandroid.input.BasicListener;
 import sm.lib.acoustic.sound.forandroid.input.SettingsForSoundInput;
 import sm.lib.acoustic.sound.forandroid.input.SettingsForSoundInputDisplay;
+import sm.lib.acoustic.sound.forandroid.input.SoundSlice;
 import sm.lib.acoustic.sound.forandroid.input.spectrogram.SpectrogramView;
 import sm.lib.acoustic.sound.forandroid.output.AudioPlayer;
 import sm.lib.acoustic.sound.forandroid.quality.SoundQualitySettings;
 
-import static sm.leafy.util.LeafyClient.APP_TYPE_EDU;
-import static sm.leafy.util.LeafyClient.APP_TYPE_FREE;
-import static sm.leafy.util.LeafyClient.APP_TYPE_FREE_WITH_ADS;
-import static sm.leafy.util.LeafyClient.APP_TYPE_PRICED;
-//import static sm.leafy.util.forandroid.OnAnyThread.getAppName;
 import static sm.leafy.util.forandroid.OnAnyThread.isOnRealDevice;
 
-/**
- *
- * sm Spectrogram app
- *
- * <p/>COPYRIGHT (C) 2015-2018 Serge Masse
- *
- * <p/>
- * This software is not to be used
- * for the purpose of killing, harming, or capturing animals.
- * The use of this software with captive cetaceans and
- * other captive large mammals is discouraged.
- *
- * <p/>AudioPlayer is used to play recordings.
- * <pre>AudioPlayer contains public interface Callback {
- void onStartingToPlay();
- void onNormalEndOfPlay(boolean audioFocusIsLost);// or when audio focus is lost
- void onAnomalyDetectedByPlayer(Throwable e, String errorMessage);
- void onAudioFocusRefused();
- Context getContextForSmartPlayer();
- //others
- }</pre>
- *
- * @author Serge Masse
- */
-public final class SpectrogramActivity extends Activity implements SoundClient.Callback {
+//import sm.lib.acoustic.sound.forandroid.SoundClientPreferences;
+//import static sm.leafy.util.forandroid.OnAnyThread.getAppName;
+
+
+public final class SpectrogramActivity extends Activity implements Acoustic.Callback {
 
     private static final String TAG = SpectrogramActivity.class.getSimpleName();
 
@@ -314,7 +302,10 @@ public final class SpectrogramActivity extends Activity implements SoundClient.C
     Button hideUrlButton;
     LinearLayout urlLayout;
 
-    Snackbar urlPrepareSnackbar;
+    /*
+    Snackbar is in the optional design support lib; gives rendering bug on samsung tablet
+     */
+//    Snackbar urlPrepareSnackbar;
 
     /**
      * to disable an Intent type, the corresponding {@code *_ENABLED} flag is set to false and
@@ -363,6 +354,10 @@ public final class SpectrogramActivity extends Activity implements SoundClient.C
 
     SpectrogramView spectrogramView;
     LinearLayout largeGuiLayout;
+    /**
+     * used for snackbar
+     */
+    CoordinatorLayout coordinatorLayout;//TODO washere bug 2018-4-17 does not seem to work: text not shown when exiting app
     LinearLayout buttonsLayout;
     TextView contentTextView;
     Button pause;
@@ -437,7 +432,7 @@ public final class SpectrogramActivity extends Activity implements SoundClient.C
      * <br>warning off
      * <br>debug off
      */
-    private final LogConfig LOG_CONFIG = new LogConfig(LogConfig.OFF,LogConfig.OFF,LogConfig.ON); //LogConfig.DEVICE_SOUND_CAPABILITIES);
+    private final LogConfig LOG_CONFIG = new LogConfig(LogConfig.OFF,LogConfig.OFF,LogConfig.INIT); //LogConfig.DEVICE_SOUND_CAPABILITIES);
 
     @Override
     public LogConfig getLogConfig() {
@@ -451,53 +446,93 @@ public final class SpectrogramActivity extends Activity implements SoundClient.C
         }
     }
 
-    /**
-     * designed to be reset in children onCreate.
-     * Default = LeafyClient.APP_TYPE_FREE.
-     */
-    protected volatile int appType = LeafyClient.APP_TYPE_FREE;
-
-
-    /**
-     * default implementation, may be overwritten by client app
-     *
-     * @return int such as LeafyClient.APP_TYPE_FREE
-     */
     @Override
-    public int getAppType() {
-        return appType;
-    }
+    public void onShutdown() {
 
-    /**
-     * Designed to be called by the onCreate method of the main Activity.
-     * Default: LeafyClient.APP_TYPE_FREE
-     * @param appType
-     */
-    @Override
-    public void setAppType(int appType) {
-        this.appType = appType;
     }
 
     @Override
-    public String getAppTypeString(final Object object, final int appTypeInt) {
-        final Context contextGiven = (Context)object;
-        switch (appTypeInt) {
-            case APP_TYPE_EDU:
-                return contextGiven.getString(R.string.app_type_edu);
-            case APP_TYPE_FREE:
-                return contextGiven.getString(R.string.app_type_free);
-            case APP_TYPE_PRICED:
-                return contextGiven.getString(R.string.app_type_priced);
-            case APP_TYPE_FREE_WITH_ADS:
-                return contextGiven.getString(R.string.app_type_free_with_ads);
-        }
-        return contextGiven.getString(R.string.app_type_unknown);
+    public void writeInConsole(String s, long l, String s1) {
+
     }
 
     @Override
-    public String getAppTypeString(){
-        return getAppTypeString(AppContext.getIt().APP_CONTEXT,appType);
+    public void writeInConsole(String s, long l, String s1, boolean b) {
+
     }
+
+    @Override
+    public void writeInConsoleByApp(String s) {
+
+    }
+
+    @Override
+    public void writeInMonitorAndShow(String s) {
+
+    }
+
+    @Override
+    public void writeInMonitorToShow(String s) {
+
+    }
+
+    @Override
+    public void writeInMonitor(String s) {
+
+    }
+
+    @Override
+    public void writeInMonitorToShowWithEmailSupport(String s) {
+
+    }
+
+//    /**
+//     * designed to be reset in children onCreate.
+//     * Default = LogClient.APP_TYPE_FREE.
+//     */
+//    protected volatile int appType = LogClient.APP_TYPE_FREE;
+
+
+//    /**
+//     * default implementation, may be overwritten by client app
+//     *
+//     * @return int such as LogClient.APP_TYPE_FREE
+//     */
+//    @Override
+//    public int getAppType() {
+//        return appType;
+//    }
+
+//    /**
+//     * Designed to be called by the onCreate method of the main Activity.
+//     * Default: LogClient.APP_TYPE_FREE
+//     * @param appType
+//     */
+//    @Override
+//    public void setAppType(int appType) {
+//        this.appType = appType;
+//    }
+
+//    @Override
+//    public String getAppTypeString(final Object object, final int appTypeInt) {
+//        final Context contextGiven = (Context)object;
+//        switch (appTypeInt) {
+//            case APP_TYPE_EDU:
+//                return contextGiven.getString(R.string.app_type_edu);
+//            case APP_TYPE_FREE:
+//                return contextGiven.getString(R.string.app_type_free);
+//            case APP_TYPE_PRICED:
+//                return contextGiven.getString(R.string.app_type_priced);
+//            case APP_TYPE_FREE_WITH_ADS:
+//                return contextGiven.getString(R.string.app_type_free_with_ads);
+//        }
+//        return contextGiven.getString(R.string.app_type_unknown);
+//    }
+//
+//    @Override
+//    public String getAppTypeString(){
+//        return getAppTypeString(AppContext.getIt().APP_CONTEXT,appType);
+//    }
 
     @Override
     public boolean isDbCapable() {
@@ -509,7 +544,6 @@ public final class SpectrogramActivity extends Activity implements SoundClient.C
         return "N/A";
     }
 
-    @Override
     public String getDbProviderAuthorityFragment() {
         return "N/A";
     }
@@ -524,7 +558,7 @@ public final class SpectrogramActivity extends Activity implements SoundClient.C
             // Android launched another instance of the root activity into an existing task
             //  so just quietly finish and go away, dropping the user back into the activity
             //  at the top of the stack (ie: the last state of this task)
-            /* related to android bug(s)
+            /* related to android b u g(s)
             http://code.google.com/p/android/issues/detail?id=2373
             http://code.google.com/p/android/issues/detail?id=26658
              */
@@ -533,7 +567,7 @@ public final class SpectrogramActivity extends Activity implements SoundClient.C
                 Log.w(TAG, ".onCreate: not TaskRoot and continuing...");
         }
 
-        SoundClient.injectCallback(this);
+        Acoustic.firstCall(this);
 
 //        tempHackForCpuAtFullSpeed();
 
@@ -544,7 +578,7 @@ public final class SpectrogramActivity extends Activity implements SoundClient.C
                     "app name {" + AppContext.getIt().getAppName()
                     + "} version name {" + AppContext.getIt().getVersionName()
                     + "} AppPublisher.emailAddressForSupport {" + AppPublisher.emailAddressForSupport
-                    +"}"//TODO prio 2 2017-7-1 and use the email support enabled flag in LeafyClient.Callback
+                    +"}"//TODO prio 2 2017-7-1 and use the email support enabled flag in LogClient.Callback
                     + "\n" + forDisplay()
                     + "\n" + Thread.currentThread()
             );
@@ -590,8 +624,7 @@ public final class SpectrogramActivity extends Activity implements SoundClient.C
                     == PackageManager.PERMISSION_GRANTED;
         } else {
             aprioriGranted = ContextCompat.checkSelfPermission(this,
-                    Manifest.permission.RECORD_AUDIO)
-                    == PackageManager.PERMISSION_GRANTED;
+                    Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
         }
         if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
                 || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS
@@ -788,11 +821,15 @@ public final class SpectrogramActivity extends Activity implements SoundClient.C
         }
         if (storageAccessPermissionWasAsked) {
             // previously denied by user
-            if (largeGuiLayout != null)
-                Snackbar.make(largeGuiLayout,
-                        "The file cannot be played"
-                                + ": it is in external storage and access was denied by you",
-                        Snackbar.LENGTH_LONG).show();
+//            if (largeGuiLayout != null) {
+//                Snackbar.make(findViewById(android.R.id.content), //largeGuiLayout,
+//                        "The file cannot be played"
+//                                + ": it is in external storage and access was denied by you",
+//                        Snackbar.LENGTH_LONG).show();
+                Toast.makeText(this,"The file cannot be played"
+                        + ": it is in external storage and access was denied by you",
+                        Toast.LENGTH_LONG).show();
+//            }
             return false;
         }
 
@@ -835,7 +872,7 @@ public final class SpectrogramActivity extends Activity implements SoundClient.C
      */
     protected void onCreateComplete(final Bundle savedInstanceStateGiven) {
         try {
-            if (LeafyClient.isLogDebugEnabled())
+            if (LogClient.isLogDebugEnabled())
                 Log.d(TAG, ".onCreateComplete: entering...");
 
             // 1. sound capabilities
@@ -846,7 +883,7 @@ public final class SpectrogramActivity extends Activity implements SoundClient.C
 
             doesSoundOutput = DeviceSoundCapabilities.isDeviceCapableOfSoundOutput();
 
-            if (LeafyClient.isLogDebugEnabled()) {
+            if (LogClient.isLogDebugEnabled()) {
                 String soundInputSupported = doesSoundInput?"supported":"_not_ supported";
                 String soundOutputSupported = doesSoundOutput?"supported":"_not_ supported";;
                 Log.d(TAG, ".onCreateComplete: isOnRealDevice = " +isOnRealDevice+
@@ -865,7 +902,7 @@ public final class SpectrogramActivity extends Activity implements SoundClient.C
             if ( ! doesSoundInput) {
                 // ========== device does not support sound input ==========
                 disableThePauseButton("No audio");
-                //TODO prio 2 do a better UI for this major issue, possibly a bug, etc...
+                //TODO prio 2 do a better UI for this major issue
                 Toast.makeText(this,
                         "This device does not support sound input; this app will not work properly.",
                         Toast.LENGTH_LONG).show();
@@ -882,7 +919,9 @@ public final class SpectrogramActivity extends Activity implements SoundClient.C
 
             if (listener == null) {
                 // the listener failed to start
-                disableThePauseButton("Failed");
+                if (LogClient.isLogDebugEnabled()) {
+                    Log.d(TAG,".onCreateComplete: exiting; the listener failed to start");
+                }
                 //TODO better info to user for this critical issue
                 if(SHOW_USER_INIT_EVENTS_ENABLED){
                     showStatusSnackbar("Listener failed to start");
@@ -899,11 +938,11 @@ public final class SpectrogramActivity extends Activity implements SoundClient.C
             //------------------------------------------
 
         } catch (Exception ex) {
-            if(LeafyClient.isAnyLogEnabled())Log.e(TAG,".onCreateComplete: "+ex);
+            if(LogClient.isAnyLogEnabled())Log.e(TAG,".onCreateComplete: "+ex);
             disableThePauseButton("Error");
             onExceptionAtInit(ex);//TODO prio 2 2016-11 does this work???
         } finally {
-            if (LeafyClient.isLogDebugEnabled())
+            if (LogClient.isLogDebugEnabled())
                 Log.d(TAG, ".onCreateComplete: exiting...");
         }
     }
@@ -915,6 +954,8 @@ public final class SpectrogramActivity extends Activity implements SoundClient.C
     protected void onCreateUI() {
 
         setContentView(R.layout.activity_spectrogram);
+
+        coordinatorLayout = findViewById(R.id.coordinatorLayout);
 
         spectrogramView = (SpectrogramView) findViewById(R.id.spectrogram2);
 
@@ -1068,16 +1109,6 @@ public final class SpectrogramActivity extends Activity implements SoundClient.C
         runOnUiThread(RUNNABLE_TO_DISABLE_THE_PAUSE_BUTTON);
     }
 
-//    /**
-//     *
-//     * @param o Bundle savedInstanceState or null
-//     * @param s url string
-//     */
-//    //@Override
-//    public void initUrlToPlay(Object o, String s) { // TODO prio 2 maybe deprecate or remove, tbd
-//        initUrlToPlayLocal((Bundle)o);
-//    }
-
     /**
      * for DEV mode only
      *
@@ -1088,17 +1119,17 @@ public final class SpectrogramActivity extends Activity implements SoundClient.C
         if (!isDevMode()) return getClass().getSimpleName();
         boolean isDbCapable = isDbCapable();
         return "isDevMode() " + isDevMode()
-                + ", isAdsCapable() " + isAdsCapable()
-                + ", isEduVersion() " + isEduVersion()
-                + ", isDonationsCapable() " + isDonationsCapable()
-                + ", isUseTestPurchase() " + isUseTestPurchase()
-                + ", isUseEmptyIabPayload() " + isUseEmptyIabPayload()
-                + ", isVerifyIabPayload() " + isVerifyIabPayload()
+//                + ", isAdsCapable() " + isAdsCapable()
+//                + ", isEduVersion() " + isEduVersion()
+//                + ", isDonationsCapable() " + isDonationsCapable()
+//                + ", isUseTestPurchase() " + isUseTestPurchase()
+//                + ", isUseEmptyIabPayload() " + isUseEmptyIabPayload()
+//                + ", isVerifyIabPayload() " + isVerifyIabPayload()
                 + ", isSimulatingNoConnection() " + isSimulatingNoConnection()
-                + ", isSimulatingNoPurchase() " + isSimulatingNoPurchase()
+//                + ", isSimulatingNoPurchase() " + isSimulatingNoPurchase()
                 + ", isDbCapable " + isDbCapable
                 + (isDbCapable ? ", getDbProviderAuthority() "+getDbProviderAuthority():"")
-                + ", isShowAdsWhenDonated() " + isShowAdsWhenDonated()
+//                + ", isShowAdsWhenDonated() " + isShowAdsWhenDonated()
                 + ", getDbProviderAuthorityFragment() " + getDbProviderAuthorityFragment()
                 ;
     }
@@ -1114,13 +1145,26 @@ public final class SpectrogramActivity extends Activity implements SoundClient.C
      */
     private void initUrlToPlayLocal(final Bundle savedInstanceState) {
 
-        if (!SOUND_TO_PLAY_IS_ENABLED) return;
+        if (!SOUND_TO_PLAY_IS_ENABLED) {
+            if(LOG_CONFIG.DEBUG==LogConfig.INIT){
+                Log.d(TAG,".initUrlToPlayLocal: exiting because SOUND_TO_PLAY_IS_ENABLED is false");
+            }
+            return;
+        }
 
-        if (!doesSoundOutput) return;
+        if (!doesSoundOutput) {
+            if(LOG_CONFIG.DEBUG==LogConfig.INIT){
+                Log.d(TAG,".initUrlToPlayLocal: exiting because doesSoundOutput is false");
+            }
+            return;
+        }
 
         if (savedInstanceState == null) {
             // starting new session (with an Intent), use url from intent (if any)
             // this method does nothing if the start intent has no valid url to play
+            if(LOG_CONFIG.DEBUG==LogConfig.INIT){
+                Log.d(TAG,".initUrlToPlayLocal: starting new session with an Intent");
+            }
             // ======================================
             if (!handleIncomingIntent()) {
             // ======================================
@@ -1135,6 +1179,9 @@ public final class SpectrogramActivity extends Activity implements SoundClient.C
 
         } else {
             // restoring session (not with intent), use url from previous session, if any
+            if(LOG_CONFIG.DEBUG==LogConfig.INIT){
+                Log.d(TAG,".initUrlToPlayLocal: restoring session without an Intent");
+            }
             setUrlToPlayInUi();
         }
     }
@@ -1200,7 +1247,7 @@ public final class SpectrogramActivity extends Activity implements SoundClient.C
                     "aboutShown = " + aboutShown
                     +": deviceShown = "+deviceShown
                     + "; contentTextView = " + contentTextView
-                    + "; guiLayout = " + largeGuiLayout);
+                    + "; largeGuiLayout = " + largeGuiLayout);
         //if (largeGuiLayout != null) largeGuiLayout.setBackgroundColor(Color.TRANSPARENT);
         spectrogramShown = true;
         textColorBrighter = false;
@@ -1249,10 +1296,12 @@ public final class SpectrogramActivity extends Activity implements SoundClient.C
                 Log.d(TAG, "doHideGui: largeGuiLayout sensitivity is enabled");
             largeGuiLayout.setOnClickListener(ON_CLICK_LISTENER);
             largeGuiLayout.setClickable(true);
-            Snackbar.make(largeGuiLayout,
-                    "To show GUI, tap near middle of screen.",
-                    Snackbar.LENGTH_LONG)
-                    .setAction("null", null).show();
+//            Snackbar.make(findViewById(android.R.id.content), //coordinatorLayout,
+//                    "To show GUI, tap near middle of screen.",
+//                    Snackbar.LENGTH_LONG)
+//                    .setAction("null", null).show();
+            Toast.makeText(this,"To show the user interface, tap near middle of screen.",
+                    Toast.LENGTH_LONG).show();
         }
     }
 
@@ -1576,9 +1625,11 @@ public final class SpectrogramActivity extends Activity implements SoundClient.C
         if(ALWAYS_HIDE_BG_WHEN_TEXT){
             //if text showing, then don't do anything here
             if(aboutShown || deviceShown){
-                Snackbar.make(largeGuiLayout,
-                        "Nothing to do for this button in this situation",//TODO res value string
-                        Snackbar.LENGTH_LONG).setAction("null", null).show();
+//                Snackbar.make(findViewById(android.R.id.content), //coordinatorLayout,
+//                        "Nothing to do for this button in this situation",//TODO res value string
+//                        Snackbar.LENGTH_LONG).setAction("null", null).show();
+                Toast.makeText(this,"Nothing to do for this button in this situation",
+                        Toast.LENGTH_LONG).show();
                 return;
             }
             doHideGui();
@@ -1598,7 +1649,7 @@ public final class SpectrogramActivity extends Activity implements SoundClient.C
             Log.d(TAG, "aboutButtonSelected: " +
                     "aboutShown = " + aboutShown
                     + "; contentTextView = " + contentTextView
-                    + "; guiLayout = " + largeGuiLayout);
+                    + "; largeGuiLayout = " + largeGuiLayout);
         if (!aboutShown) {
             //hide bg if option is enabled, and show the about text
             if(ALWAYS_HIDE_BG_WHEN_TEXT){
@@ -1906,11 +1957,14 @@ public final class SpectrogramActivity extends Activity implements SoundClient.C
     private final Runnable RUNNABLE_FOR_URL_PREPARE = new Runnable() {
         @Override
         public void run() {
-            if(largeGuiLayout==null)return;
-            urlPrepareSnackbar = Snackbar.make(largeGuiLayout,
-                    "Please wait, preparing media for playing...",//TODO res
-                    Snackbar.LENGTH_INDEFINITE).setAction("null", null);
-            urlPrepareSnackbar.show();
+//            if(coordinatorLayout==null)return;
+//            urlPrepareSnackbar = Snackbar.make(findViewById(android.R.id.content), //coordinatorLayout,
+//                    "Please wait, preparing media for playing...",//TODO res
+//                    Snackbar.LENGTH_INDEFINITE).setAction("null", null);
+//            urlPrepareSnackbar.show();
+            Toast.makeText(SpectrogramActivity.this,
+                    "Please wait, preparing media for playing...",
+                    Toast.LENGTH_LONG).show();
         }
     };
 
@@ -1923,12 +1977,15 @@ public final class SpectrogramActivity extends Activity implements SoundClient.C
     private final Runnable RUNNABLE_FOR_STATUS = new Runnable() {
         @Override
         public void run() {
-            if(largeGuiLayout!=null) {
-                Snackbar statusSnackbar = Snackbar.make(largeGuiLayout,
+//            if(coordinatorLayout!=null) {
+//                Snackbar statusSnackbar = Snackbar.make(findViewById(android.R.id.content), //coordinatorLayout,
+//                        statusText,
+//                        Snackbar.LENGTH_SHORT).setAction("null", null);
+//                statusSnackbar.show();
+                Toast.makeText(SpectrogramActivity.this,
                         statusText,
-                        Snackbar.LENGTH_SHORT).setAction("null", null);
-                statusSnackbar.show();
-            }
+                        Toast.LENGTH_SHORT).show();
+//            }
         }
     };
 
@@ -1937,7 +1994,6 @@ public final class SpectrogramActivity extends Activity implements SoundClient.C
      *
      * @param givenStatusText
      */
-    @Override
     public void showStatusSnackbar(final String givenStatusText) {//TODO 2017-7-1 add param isIndefinite and OK action with listener to dismiss it
         statusText = givenStatusText;
         runOnUiThread(RUNNABLE_FOR_STATUS);
@@ -2091,13 +2147,13 @@ public final class SpectrogramActivity extends Activity implements SoundClient.C
             Log.d(TAG,".doPauseUrl: player.pause() returned "+pauseSucceeded);
         if (pauseSucceeded) {
             //player pause succeeded
-            if (urlPrepareSnackbar != null && urlPrepareSnackbar.isShown()) {
-                //urlPrepareSnackbar is not completed, then dismiss it
-                urlPrepareSnackbar.dismiss();
-                // TODO was player preparation completed ???
-                if(LOG_CONFIG.DEBUG==LOG_CONFIG.PLAY_URL)
-                    Log.w(TAG,".doPauseUrl: urlPrepareSnackbar was showing, was player preparation completed?");
-            }
+//            if (urlPrepareSnackbar != null && urlPrepareSnackbar.isShown()) {
+//                //urlPrepareSnackbar is not completed, then dismiss it
+//                urlPrepareSnackbar.dismiss();
+//                // TODO was player preparation completed ???
+//                if(LOG_CONFIG.DEBUG==LOG_CONFIG.PLAY_URL)
+//                    Log.w(TAG,".doPauseUrl: urlPrepareSnackbar was showing, was player preparation completed?");
+//            }
             urlIsPlaying = false;
             urlIsPaused = true;
             if (playUrlButton != null) playUrlButton.setText("Resume");
@@ -2121,7 +2177,7 @@ public final class SpectrogramActivity extends Activity implements SoundClient.C
      * @param isForAnomaly when true, the url color is set to the error color
      */
     private void resetUrl(boolean isForAnomaly) {
-        if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
+//        if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
         resetUrlGui();//color is set to urlColorForInactive
         if (isForAnomaly) {
             AudioPlayer.getIt().stop();
@@ -2197,12 +2253,13 @@ public final class SpectrogramActivity extends Activity implements SoundClient.C
             if(contentTextView.getVisibility()==View.VISIBLE){
                 s = "To show the media GUI again, first hide the text by tapping the related text button and then tap the screen.";
             }
-            if (largeGuiLayout != null) {
-                Snackbar.make(largeGuiLayout,
-                        s,
-                        Snackbar.LENGTH_LONG)
-                        .setAction("null", null).show();
-            }
+//            if (coordinatorLayout != null) {
+//                Snackbar.make(findViewById(android.R.id.content), //coordinatorLayout,
+//                        s,
+//                        Snackbar.LENGTH_LONG)
+//                        .setAction("null", null).show();
+//            }
+            Toast.makeText(this, s, Toast.LENGTH_LONG).show();
         }
     }
 
@@ -2451,6 +2508,26 @@ public final class SpectrogramActivity extends Activity implements SoundClient.C
         intent.putExtra(Intent.EXTRA_SUBJECT, "Email to support");
         intent.putExtra(Intent.EXTRA_TEXT, text);
         startActivity(intent);
+    }
+
+    @Override
+    public Runnable getRunnableForUiAfterDbLoaded() {
+        return null;
+    }
+
+    @Override
+    public Runnable getRunnableForMainProcess() {
+        return null;
+    }
+
+    @Override
+    public Runnable getRunnableToUnpauseOnUi() {
+        return null;
+    }
+
+    @Override
+    public Runnable getRunnableToEnableEmitButton() {
+        return null;
     }
 
     /**
@@ -3003,19 +3080,19 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      * Designed to be done very early in the activity startup step.
      */
     private void restorePreferences() {
-        if (LOG_CONFIG.DEBUG>=LogConfig.ON)
+        if (LOG_CONFIG.DEBUG==LogConfig.INIT)
             Log.d(TAG, ".restorePreferences: entering...");
 
         final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
 
-        if (LOG_CONFIG.DEBUG>=LogConfig.ON)
+        if (LOG_CONFIG.DEBUG==LogConfig.INIT)
             Log.d(TAG, ".restorePreferences: prefs = " + prefs);
 
         SettingsForSoundPreferences.restoreInputSettings(prefs);
 
 //        restoreUrlToPlay(prefs);
 
-        if (LOG_CONFIG.DEBUG>=LogConfig.ON)
+        if (LOG_CONFIG.DEBUG==LogConfig.INIT)
             Log.d(TAG, ".restorePreferences: exiting...");
     }
 
@@ -3039,7 +3116,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
             s += "\n" + Log.getStackTraceString(ex);
             Log.e(TAG, ".onExceptionAtInit: " + s + " " + Thread.currentThread());
         }
-        if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
+//        if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
         showAnomalyText(ex, "Error detected at startup");
     }
 
@@ -3056,11 +3133,11 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      * @return false when device does not support sound input
      * @throws Exception
      */
-    private boolean setDeviceSoundCapabilities() throws Exception {
+    private boolean setDeviceSoundCapabilities() throws Exception { //TODO washere 2018-5-27
 
         //includes sound configs kept in DeviceSoundCapabilities
         //============================================================
-        DeviceSoundCapabilities.initFundamentalsForDevice(this);
+        DeviceSoundCapabilities.initFundamentalsForDevice(this,false);
         //============================================================
 
         if (!DeviceSoundCapabilities.isDeviceCapableOfSoundInput()) {
@@ -3228,6 +3305,61 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //        }
     }
 
+    @Override
+    public boolean saveAndCopyDataOnAnotherThread(Button button, boolean b, boolean b1) { //TODO washere 2018-5-27
+        return false;
+    }
+
+    @Override
+    public void onSaveDataOrCopyDbCompleted(boolean b, boolean b1, String s, boolean b2, long l) {
+
+    }
+
+    @Override
+    public void afterDbEnabledChanged(boolean b) {
+
+    }
+
+    @Override
+    public void afterDbLoaded(long l, boolean b) {
+
+    }
+
+    @Override
+    public boolean onSaveDataCompleted(boolean b, boolean b1, boolean b2, long l, boolean b3) {
+        return false;
+    }
+
+    @Override
+    public int getMipmapIcLauncher() {
+        return 0;
+    }
+
+    @Override
+    public boolean isPauseSelected() {
+        return false;
+    }
+
+    @Override
+    public boolean pauseAll(String s) {
+        return false;
+    }
+
+    @Override
+    public boolean isPauseButtonChecked() {
+        return false;
+    }
+
+    @Override
+    public void acousticSignalReceived(Signal signal) {
+        
+    }
+
+    @Override
+    public void acousticSliceReceived(SoundSlice soundSlice) {
+
+    }
+
     /**
      * writes results in texts views for user to see
      *
@@ -3264,6 +3396,11 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     }
 
     @Override
+    public void results(int i, String s, long l, String s1) {
+
+    }
+
+    @Override
     public boolean isPaused() {//TODO future review with preserve bg image when app interrupted
         if (DeviceSoundCapabilities.getFundamentalsInitialized()) {
             //initialized, then depends on listener being null or not
@@ -3276,6 +3413,16 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     @Override
     public void unpause() throws Exception {
         getListener();
+    }
+
+    @Override
+    public CharSequence getConsoleCharSeq() {
+        return null;
+    }
+
+    @Override
+    public String getOrientationForDisplay() {
+        return null;
     }
 
 //    private void getListenerWithNotif() {
@@ -3435,15 +3582,15 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
       TODO prio 2 keep list of urls to play, give them names, delete, move up/down, export list (share)
      */
     @Override
-    public SoundClientPreferences getSoundClientPreferences(){
-        SoundClientPreferences soundPrefs = new SoundClientPreferences();
+    public AcousticConfig getAcousticConfig(){
+        AcousticConfig soundPrefs = new AcousticConfig();
         soundPrefs.isMicPreferred = true;
         soundPrefs.isChannelMonoRequested = true;
         soundPrefs.isEncodingPcmFloatPreferred = false;//TODO future true with new code for float processing
         soundPrefs.isNativeSampleRateRequested = true;
         soundPrefs.isSameEncodingPcmForInputAndOutputRequested = false;
         if(LOG_CONFIG.DEBUG==LogConfig.ON){
-            Log.d(TAG,".getSoundClientPreferences: isMicPreferred {"+soundPrefs.isMicPreferred
+            Log.d(TAG,".getAcousticConfig: isMicPreferred {"+soundPrefs.isMicPreferred
             +"} isChannelMonoRequested {"+soundPrefs.isChannelMonoRequested
             +"} isEncodingPcmFloatPreferred {"+soundPrefs.isEncodingPcmFloatPreferred
             +"} isNativeSampleRateRequested {"+soundPrefs.isNativeSampleRateRequested
@@ -3451,7 +3598,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
             +"}");
         }
         if(SHOW_USER_INIT_EVENTS_ENABLED){
-            showStatusSnackbar("SoundClientPreferences were set");
+            showStatusSnackbar("AcousticConfig were set");
         }
         return soundPrefs;
     }
@@ -3483,6 +3630,9 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         return null;
     }
 
+    public SpectrogramView getSpectrogramView(){
+        return spectrogramView;
+    }
 
     private final Object LOCK_FOR_LISTENER = new Object();
 
@@ -3503,14 +3653,14 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
                 enableThePauseButton("Pause");
                 BasicListener listener = BasicListener.getARunningListener(this);
                 if (listener == null) {
-                    disableThePauseButton(null);
+                    disableThePauseButton("Failed");
                     showProblemStartingListener();
                 }
                 return listener;
             } catch (Exception e) {
                 disableThePauseButton(null);
                 showProblemStartingListener();
-                if (LOG_CONFIG.ERROR==LogConfig.ON)
+                if (LOG_CONFIG.ERROR>=LogConfig.ON)
                     Log.e(TAG, ".getListener: " + e + " " + Log.getStackTraceString(e));
                 throw e;
             }
@@ -3518,11 +3668,14 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     }
 
     private void showProblemStartingListener() {
-        if (largeGuiLayout != null) {
-            Snackbar.make(largeGuiLayout, "The sound listener cannot be started", Snackbar.LENGTH_LONG).show();
-        } else {
-            Toast.makeText(this, "The listener failed to start", Toast.LENGTH_LONG).show();
-        }
+//        if (coordinatorLayout != null) {
+//            Snackbar.make(findViewById(android.R.id.content), //coordinatorLayout,
+//                     "The sound listener cannot be started", Snackbar.LENGTH_LONG).show();
+//        } else {
+//            Toast.makeText(this, "The listener failed to start", Toast.LENGTH_LONG).show();
+//        }
+        Toast.makeText(this, "The sound listener cannot be started",
+                Toast.LENGTH_LONG).show();
         // show error in text view
         showFailureInMethod(null, "BasicListener.getARunningListener");
     }
@@ -3599,7 +3752,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
         AudioPlayer.getIt().pause(); // shutdown();
 
-        if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
+//        if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
     }
 
     private void savePrefs() {
@@ -4071,10 +4224,13 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
                 if (isActionSendIntent(intentToPlay)) {
                     // the start intent was sent by external app, and it's invalid
-                    if (largeGuiLayout != null)
-                        Snackbar.make(largeGuiLayout,
-                                "The URL from an external app is invalid and is ignored",
-                                Snackbar.LENGTH_LONG).show();
+//                    if (coordinatorLayout != null)
+//                        Snackbar.make(findViewById(android.R.id.content), //coordinatorLayout,
+//                                "The URL from an external app is invalid and is ignored",
+//                                Snackbar.LENGTH_LONG).show();
+                    Toast.makeText(this,
+                            "The URL from an external app is invalid and is ignored",
+                            Toast.LENGTH_LONG).show();
                 } else {
                     // the start intent is not a send intent, so ignore,
                     // probably normal start intent
@@ -4216,9 +4372,11 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
             // url for a local file
             s = s+" Intent: "+intent;
         }
-        if (largeGuiLayout != null) {
-            Snackbar.make(largeGuiLayout, s, Snackbar.LENGTH_LONG).show();
-        }
+//        if (coordinatorLayout != null) {
+//            Snackbar.make(findViewById(android.R.id.content), //coordinatorLayout,
+//                    s, Snackbar.LENGTH_LONG).show();
+//        }
+        Toast.makeText(this, s, Toast.LENGTH_LONG).show();
         notifyPlayAbnormalEnd(new Exception(s));
     }
 
@@ -4227,9 +4385,11 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
                 || LOG_CONFIG.DEBUG==LogConfig.ON
                 || LOG_CONFIG.ERROR==LogConfig.ON)
             Log.e(TAG, ".showError {" + text + "}");
-        if (largeGuiLayout != null) {
-            Snackbar.make(largeGuiLayout, text, Snackbar.LENGTH_LONG).show();
-        }
+//        if (coordinatorLayout != null) {
+//            Snackbar.make(findViewById(android.R.id.content), //coordinatorLayout,
+//                    text, Snackbar.LENGTH_LONG).show();
+//        }
+        Toast.makeText(this, text, Toast.LENGTH_LONG).show();
     }
 
     /**
@@ -4237,7 +4397,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      * @param method a text fragment, example: "mediaPlayer.prepare"
      */
     private void showFailureInMethod(final Throwable ex, final String method) {
-        if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
+        //if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
         showAnomalyText(ex, method + " raised " + ex);
     }
 
@@ -4326,7 +4486,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         @Override
         public void run() {
 
-            if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
+//            if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
 
             notifyPlayStart();
         }
@@ -4343,10 +4503,12 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         @Override
         public void run() {
             notifyPlayNormalEnd();
-            if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
-            if(largeGuiLayout==null)return;
-            Snackbar.make(largeGuiLayout, textForEndOfPlay,
-                    Snackbar.LENGTH_LONG).show();
+            //if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
+//            if(coordinatorLayout==null)return;
+//            Snackbar.make(findViewById(android.R.id.content), //coordinatorLayout,
+//                    textForEndOfPlay,
+//                    Snackbar.LENGTH_LONG).show();
+            Toast.makeText(SpectrogramActivity.this, textForEndOfPlay, Toast.LENGTH_LONG).show();
             resetUrlGui();
             clearAnomalyText();
         }
@@ -4367,12 +4529,15 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
             if(editTextUrlToPlay==null)return;
             notifyPlayAbnormalEnd(throwableFromPlayer);
             doCancelUrl();
-            if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
+//            if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
             editTextUrlToPlay.setTextColor(Color.RED);
             showAnomalyText(throwableFromPlayer, errorMessageFromPlayer);
-            if (largeGuiLayout != null)
-                Snackbar.make(largeGuiLayout, errorMessageFromPlayer, Snackbar.LENGTH_LONG)
-                        .show();
+//            if (coordinatorLayout != null)
+//                Snackbar.make(findViewById(android.R.id.content), //coordinatorLayout,
+//                        errorMessageFromPlayer, Snackbar.LENGTH_LONG)
+//                        .show();
+            Toast.makeText(SpectrogramActivity.this, errorMessageFromPlayer,
+                    Toast.LENGTH_LONG).show();
         }
     };
 
@@ -4404,14 +4569,16 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
             notifyPlayAbnormalEnd(new Exception("Audio focus was refused by the system"));
 
             doCancelUrl();
-            if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
+//            if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
             if(editTextUrlToPlay!=null)
                 editTextUrlToPlay.setTextColor(Color.GRAY);
             String s = "Audio focus refused by Android; try again later";
             //showAnomalyText(null, s);
-            if (largeGuiLayout != null)
-                Snackbar.make(largeGuiLayout, s, Snackbar.LENGTH_LONG)
-                        .show();
+//            if (coordinatorLayout != null)
+//                Snackbar.make(findViewById(android.R.id.content), //coordinatorLayout,
+//                        s, Snackbar.LENGTH_LONG)
+//                        .show();
+            Toast.makeText(SpectrogramActivity.this, s, Toast.LENGTH_LONG).show();
         }
     };
 
@@ -4574,12 +4741,17 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
                 //there is a previous back button press time; this is the second back-key
                 if (System.currentTimeMillis() - previousBackButtonMs > BACK_BUTTON_TIMEOUT_MS) {
                     // timeout exceeded, reset previous one; no exit
+                    if(LOG_CONFIG.DEBUG!=LogConfig.OFF) Log.d(TAG,".onKeyDown: timeout exceeded, reset previous one; no exit");
                     previousBackButtonMs = System.currentTimeMillis();
                     //if a text is showing, add  s = "; to hide the text, touch the text button"
-                    Snackbar.make(largeGuiLayout,
-                            "Please press the Back key again to exit" + s,
-                            Snackbar.LENGTH_LONG)
-                            .show();
+                    //if(coordinatorLayout!=null) {
+//                        Snackbar.make(findViewById(android.R.id.content), //coordinatorLayout,
+//                                "Please press the Back key again to exit" + s,
+//                                Snackbar.LENGTH_LONG)
+//                                .show();
+                    //}
+                    Toast.makeText(this, "Please press the Back key again to exit" + s,
+                            Toast.LENGTH_LONG).show();
                     // eat the action and do not propagate it
                     return true;
                 } else {
@@ -4588,16 +4760,31 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
                     shutdown(true);
                 }
             } else {
-                // there is no previous back button press time; no exit
+                // there is no previous back button press time; no exit TODO washere bug 2018-4-17 snackbar fails maybe internal error
+                if(LOG_CONFIG.DEBUG!=LogConfig.OFF) Log.d(TAG,".onKeyDown: no previous back button press time; no exit");
                 previousBackButtonMs = System.currentTimeMillis();
-                Snackbar.make(largeGuiLayout,
-                        "Please press the Back key again to exit" + s,
-                        Snackbar.LENGTH_LONG)
-                        .show();
+                //if(coordinatorLayout!=null) {
+                /*
+                E/InputEventSender: Exception dispatching finished signal.
+E/MessageQueue-JNI: Exception in MessageQueue callback: handleReceiveCallback
+E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Error inflating class <unknown>
+                        at android.view.LayoutInflater.createView(LayoutInflater.java:626)
+                 */
+                s = "Please press the Back key again to exit" + s;
+
+//                Snackbar.make(findViewById(android.R.id.content), //coordinatorLayout,
+//                        "Please press the Back key again to exit" + s,
+//                        Snackbar.LENGTH_LONG)
+//                        .show();
+
+                Toast.makeText(this,s,Toast.LENGTH_LONG).show();
+
+                //}
                 // eat the action and do not propagate it
                 return true;
             }
         }
+        if(LOG_CONFIG.DEBUG!=LogConfig.OFF) Log.d(TAG,".onKeyDown: calling *super.onKeyDown(keyCode, event)*");
         return super.onKeyDown(keyCode, event);
     }
 
@@ -4624,40 +4811,40 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         return false;// TODO false in prod
     }
 
-    @Override
-    public boolean isEduVersion() {
-        return false;
-    }
+//    @Override
+//    public boolean isEduVersion() {
+//        return false;
+//    }
 
     @Override
     public boolean isSupportEmailEnabled() {//TODO prio 2 2017-6-28 review with another class
         return false;
     }
 
-    @Override
-    public boolean isAdsCapable() {
-        return false;
-    }
+//    @Override
+//    public boolean isAdsCapable() {
+//        return false;
+//    }
 
-    @Override
-    public boolean isShowAdsWhenDonated() {
-        return false;
-    }
-
-    @Override
-    public boolean isDonationsCapable() {
-        return false;
-    }
-
-    @Override
-    public boolean isUseTestPurchase() {
-        return false;
-    }
-
-    @Override
-    public boolean isUseEmptyIabPayload() {
-        return false;
-    }
+//    @Override
+//    public boolean isShowAdsWhenDonated() {
+//        return false;
+//    }
+//
+//    @Override
+//    public boolean isDonationsCapable() {
+//        return false;
+//    }
+//
+//    @Override
+//    public boolean isUseTestPurchase() {
+//        return false;
+//    }
+//
+//    @Override
+//    public boolean isUseEmptyIabPayload() {
+//        return false;
+//    }
 
     @Override
     public boolean isSimulatingNoConnection() {
@@ -4665,15 +4852,20 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     }
 
     @Override
-    public boolean isSimulatingNoPurchase() {
-        return false;
+    public void showStatus(String s) {
+
     }
+
+//    @Override
+//    public boolean isSimulatingNoPurchase() {
+//        return false;
+//    }
 
     @Override
     public void onStart() {
         super.onStart();
 
-//        if(APP_INDEXING_IS_ENABLED) {//TODO future enable
+//        if(APP_INDEXING_IS_ENABLED) {//TO DO future enable
 //
 //            // ATTENTION: This was auto-generated to implement the App Indexing API.
 //            // See https://g.co/AppIndexing/AndroidStudio for more information.
@@ -4714,7 +4906,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
         super.onStop();
 
-//        if(APP_INDEXING_IS_ENABLED) { // TODO future enable
+//        if(APP_INDEXING_IS_ENABLED) { // TO DO future enable
 //
 //            // ATTENTION: This was auto-generated to implement the App Indexing API.
 //            // See https://g.co/AppIndexing/AndroidStudio for more information.
@@ -4733,6 +4925,8 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //        }c
     }
 
+
+
 } // end of class
 
     //===================== archive ==================================
@@ -4747,8 +4941,8 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //        if (LOG_CONFIG.DEBUG==LogConfig.INTENT
 //                || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
 //            Log.d(TAG, ".invalidUrl: invalid URL text {" + urlString + "}");
-//        if (largeGuiLayout != null)
-//            Snackbar.make(largeGuiLayout,
+//        if (coordinatorLayout != null)
+//            Snackbar.make(findViewById(android.R.id.content), //coordinatorLayout,
 //                    "The URL is invalid and is ignored: " + urlString,
 //                    Snackbar.LENGTH_LONG).show();
 //        notifyPlayAbnormalEnd(new Exception("The URL is invalid {"+urlString+"}"));
@@ -4769,7 +4963,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //        urlToPlayRaw = null;
 //        urlToPlayUri = null;
 //        urlToPlayDecoded = "";
-//        //TO DO was here was here spectro bug this does not work for extra_stream for type AUDIO_*
+//        //TO DO was here was here spectro b u g this does not work for extra_stream for type AUDIO_*
 //        urlToPlayRaw = intent.getStringExtra(Intent.EXTRA_TEXT);
 //        if (LOG_CONFIG.DEBUG==LogConfig.INTENT)
 //            Log.d(TAG, ".handleIncomingIntent: urlToPlayRaw from Intent.EXTRA_TEXT {"
@@ -5016,7 +5210,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //
 //    /**
 //     * Sends fake screen touches to prevent cpu from slowing down
-//     * TO DO bug make sure that it does not write into an edittext view
+//     * TO DO b u g make sure that it does not write into an edittext view
 //     */
 //    private void tempHackForCpuAtFullSpeed() {
 //        Timer touchTimer = new Timer();
@@ -5186,7 +5380,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //     * @param filePath
 //     * @return true when started, false when attempt failed.
 //     */
-//    private boolean playLocalFileAfterStorageAccessGranted(final String filePath) {// TO DO 2017-7-26 called twice !!!  bug
+//    private boolean playLocalFileAfterStorageAccessGranted(final String filePath) {// TO DO 2017-7-26 called twice !!!  b u g
 //        if (LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
 //            Log.d(TAG, ".playLocalFileAfterStorageAccessGranted: entering with filePath {" + filePath + "}");
 //

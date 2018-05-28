@@ -20,22 +20,36 @@ from the same author. The library from android-acoustic-lib is an
 The executable app does not use other libraries than 
 the basic Android ones and the library from the same author.
 
-Copyright 2016-2018 Serge Masse
+Copyright (c) 2016-2018 Serge Masse
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+Redistribution and use in source and binary forms, with or without modification, are permitted 
+provided that the following conditions are met:
+                           
+1. Redistributions of source code must retain the above copyright notice, this list of conditions 
+and the following disclaimer.
+                           
+2. Redistributions in binary form must reproduce the above copyright notice, this list of 
+conditions and the following disclaimer in the documentation and/or other materials 
+provided with the distribution.
+                           
+3. Neither the name of the copyright holder nor the names of its contributors may be used 
+to endorse or promote products derived from this software without specific prior written 
+permission.
 
-      http://www.apache.org/licenses/LICENSE-2.0
+4. This software, as well as products derived from it, must not be used for the purpose of 
+killing, harming, harassing, or capturing animals.
+                           
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED 
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, 
+BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, 
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF 
+THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-This software is not to be used
-for the purpose of killing, harming, harassing, or capturing animals.
 The use of this software with captive cetaceans and other large mammals
 in captivity is discouraged.
 
@@ -121,7 +135,7 @@ Some current Android devices can perform sampling of sounds at 96,000 samples pe
 10. Publish one or more client projects to G Play 
 https://developer.android.com/studio/publish/index.html
 
-#### TODO's ####
+#### TODO's Legend/Definitions ####
 
 see all "bug", "washere", "prio 1", "prod"/"production" to-do's
 
@@ -182,7 +196,7 @@ android:statusBarColor = @android:color/transparent
     </style>
 ```
 
-prio 1 or 2? maybe app audio input source = android default, not mic, test bluetooth mic
+prio 1 or 2? maybe [audio input source = android default, not mic, test bluetooth mic]
 
 prio 1 or 2? list of sources/recordings of ceta sounds; to add in about text
 
@@ -218,15 +232,15 @@ tv.setText(Html.fromHtml(getString(R.string.my_text)));
 
 #### 2018 todo's ####
 
-presentation with bluetooth speaker (waterproof)
+[presentation with bluetooth speaker (waterproof)]
 
-presentation with laptop showing phone screen (airdroid, teamviewer)
+[presentation with laptop showing phone screen (airdroid, teamviewer)]
 
-record and post videos of great whistle recording(s) played by spectrogram, send to west coast orca team
+[record and post videos of great whistle recording(s) played by spectrogram, send to west coast orca team]
 
-cleanup the code for public opensource (all apps and libs)
+[cleanup the code for public opensource (all apps and libs)]
 
-add license text at top of all classes (all apps and libs)
+done: add license text at top of all classes (all apps and libs)
 
 work on the other 2 apps, Recog and DolphinComm
 
@@ -234,12 +248,17 @@ work on the other 2 apps, Recog and DolphinComm
 
 todo www.samsung.com/kies
 
-fixed no output for < v21
+fixed: no output for < v21
 
-buttons too dark
+[buttons too dark]
 
-done move device basic at top of text 
+done: move device basic at top of text
 
-done add in about: icon is made using a screenshot of a recording by www.aguasonic.com of a very animated
+done: add in about: icon is made using a screenshot of a recording by www.aguasonic.com of a very animated
 discussion (vocalisations) by a group of dolphins, probably Tursiops, with often some 5 individuals
 whistling at the same time.
+
+#### 2018-4-17 ####
+
+[not starting correctly]
+
