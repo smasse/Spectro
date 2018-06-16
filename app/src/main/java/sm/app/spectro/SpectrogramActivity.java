@@ -71,31 +71,20 @@ import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 import java.util.Date;
 
-import sm.leafy.util.LogClient;
-import sm.leafy.util.LogConfig;
-import sm.leafy.util.forandroid.AppContext;
-import sm.leafy.util.forandroid.AppPublisher;
-import sm.leafy.util.forandroid.DataFromIntent;
-import sm.leafy.util.forandroid.OnAnyThread;
-import sm.leafy.util.forandroid.Timestamp;
 import sm.lib.acoustic.Acoustic;
 import sm.lib.acoustic.AcousticConfig;
-import sm.lib.acoustic.comm.xspecies.Signal;
-import sm.lib.acoustic.sound.EmitterGrandParent;
-import sm.lib.acoustic.sound.forandroid.DeviceSoundCapabilities;
-import sm.lib.acoustic.sound.forandroid.SettingsForSoundPreferences;
-import sm.lib.acoustic.sound.forandroid.input.BasicListener;
-import sm.lib.acoustic.sound.forandroid.input.SettingsForSoundInput;
-import sm.lib.acoustic.sound.forandroid.input.SettingsForSoundInputDisplay;
-import sm.lib.acoustic.sound.forandroid.input.SoundSlice;
-import sm.lib.acoustic.sound.forandroid.input.spectrogram.SpectrogramView;
-import sm.lib.acoustic.sound.forandroid.output.AudioPlayer;
-import sm.lib.acoustic.sound.forandroid.quality.SoundQualitySettings;
-
-import static sm.leafy.util.forandroid.OnAnyThread.isOnRealDevice;
-
-//import sm.lib.acoustic.sound.forandroid.SoundClientPreferences;
-//import static sm.leafy.util.forandroid.OnAnyThread.getAppName;
+import sm.lib.acoustic.AcousticDeviceCapabilities;
+import sm.lib.acoustic.AcousticLogConfig;
+import sm.lib.acoustic.AcousticSettings;
+import sm.lib.acoustic.AcousticSignal;
+import sm.lib.acoustic.AcousticSlice;
+import sm.lib.acoustic.AudioPlayer;
+import sm.lib.acoustic.gui.SpectrogramView;
+import sm.lib.acoustic.util.AppContext;
+import sm.lib.acoustic.util.AppPublisher;
+import sm.lib.acoustic.util.DataFromIntent;
+import sm.lib.acoustic.util.OnAnyThread;
+import sm.lib.acoustic.util.Timestamp;
 
 
 public final class SpectrogramActivity extends Activity implements Acoustic.Callback {
@@ -103,7 +92,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     private static final String TAG = SpectrogramActivity.class.getSimpleName();
 
     /**
-     * only to be used for issues prior to LogConfig.DEBUG = INIT being set;
+     * only to be used for issues prior to AcousticLogConfig.DEBUG = INIT being set;
      * normally false in production
      */
     public static final boolean LOG_INIT_ENABLED = false;
@@ -427,21 +416,21 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     private final boolean APP_INDEXING_IS_ENABLED = false;
 
     /**
-     * Production (prod): new LogConfig(LogConfig.OFF,LogConfig.OFF,LogConfig.OFF)
+     * Production (prod): new AcousticLogConfig(AcousticLogConfig.OFF,AcousticLogConfig.OFF,AcousticLogConfig.OFF)
      * <br>error off
      * <br>warning off
      * <br>debug off
      */
-    private final LogConfig LOG_CONFIG = new LogConfig(LogConfig.OFF,LogConfig.OFF,LogConfig.INIT); //LogConfig.DEVICE_SOUND_CAPABILITIES);
+    private final AcousticLogConfig LOG_CONFIG = new AcousticLogConfig(AcousticLogConfig.OFF,AcousticLogConfig.OFF,AcousticLogConfig.INIT); //LogConfig.DEVICE_SOUND_CAPABILITIES);
 
     @Override
-    public LogConfig getLogConfig() {
+    public AcousticLogConfig getLogConfig() {
         return LOG_CONFIG;
     }
 
     @Override
     public void onError(String s) {
-        if(LogConfig.isAnyLogEnabled(LOG_CONFIG) ){
+        if(Acoustic.getIt().isAnyLogEnabled() ){
             Log.d(TAG,"onError: "+s);
         }
     }
@@ -539,7 +528,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         return false;
     }
 
-    @Override
+
     public String getDbProviderAuthority() {
         return "N/A";
     }
@@ -573,7 +562,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 
         restorePreferences();
 
-        if (LogConfig.isAnyLogEnabled(LOG_CONFIG)){
+        if (Acoustic.getIt().isAnyLogEnabled()){
             Log.d(TAG, ".onCreate: entering..." +
                     "app name {" + AppContext.getIt().getAppName()
                     + "} version name {" + AppContext.getIt().getVersionName()
@@ -607,9 +596,9 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
      */
     private boolean getPermissionForRecordAudio(final String[] permissionsGiven, final int requestCode) {
         //savedInstanceStateTemp = savedInstanceStateGiven;
-        if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
-                || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS
-                || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT || LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
+                || LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS
+                || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
             Log.d(TAG, ".getPermissionForRecordAudio entering...Build.VERSION.SDK_INT = "
                     + Build.VERSION.SDK_INT);
 
@@ -626,9 +615,9 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
             aprioriGranted = ContextCompat.checkSelfPermission(this,
                     Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
         }
-        if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
-                || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS
-                || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT || LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
+                || LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS
+                || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
             Log.d(TAG, ".getPermissionForRecordAudio: aprioriGranted " + aprioriGranted);
 
         if (!aprioriGranted) {
@@ -636,17 +625,17 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
             // No explanation needed to give user, we can request the permission.
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
-                        || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS
-                        || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL )
+                if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT || LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
+                        || LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS
+                        || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL )
                     Log.d(TAG, ".getPermissionForRecordAudio about to call requestPermissions(...)");
                 // -----------------------------------------------------------------------
                 requestPermissions(permissionsGiven, requestCode);
                 // -----------------------------------------------------------------------
             } else {
-                if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
-                        || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS
-                        || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+                if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT || LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
+                        || LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS
+                        || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
                     Log.d(TAG, ".getPermissionForRecordAudio about to call ActivityCompat.requestPermissions(...)");
 
                 ActivityCompat.requestPermissions(this, permissionsGiven, requestCode);
@@ -656,9 +645,9 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
             // result of the request.
         } else {
             //granted apriori
-            if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
-                    || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS
-                    || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+            if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT || LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
+                    || LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS
+                    || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
                 Log.d(TAG, ".getPermissionForRecordAudio: was granted apriori" +
                         "; calling onCreateComplete...");
 
@@ -668,9 +657,9 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         }
         //here when permission granted before running the app, e.g., older version of android
 
-        if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
-                || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS
-                || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT || LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
+                || LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS
+                || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
             Log.d(TAG, ".getPermissionForRecordAudio exiting...");
 
         return false;
@@ -686,8 +675,8 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     public void onRequestPermissionsResult(int requestCode,
                                            @NonNull String[] permissions,
                                            @NonNull int[] grantResults) {
-        if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
-                || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT || LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
+                || LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS)
             Log.d(TAG, ".onRequestPermissionsResult entering with requestCode {" + requestCode
                     + "}; filePathNeedingAccess {" + filePathNeedingAccess + "}");
 //        readFileAccepted = false;
@@ -695,9 +684,9 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         //permissionGrantedForRecordAudio = false;
         switch (requestCode) {
             case PERMISSIONS_REQUEST_CODE_FOR_RECORD_AUDIO: {
-                if (LOG_CONFIG.DEBUG==LogConfig.INIT
-                        || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
-                        || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
+                if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT
+                        || LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
+                        || LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS)
                     Log.d(TAG, ".onRequestPermissionsResult: " +
                             "PERMISSIONS_REQUEST_CODE_FOR_RECORD_AUDIO; " +
                             "grantResults.length = " + grantResults.length);
@@ -711,9 +700,9 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 
                 if (!permissionGrantedForRecordAudio) {
                     // not granted, cannot run the spectrogram, only the Device text is useful
-                    if (LOG_CONFIG.DEBUG!=LogConfig.OFF)
-//                    if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
-//                            || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
+                    if (LOG_CONFIG.DEBUG!=AcousticLogConfig.OFF)
+//                    if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT || LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
+//                            || LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS)
                         Log.d(TAG, ".onRequestPermissionsResult: audio permission denied; calling shutdown withfinish()");
 
                     //TODO prio 2 2016-12 call an activity to display the status
@@ -722,8 +711,8 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
                     return;
                 }
                 //here when record audio was granted
-                if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
-                        || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
+                if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT || LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
+                        || LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS)
                     Log.d(TAG, ".onRequestPermissionsResult: audio permission granted");
                 //complete create
                 onCreateComplete(savedInstanceStateTemp);
@@ -731,9 +720,9 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
             } // case
 
             case PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS: {
-                if (LOG_CONFIG.DEBUG==LogConfig.INIT
-                        || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
-                        || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
+                if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT
+                        || LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
+                        || LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS)
                     Log.d(TAG, ".onRequestPermissionsResult: " +
                             "PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS; " +
                             "grantResults.length = " + grantResults.length);
@@ -749,9 +738,9 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
                 // when false, disable the play url functions for local files
 //                permissionGrantedForStorageAccess = ;
 
-                if (LOG_CONFIG.DEBUG==LogConfig.INIT
-                        || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
-                        || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
+                if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT
+                        || LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
+                        || LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS)
                     Log.d(TAG, ".onRequestPermissionsResult: " +
                             "PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS; " +
                             "readFileAccepted = " + readFileAccepted
@@ -770,8 +759,8 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
             // other 'case' lines to check for other
             // permissions this app might request
             default: {
-                if (LOG_CONFIG.DEBUG==LogConfig.INIT || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
-                        || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
+                if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT || LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
+                        || LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS)
                     Log.d(TAG, ".onRequestPermissionsResult: default; requestCode " + requestCode
                             //+"; permissionGrantedForRecordAudio "+ permissionGrantedForRecordAudio
                             //+"; calling onCreateComplete(savedInstanceStateTemp)..."
@@ -805,8 +794,8 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         }
 
         if (permission == PackageManager.PERMISSION_GRANTED) {
-            if (LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS
-                    || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL) {
+            if (LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS
+                    || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL) {
                 Log.d(TAG, ".getPermissionForExternalStorageAccess: " +
                         "checkSelfPermission returned positive; this method is returning true");
             }
@@ -814,7 +803,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         }
 
         //no permission; did we asked the user before? if yes, then don't ask again
-        if (LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS||LOG_CONFIG.DEBUG==LogConfig.PLAY_URL) {
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS||LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL) {
             Log.d(TAG, ".getPermissionForExternalStorageAccess: " +
                     "checkSelfPermission returned negative; storageAccessPermissionWasAsked = "
                     + storageAccessPermissionWasAsked);
@@ -846,7 +835,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
                 PERMISSIONS_FOR_EXTERNAL_STORAGE_ACCESS,
                 PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS
         );
-        if (LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS||LOG_CONFIG.DEBUG==LogConfig.PLAY_URL) {
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS||LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL) {
             Log.d(TAG, ".getPermissionForExternalStorageAccess: " +
                     "checkSelfPermission returned negative; storageAccessPermissionWasAsked = "
                     + storageAccessPermissionWasAsked
@@ -872,7 +861,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
      */
     protected void onCreateComplete(final Bundle savedInstanceStateGiven) {
         try {
-            if (LogClient.isLogDebugEnabled())
+            if (Acoustic.getIt().isLogDebugEnabled())
                 Log.d(TAG, ".onCreateComplete: entering...");
 
             // 1. sound capabilities
@@ -881,9 +870,9 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 
             doesSoundInput = setDeviceSoundCapabilities();
 
-            doesSoundOutput = DeviceSoundCapabilities.isDeviceCapableOfSoundOutput();
+            doesSoundOutput = AcousticDeviceCapabilities.getIt().doesSoundOutput; //DeviceSoundCapabilities.isDeviceCapableOfSoundOutput();
 
-            if (LogClient.isLogDebugEnabled()) {
+            if (Acoustic.getIt().isLogDebugEnabled()) {
                 String soundInputSupported = doesSoundInput?"supported":"_not_ supported";
                 String soundOutputSupported = doesSoundOutput?"supported":"_not_ supported";;
                 Log.d(TAG, ".onCreateComplete: isOnRealDevice = " +isOnRealDevice+
@@ -914,12 +903,12 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
             // ===== main process =====
 
             //=====================================
-            BasicListener listener = getListener();
+            boolean success = startAcoustic();
             //=====================================
 
-            if (listener == null) {
+            if ( ! success ) {
                 // the listener failed to start
-                if (LogClient.isLogDebugEnabled()) {
+                if (Acoustic.getIt().isLogDebugEnabled()) {
                     Log.d(TAG,".onCreateComplete: exiting; the listener failed to start");
                 }
                 //TODO better info to user for this critical issue
@@ -938,11 +927,11 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
             //------------------------------------------
 
         } catch (Exception ex) {
-            if(LogClient.isAnyLogEnabled())Log.e(TAG,".onCreateComplete: "+ex);
+            if(Acoustic.getIt().isAnyLogEnabled())Log.e(TAG,".onCreateComplete: "+ex);
             disableThePauseButton("Error");
             onExceptionAtInit(ex);//TODO prio 2 2016-11 does this work???
         } finally {
-            if (LogClient.isLogDebugEnabled())
+            if (Acoustic.getIt().isLogDebugEnabled())
                 Log.d(TAG, ".onCreateComplete: exiting...");
         }
     }
@@ -969,7 +958,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         }
 
         largeGuiLayout = (LinearLayout) findViewById(R.id.spectrogram2_gui);
-        if (LOG_CONFIG.DEBUG==LogConfig.UI)
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
             Log.d(TAG, "onCreateUI: largeGuiLayout is spectrogram2_gui");
         largeGuiLayout.setOnClickListener(ON_CLICK_LISTENER);
         largeGuiLayout.setClickable(true);
@@ -1146,14 +1135,14 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     private void initUrlToPlayLocal(final Bundle savedInstanceState) {
 
         if (!SOUND_TO_PLAY_IS_ENABLED) {
-            if(LOG_CONFIG.DEBUG==LogConfig.INIT){
+            if(LOG_CONFIG.DEBUG==AcousticLogConfig.INIT){
                 Log.d(TAG,".initUrlToPlayLocal: exiting because SOUND_TO_PLAY_IS_ENABLED is false");
             }
             return;
         }
 
         if (!doesSoundOutput) {
-            if(LOG_CONFIG.DEBUG==LogConfig.INIT){
+            if(LOG_CONFIG.DEBUG==AcousticLogConfig.INIT){
                 Log.d(TAG,".initUrlToPlayLocal: exiting because doesSoundOutput is false");
             }
             return;
@@ -1162,7 +1151,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         if (savedInstanceState == null) {
             // starting new session (with an Intent), use url from intent (if any)
             // this method does nothing if the start intent has no valid url to play
-            if(LOG_CONFIG.DEBUG==LogConfig.INIT){
+            if(LOG_CONFIG.DEBUG==AcousticLogConfig.INIT){
                 Log.d(TAG,".initUrlToPlayLocal: starting new session with an Intent");
             }
             // ======================================
@@ -1179,7 +1168,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 
         } else {
             // restoring session (not with intent), use url from previous session, if any
-            if(LOG_CONFIG.DEBUG==LogConfig.INIT){
+            if(LOG_CONFIG.DEBUG==AcousticLogConfig.INIT){
                 Log.d(TAG,".initUrlToPlayLocal: restoring session without an Intent");
             }
             setUrlToPlayInUi();
@@ -1242,7 +1231,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     }
 
     private void showBgAndHideText(){
-        if (LOG_CONFIG.DEBUG==LogConfig.UI)
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
             Log.d(TAG, "showBgAndHideText: " +
                     "aboutShown = " + aboutShown
                     +": deviceShown = "+deviceShown
@@ -1260,7 +1249,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
             contentTextView.setTextColor(textColorTransparent);
         }
         if (largeGuiLayout != null) {
-            if (LOG_CONFIG.DEBUG==LogConfig.UI)
+            if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
                 Log.d(TAG, "deviceButtonSelected: " +
                         "largeGuiLayout sensitivity is enabled");
             largeGuiLayout.setOnClickListener(ON_CLICK_LISTENER);
@@ -1279,7 +1268,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     }
 
     private void doHideGui() {
-        if (LOG_CONFIG.DEBUG==LogConfig.UI)
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
             Log.d(TAG, "doHideGui: entering");
         if (buttonsLayout != null) {
             buttonsLayout.setVisibility(View.GONE);
@@ -1292,7 +1281,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         doHideUrl(false);
         if (largeGuiLayout != null) {
             //enable screen sensitivity
-            if (LOG_CONFIG.DEBUG==LogConfig.UI)
+            if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
                 Log.d(TAG, "doHideGui: largeGuiLayout sensitivity is enabled");
             largeGuiLayout.setOnClickListener(ON_CLICK_LISTENER);
             largeGuiLayout.setClickable(true);
@@ -1306,16 +1295,16 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     }
 
     private void doShowGui() {
-        if (LOG_CONFIG.DEBUG==LogConfig.UI)
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
             Log.d(TAG, "doShowGui: entering");
         if (buttonsLayout != null) buttonsLayout.setVisibility(View.VISIBLE);
         if (contentTextView != null) {
             if(contentTextView.getText().length()>0) {
-                if (LOG_CONFIG.DEBUG==LogConfig.UI)
+                if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
                     Log.d(TAG, "doShowGui: contentTextView made visible because it has some text");
                 contentTextView.setVisibility(View.VISIBLE);
             }else{
-                if (LOG_CONFIG.DEBUG==LogConfig.UI)
+                if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
                     Log.d(TAG, "doShowGui: contentTextView made gone because it has no text");
                 contentTextView.setVisibility(View.GONE);
             }
@@ -1330,23 +1319,23 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     }
 
     private boolean doShowUrlGui() {
-        if (LOG_CONFIG.DEBUG==LogConfig.UI)
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
             Log.d(TAG, "doShowUrlGui: entering");
 
         if ( ! SOUND_TO_PLAY_IS_ENABLED) {
-            if (LOG_CONFIG.DEBUG==LogConfig.UI)
+            if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
                 Log.d(TAG, "doShowUrlGui: exiting; SOUND_TO_PLAY_IS_ENABLED is false");
             return false;
         }
 
         if ( ! doesSoundOutput) {
-            if (LOG_CONFIG.DEBUG==LogConfig.UI)
+            if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
                 Log.d(TAG, "doShowUrlGui: exiting; doesSoundOutput is false");
             return false;
         }
 
         if (urlLayout == null) {
-            if (LOG_CONFIG.DEBUG==LogConfig.UI)
+            if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
                 Log.d(TAG, "doShowUrlGui: exiting; urlLayout is null");
             return false;
         }
@@ -1354,11 +1343,11 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         if (urlLayout.getVisibility() == View.VISIBLE) {
             //do nothing
 //                urlLayout.setVisibility(View.GONE);
-            if (LOG_CONFIG.DEBUG==LogConfig.UI)
+            if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
                 Log.d(TAG, "doShowUrlGui: urlLayout is already visible");
         } else {
             //show url gui
-            if (LOG_CONFIG.DEBUG==LogConfig.UI)
+            if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
                 Log.d(TAG, "doShowUrlGui: urlLayout is being set visible");
             urlLayout.setVisibility(View.VISIBLE);
         }
@@ -1388,18 +1377,18 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         @Override
         public void onClick(View v) {
             try {
-                if (LOG_CONFIG.DEBUG==LogConfig.UI)
+                if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
                     Log.d(TAG, "ON_CLICK_LISTENER_FOR_SPECTROGRAM.onClick(v): entering");
 
                 if (buttonsLayout.isShown()) {
                     //buttons are activated
-                    if (LOG_CONFIG.DEBUG==LogConfig.UI)
+                    if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
                         Log.d(TAG, "ON_CLICK_LISTENER_FOR_SPECTROGRAM.onClick(v): " +
                                 "buttonsLayout.isShown() returned true");
                     //do action
                     if (v instanceof Button) {
                         //for a button
-                        if (LOG_CONFIG.DEBUG==LogConfig.UI)
+                        if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
                             Log.d(TAG, "ON_CLICK_LISTENER_FOR_SPECTROGRAM.onClick(v): " +
                                     ". is instance of button");
 
@@ -1438,7 +1427,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
                                             } else {
                                                 // not hide url
                                                 // do nothing here, go to afterButtonSelected downstream
-                                                if (LOG_CONFIG.DEBUG==LogConfig.UI || LOG_CONFIG.ERROR==LogConfig.ON)
+                                                if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI || LOG_CONFIG.ERROR==AcousticLogConfig.ON)
                                                     Log.e(TAG,
                                                         "ON_CLICK_LISTENER_FOR_SPECTROGRAM.onClick(v): " +
                                                         ". is _not_ a known Button, do nothing: " + v);
@@ -1451,25 +1440,25 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
                         afterButtonSelected(v);
                     } else {
                         // not a button, and some gui shown, but maybe url gui not shown
-                        if (LOG_CONFIG.DEBUG==LogConfig.UI)
+                        if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
                             Log.d(TAG, "ON_CLICK_LISTENER_FOR_SPECTROGRAM.onClick(v): " +
                                     ". is _not_ an instance of Button: " + v);
                         doShowGui();
                     }
                 } else {
                     // layout not shown (buttons not show), then show it and show the buttons and url
-                    if (LOG_CONFIG.DEBUG==LogConfig.UI)
+                    if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
                         Log.d(TAG, "ON_CLICK_LISTENER_FOR_SPECTROGRAM.onClick(v): " +
                                 "buttonsLayout.isShown() returned false, then show GUI");
                     doShowGui();
                 }
             } catch (Throwable ex) {
-                if (LOG_CONFIG.DEBUG==LogConfig.UI||LOG_CONFIG.ERROR==LogConfig.ON)
+                if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI||LOG_CONFIG.ERROR==AcousticLogConfig.ON)
                     Log.e(TAG, "ON_CLICK_LISTENER_FOR_SPECTROGRAM.onClick(v): " + ex
                             + "\n" + Log.getStackTraceString(ex)
                         );
             }
-            if (LOG_CONFIG.DEBUG==LogConfig.UI)
+            if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
                 Log.d(TAG, "ON_CLICK_LISTENER_FOR_SPECTROGRAM.onClick(v): exiting");
         }
     };
@@ -1480,13 +1469,13 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
      * @param v the button that has been selected
      */
     void afterButtonSelected(View v) {
-        if (LOG_CONFIG.DEBUG==LogConfig.UI)
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
             Log.d(TAG,"afterButtonSelected: entering");
 
         updateAboutButtonOnUIThread();
 
         if (v.equals(hideUrlButton) || v.equals(playUrlButton)) {
-            if (LOG_CONFIG.DEBUG==LogConfig.UI)
+            if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
                 Log.d(TAG,"afterButtonSelected: exiting; button is hideUrlButton or playUrlButton");
             return;
         }
@@ -1589,7 +1578,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     }
 
     private void deviceButtonSelected(){
-        if (LOG_CONFIG.DEBUG==LogConfig.UI)
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
             Log.d(TAG, "ON_CLICK_LISTENER_FOR_SPECTROGRAM.onClick(v): " +
                     "DEVICE button selected");
         if (!deviceShown) {
@@ -1609,7 +1598,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
                 contentTextView.setText(getDeviceText());
             }
             if (largeGuiLayout != null) {
-                if (LOG_CONFIG.DEBUG==LogConfig.UI)
+                if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
                     Log.d(TAG, "deviceButtonSelected: " +
                             "largeGuiLayout sensitivity is disabled");
                 largeGuiLayout.setOnClickListener(null);
@@ -1645,7 +1634,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     }
 
     private void aboutButtonSelected() {
-        if (LOG_CONFIG.DEBUG==LogConfig.UI)
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
             Log.d(TAG, "aboutButtonSelected: " +
                     "aboutShown = " + aboutShown
                     + "; contentTextView = " + contentTextView
@@ -1668,7 +1657,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
                 contentTextView.setVisibility(View.VISIBLE);
             }
             if (largeGuiLayout != null) {
-                if (LOG_CONFIG.DEBUG==LogConfig.UI)
+                if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
                     Log.d(TAG, "aboutButtonSelected: largeGuiLayout sensitivity is disabled");
                 largeGuiLayout.setOnClickListener(null);
                 largeGuiLayout.setClickable(false);
@@ -1685,7 +1674,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 //                contentTextView.setTextColor(textColorTransparent);
 //            }
 //            if (largeGuiLayout != null) {
-//                if (LOG_CONFIG.DEBUG==LogConfig.UI)
+//                if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
 //                    Log.d(TAG, "aboutButtonSelected: largeGuiLayout sensitivity is enabled");
 //                largeGuiLayout.setOnClickListener(ON_CLICK_LISTENER);
 //                largeGuiLayout.setClickable(true);
@@ -1699,14 +1688,14 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
      * There is another method for the Pause/Resume Spectrogram button.
      */
     private void playUrlButtonSelected(){
-        if (LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
             Log.d(TAG, ".playUrlButtonSelected: " +
                     "urlIsPlaying = " + urlIsPlaying
                     + "; urlIsPaused = " + urlIsPaused);
         clearLastAnomaly();
         if (urlIsPlaying) {
             // url is playing, so do pause url, don't play it
-            if (LOG_CONFIG.DEBUG==LogConfig.PLAY_URL){
+            if (LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL){
                 Log.d(TAG,".playUrlButtonSelected: url is playing, so do pause url");
             }
             // -----------------------------
@@ -1715,12 +1704,12 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
             // -----------------------------
         } else {
             // url is not playing, then do play url or resume
-            if (LOG_CONFIG.DEBUG==LogConfig.PLAY_URL){
+            if (LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL){
                 Log.d(TAG,".playUrlButtonSelected: url is not playing, play url or resume");
             }
             //TODO 2017-8-16 review with new resumeOrRestart version in lib
             if (urlIsPaused) {
-                if (LOG_CONFIG.DEBUG==LogConfig.PLAY_URL){
+                if (LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL){
                     Log.d(TAG,".playUrlButtonSelected: url is not playing and is paused, so restart spectro and doResumeUrl");
                 }
                 // ---------------
@@ -1732,14 +1721,14 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
                 // try to replay the previous intent;
                 // if spectro paused, then resume spectro before playing the intent
                 if (isPaused()) {
-                    if (LOG_CONFIG.DEBUG==LogConfig.PLAY_URL){
+                    if (LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL){
                         Log.d(TAG,".playUrlButtonSelected: spectro is paused, so calling restartSpectro() and then play(dataFromIntent)...");
                     }
                     // --------------
                     restartSpectro();
                     // --------------
                 }else{
-                    if (LOG_CONFIG.DEBUG==LogConfig.PLAY_URL){
+                    if (LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL){
                         Log.d(TAG,".playUrlButtonSelected: spectro is not paused, so calling play(dataFromIntent)...");
                     }
                 }
@@ -1751,7 +1740,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     }
 
     private void playUrlButtonSelected2() {
-        if (LOG_CONFIG.DEBUG == LogConfig.PLAY_URL)
+        if (LOG_CONFIG.DEBUG == AcousticLogConfig.PLAY_URL)
             Log.d(TAG, "playUrlButtonSelected2: button playUrlButton selected; " +
                     "urlIsPlaying = " + urlIsPlaying
                     + "; urlIsPaused = " + urlIsPaused);
@@ -1773,7 +1762,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
             intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         }else{
-            if (LOG_CONFIG.DEBUG == LogConfig.PLAY_URL)
+            if (LOG_CONFIG.DEBUG == AcousticLogConfig.PLAY_URL)
                 Log.d(TAG,"android version is too low");
             return;
         }
@@ -1788,7 +1777,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         // it would be "*/*".
         intent.setType("audio/*");
 
-        if (LOG_CONFIG.DEBUG == LogConfig.PLAY_URL)
+        if (LOG_CONFIG.DEBUG == AcousticLogConfig.PLAY_URL)
             Log.d(TAG,".performFileSearch: intent {"+intent+"}");
 
         startActivityForResult(intent, READ_REQUEST_CODE);
@@ -1824,7 +1813,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 //                //showImage(uri);
 //            }
 
-            if (LOG_CONFIG.DEBUG == LogConfig.PLAY_URL)
+            if (LOG_CONFIG.DEBUG == AcousticLogConfig.PLAY_URL)
                 Log.d(TAG,".onActivityResult: Intent resultData {"+resultData+"}");
 
             play(resultData);
@@ -1834,7 +1823,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 
 
     private void hideOrCancelUrlButtonSelected(){
-        if (LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
             Log.d(TAG, "hideUrlButton selected; urlIsPlaying = " + urlIsPlaying);
         if (urlIsPlaying) {
             // playing, so cancel play
@@ -1866,15 +1855,15 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
      * @throws IllegalArgumentException
      */
     private boolean play(final Intent intent) {
-        if(LOG_CONFIG.DEBUG==LogConfig.PLAY_URL||LOG_CONFIG.DEBUG==LogConfig.INTENT)
+        if(LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL||LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT)
             Log.d(TAG, ".play(Intent) entering with {" + intent + "}");
         isCancelling = false;
         //if(AudioPlayer.getIt()!=null){
 //            try{
 //                AudioPlayer.getIt().shutdown();
 //            }catch(Exception ex){
-//                if(LOG_CONFIG.DEBUG==LogConfig.PLAY_URL||LOG_CONFIG.DEBUG==LogConfig.INTENT
-//                        || LOG_CONFIG.ERROR==LogConfig.ON)
+//                if(LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL||LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT
+//                        || LOG_CONFIG.ERROR==AcousticLogConfig.ON)
 //                    Log.e(TAG, ".play(Intent) player.shutdown() raised " + ex );
 //            }
         //}
@@ -1885,7 +1874,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
             AudioPlayer.getIt().play(intent);
             // ==============================
         } catch (Throwable ex) {
-            if(LOG_CONFIG.ERROR==LogConfig.ON)
+            if(LOG_CONFIG.ERROR==AcousticLogConfig.ON)
                 Log.e(TAG, ".play(Intent) " + ex + " "
                         + Log.getStackTraceString(ex));
             resetUrl(true);
@@ -1905,7 +1894,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
      * @return boolean true when ok, false when failure
      */
     private boolean play(final String fileUrlString) {
-        if(LOG_CONFIG.DEBUG==LogConfig.PLAY_URL||LOG_CONFIG.DEBUG==LogConfig.INTENT)
+        if(LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL||LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT)
             Log.d(TAG, ".play(fileUrlString) entering with {" + fileUrlString + "}");
         if(fileUrlString==null||fileUrlString.isEmpty()){
             return false;
@@ -1915,8 +1904,8 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 //            try{
 //                AudioPlayer.getIt().shutdown();
 //            }catch(Exception ex){
-//                if(LOG_CONFIG.DEBUG==LogConfig.PLAY_URL||LOG_CONFIG.DEBUG==LogConfig.INTENT
-//                        || LOG_CONFIG.ERROR==LogConfig.ON)
+//                if(LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL||LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT
+//                        || LOG_CONFIG.ERROR==AcousticLogConfig.ON)
 //                    Log.e(TAG, ".play(fileUrlString) player.shutdown() raised " + ex );
 //            }
         //}
@@ -1927,7 +1916,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
             AudioPlayer.getIt().play(fileUrlString);
             // =====================================
         } catch (Throwable ex) {
-            if(LOG_CONFIG.ERROR==LogConfig.ON)
+            if(LOG_CONFIG.ERROR==AcousticLogConfig.ON)
                 Log.e(TAG, ".play(fileUrlString {"+fileUrlString+"}) " + ex + " "
                         + Log.getStackTraceString(ex));
             resetUrl(true);
@@ -1938,7 +1927,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     }
 
     private boolean play(DataFromIntent dfi){
-        if(LOG_CONFIG.DEBUG==LogConfig.PLAY_URL||LOG_CONFIG.DEBUG==LogConfig.INTENT)
+        if(LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL||LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT)
             Log.d(TAG, ".play(DataFromIntent) entering with {" + dfi.toString() + "}");
 
         if(dfi==null)return false;
@@ -1999,10 +1988,10 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         runOnUiThread(RUNNABLE_FOR_STATUS);
     }
 
-    @Override
-    public boolean isVerifyIabPayload() {
-        return false;
-    }
+//    @Override
+//    public boolean isVerifyIabPayload() {
+//        return false;
+//    }
 
 
     /**
@@ -2012,19 +2001,19 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
      * All callers are run on the ui thread in this version.
      */
     private void doResumeUrl() {//TODO prio 2 2017-8-16 review with new resumeOrRestart version in lib
-        if(LOG_CONFIG.DEBUG==LogConfig.PLAY_URL){
+        if(LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL){
             Log.d(TAG,"doResumeUrl: entering");
         }
         isCancelling = false;
         //if url is not paused then exit
         if (!urlIsPaused) {
-            if(LOG_CONFIG.DEBUG==LogConfig.PLAY_URL){
+            if(LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL){
                 Log.d(TAG,"doResumeUrl: exiting; urlIsPaused is false, so play is not paused, so exiting");
             }
             return;
         }
 //        if (player == null) {
-//            if(LOG_CONFIG.DEBUG==LogConfig.PLAY_URL){
+//            if(LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL){
 //                Log.d(TAG,"doResumeUrl: player is null, so calling resetUrl and exiting");
 //            }
 //            resetUrl(true);
@@ -2034,17 +2023,17 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 
         boolean resumeOrRestartOk = false;
         try {
-            if (LOG_CONFIG.DEBUG==LogConfig.PLAY_URL){
+            if (LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL){
                 Log.d(TAG,".doResumeUrl: player is not null, so calling player.resumeOrRestart()...");
             }
             // -------------------------------------------------------
             resumeOrRestartOk = AudioPlayer.getIt().resumeOrRestart();
             // -------------------------------------------------------
-            if(LOG_CONFIG.DEBUG==LogConfig.PLAY_URL){
+            if(LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL){
                 Log.d(TAG,"doResumeUrl: player.resumeOrRestart() returned "+resumeOrRestartOk);
             }
         } catch (Exception e) {
-            if (LOG_CONFIG.DEBUG==LogConfig.PLAY_URL){
+            if (LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL){
                 Log.d(TAG,".doResumeUrl: player.resumeOrRestart() raised "+e);
             }
             notifyPlayAbnormalEnd(e);
@@ -2072,16 +2061,16 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
      */
     private void setUrlToPlayInUi() {
 
-        if (LOG_CONFIG.DEBUG==LogConfig.RESTORE 
-                || LOG_CONFIG.DEBUG==LogConfig.INTENT
-                || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.RESTORE
+                || LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT
+                || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
             Log.d(TAG, ".setUrlToPlayInUi: fileNameToPlay {" + fileNameToPlay + "}");
 
         if(editTextUrlToPlay==null){
             // ui widget is null
-            if (LOG_CONFIG.DEBUG==LogConfig.RESTORE
-                    || LOG_CONFIG.DEBUG==LogConfig.INTENT
-                    || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+            if (LOG_CONFIG.DEBUG==AcousticLogConfig.RESTORE
+                    || LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT
+                    || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
                 Log.e(TAG, ".setUrlToPlayInUi: editTextUrlToPlay widget is null");
             return;
         }
@@ -2235,7 +2224,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
      * @param withNotif true when caller wants the notification to be shown to user.
      */
     private void doHideUrl(final boolean withNotif) {
-        if (LOG_CONFIG.DEBUG==LogConfig.UI)
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
             Log.d(TAG, "doHideUrl: entering");
 
         doCancelUrl();
@@ -2243,7 +2232,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         if (urlLayout != null) urlLayout.setVisibility(View.GONE);
 
         if (largeGuiLayout != null) {
-            if (LOG_CONFIG.DEBUG==LogConfig.UI)
+            if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
                 Log.d(TAG, "doHideUrl: largeGuiLayout sensitivity is enabled");
             largeGuiLayout.setOnClickListener(ON_CLICK_LISTENER);
         }
@@ -2266,8 +2255,8 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     @Override
     public void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
-        if (LOG_CONFIG.DEBUG==LogConfig.PAUSE || LOG_CONFIG.DEBUG==LogConfig.THREADS
-                || LOG_CONFIG.DEBUG==LogConfig.RESTORE)
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE || LOG_CONFIG.DEBUG==AcousticLogConfig.THREADS
+                || LOG_CONFIG.DEBUG==AcousticLogConfig.RESTORE)
             Log.d(TAG, ".onSaveInstanceState " + Thread.currentThread());
 
         saveBitmap(outState);
@@ -2283,8 +2272,8 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     @Override
     protected void onRestoreInstanceState(Bundle savedInstanceState) {//TODO future restore bitmap
         super.onSaveInstanceState(savedInstanceState);
-        if (LOG_CONFIG.DEBUG==LogConfig.PAUSE || LOG_CONFIG.DEBUG==LogConfig.THREADS
-                || LOG_CONFIG.DEBUG==LogConfig.RESTORE)
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE || LOG_CONFIG.DEBUG==AcousticLogConfig.THREADS
+                || LOG_CONFIG.DEBUG==AcousticLogConfig.RESTORE)
             Log.d(TAG, ".onRestoreInstanceState: calling restoreBitmap(savedInstanceState)..."
                     + Thread.currentThread());
 
@@ -2294,13 +2283,13 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 
     private void restoreBitmap(final Bundle savedInstanceState) {
         if (!SPECTROGRAM_IMAGE_PERSISTENCE_IS_ENABLED) {
-            if (LOG_CONFIG.DEBUG==LogConfig.PAUSE || LOG_CONFIG.DEBUG==LogConfig.RESTORE)
+            if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE || LOG_CONFIG.DEBUG==AcousticLogConfig.RESTORE)
                 Log.d(TAG, ".restoreBitmap: exiting because SPECTROGRAM_IMAGE_PERSISTENCE_IS_ENABLED is false");
             return;
         }
         if (savedInstanceState != null) {
             // not new session; restoring the app from Android savedInstanceState
-            if (LOG_CONFIG.DEBUG==LogConfig.PAUSE || LOG_CONFIG.DEBUG==LogConfig.RESTORE)
+            if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE || LOG_CONFIG.DEBUG==AcousticLogConfig.RESTORE)
                 Log.d(TAG, ".restoreBitmap: restoring");
 //            SpectrogramView.restoring = true; TODO future restoring bitmap function
             //------------------------------------------------------------
@@ -2308,16 +2297,16 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
             //------------------------------------------------------------
             if (ob != null) {
 //                SpectrogramView.bitmap = (Bitmap) ob;
-                if (LOG_CONFIG.DEBUG==LogConfig.PAUSE || LOG_CONFIG.DEBUG==LogConfig.RESTORE)
+                if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE || LOG_CONFIG.DEBUG==AcousticLogConfig.RESTORE)
                     Log.d(TAG, ".restoreBitmap: restoring; saved bitmap not null");
             } else {
-                if (LOG_CONFIG.DEBUG==LogConfig.PAUSE || LOG_CONFIG.DEBUG==LogConfig.RESTORE)
+                if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE || LOG_CONFIG.DEBUG==AcousticLogConfig.RESTORE)
                     Log.d(TAG, ".restoreBitmap: restoring; saved bitmap is null");
             }
 
         } else {
             // not restoring; new session
-            if (LOG_CONFIG.DEBUG==LogConfig.PAUSE || LOG_CONFIG.DEBUG==LogConfig.RESTORE)
+            if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE || LOG_CONFIG.DEBUG==AcousticLogConfig.RESTORE)
                 Log.d(TAG, ".restoreBitmap: not restoring");
 //            SpectrogramView.restoring = false;
 //            SpectrogramView.bitmap = null;
@@ -2326,7 +2315,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 
     private void saveBitmap(Bundle outState) {
         if (!SPECTROGRAM_IMAGE_PERSISTENCE_IS_ENABLED) {
-            if (LOG_CONFIG.DEBUG==LogConfig.PAUSE || LOG_CONFIG.DEBUG==LogConfig.RESTORE)
+            if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE || LOG_CONFIG.DEBUG==AcousticLogConfig.RESTORE)
                 Log.d(TAG, ".saveBitmap: exiting because SPECTROGRAM_IMAGE_PERSISTENCE_IS_ENABLED is false");
             return;
         }
@@ -2337,10 +2326,10 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
                 //----------------------------------------------
                 outState.putParcelable(PREF_BITMAP_KEY, bitmap);
                 //----------------------------------------------
-                if (LOG_CONFIG.DEBUG==LogConfig.PAUSE || LOG_CONFIG.DEBUG==LogConfig.RESTORE)
+                if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE || LOG_CONFIG.DEBUG==AcousticLogConfig.RESTORE)
                     Log.d(TAG, ".saveBitmap: bitmap saved");
             } else {
-                if (LOG_CONFIG.DEBUG==LogConfig.PAUSE || LOG_CONFIG.DEBUG==LogConfig.RESTORE)
+                if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE || LOG_CONFIG.DEBUG==AcousticLogConfig.RESTORE)
                     Log.d(TAG, ".saveBitmap: bitmap is null");
             }
         }
@@ -2357,35 +2346,35 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 
     private void restartSpectro() {
         try {
-            if (LOG_CONFIG.DEBUG==LogConfig.PAUSE
-                    || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+            if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE
+                    || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
                 Log.d(TAG, ".restartSpectro: calling unpause()...");
             unpause();
             pause.setText(getString(R.string.pause_button));
-            if (LOG_CONFIG.DEBUG==LogConfig.PAUSE
-                    || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+            if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE
+                    || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
                 Log.d(TAG, ".restartSpectro: unpause() ok");
         } catch (Exception e) {
             //e.printStackTrace();
-            if (LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
-                    || LOG_CONFIG.ERROR==LogConfig.ON
-                    || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+            if (LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
+                    || LOG_CONFIG.ERROR==AcousticLogConfig.ON
+                    || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
                 Log.e(TAG, ".restartSpectro: unpause() raised: " + e
                     +"\n"+Log.getStackTraceString(e));
             return;
         }
-        if(LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+        if(LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
             Log.d(TAG, ".restartSpectro: exiting, isPausedByHUser set to false");
         isPausedByHUser = false;
     }
 
     private void pauseSpectro() {
-        if (LOG_CONFIG.DEBUG==LogConfig.PAUSE)
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE)
             Log.d(TAG, ".pauseSpectro entering");
         closeListener();
         pause.setText(getString(R.string.pause_button_restart));
         isPausedByHUser = true;
-        if (LOG_CONFIG.DEBUG==LogConfig.PAUSE)
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE)
             Log.d(TAG, ".pauseSpectro exiting");
     }
 
@@ -2396,7 +2385,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
      * All callers are run on the ui thread in this version.
      */
     private void pauseToggle() {
-        if (LOG_CONFIG.DEBUG==LogConfig.PAUSE || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
             Log.d(TAG, ".pauseToggle: entering; isPausedByHUser " + isPausedByHUser
                             + "; isPaused() " + isPaused()
             );
@@ -2415,7 +2404,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
                 // was not paused, so play, don't resume
                 // there is a time limit on attempt to play
                 // play(editTextUrlToPlay.getText().toString());
-                if (LOG_CONFIG.DEBUG==LogConfig.PAUSE || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+                if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
                     Log.d(TAG, ".pauseToggle: entering; isPausedByHUser " + isPausedByHUser
                             + "; urlIsPaused " + urlIsPaused
                     );
@@ -2427,7 +2416,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
             doPauseUrl();
             // -----------------------------
         }
-        if (LOG_CONFIG.DEBUG==LogConfig.PAUSE)
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE)
             Log.d(TAG, ".pauseToggle: exiting; isPausedByHUser " + isPausedByHUser
                             + "; isPaused() " + isPaused()
             );
@@ -2584,8 +2573,9 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         StringBuilder buf = new StringBuilder();
 
         buf.append(getContentSectionForDeviceTextInHtml())
-        .append(DeviceSoundCapabilities.getDeviceCapabilitiesInHtml(true, true, this))
-        .append(SettingsForSoundInputDisplay.getForAppTextInHtml(true))
+                .append(AcousticDeviceCapabilities.getIt().getDeviceCapabilitiesInHtml())
+        //.append(DeviceSoundCapabilities.getDeviceCapabilitiesInHtml(true, true, this))
+        .append(AcousticSettings.getForAppTextInHtml()) //.getForAppTextInHtml(true))
         .append(getPerfMeasurementsInHtml())
         ;
 
@@ -2600,7 +2590,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         .append("<p/>Android devices these days have a delay of about half a second between the actual sound and the processing by the app, when non-native code is used")
         .append("; this app adds about 1/50 sec. of delay due to numerical analysis (e.g., FFT) and display; 1/50 sec. of delay is about 10% of the basic delay or latency for Android in 2016.")
         .append(" The time spent by Android and the app displaying the data as a spectrogram is much more than the time used for numerical analysis.")
-        .append("<p/>").append(BasicListener.processingPerfInHtml)
+        .append("<p/>").append(Acoustic.getIt().getProcessingPerfInHtml())  //BasicListener.processingPerfInHtml)
         .append("<p/>End of performance measurements results")
         ;
         return buf.toString();
@@ -2641,7 +2631,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 
         buf.append(fromHtml( getAboutTextInHtml() ));
 
-        if(LOG_CONFIG.DEBUG==LogConfig.UI){
+        if(LOG_CONFIG.DEBUG==AcousticLogConfig.UI){
             Log.d(TAG,".getAboutText: length = "+buf.length());
         }
 
@@ -3035,20 +3025,20 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     @Override
     protected void onResume() {
         super.onResume();
-        if (LOG_CONFIG.DEBUG==LogConfig.THREADS || LOG_CONFIG.DEBUG==LogConfig.RESTORE)
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.THREADS || LOG_CONFIG.DEBUG==AcousticLogConfig.RESTORE)
             Log.d(TAG, ".onResume: entering");
         if (isPausedByHUser) {
             //don't restart bg threads
-            if (LOG_CONFIG.DEBUG==LogConfig.PAUSE || LOG_CONFIG.DEBUG==LogConfig.THREADS
-                    || LOG_CONFIG.DEBUG==LogConfig.RESTORE)
+            if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE || LOG_CONFIG.DEBUG==AcousticLogConfig.THREADS
+                    || LOG_CONFIG.DEBUG==AcousticLogConfig.RESTORE)
                 Log.d(TAG, ".onResume: isPausedByHUser, don't restart " + Thread.currentThread());
         } else {
             //isPausedByHUser = false
             //was not paused by H user, then restart if paused by system
             if (isPaused()) {
                 // is paused, listener is null
-                if (LOG_CONFIG.DEBUG==LogConfig.PAUSE || LOG_CONFIG.DEBUG==LogConfig.THREADS
-                        || LOG_CONFIG.DEBUG==LogConfig.RESTORE)
+                if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE || LOG_CONFIG.DEBUG==AcousticLogConfig.THREADS
+                        || LOG_CONFIG.DEBUG==AcousticLogConfig.RESTORE)
                     Log.d(TAG, ".onResume: before unpause() "
                             + Thread.currentThread());
                 try {
@@ -3057,18 +3047,18 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
                     //========
 //                    pauseButton.setText(getString(R.string.pause_button));
                 } catch (Exception e) {
-                    if (LOG_CONFIG.DEBUG==LogConfig.PAUSE || LOG_CONFIG.ERROR==LogConfig.ON
-                            || LOG_CONFIG.DEBUG==LogConfig.THREADS || LOG_CONFIG.DEBUG==LogConfig.RESTORE)
+                    if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE || LOG_CONFIG.ERROR==AcousticLogConfig.ON
+                            || LOG_CONFIG.DEBUG==AcousticLogConfig.THREADS || LOG_CONFIG.DEBUG==AcousticLogConfig.RESTORE)
                         Log.e(TAG, "onResume: unpause() raised " + e + " " + Thread.currentThread());
                 }
-                if (LOG_CONFIG.DEBUG==LogConfig.PAUSE || LOG_CONFIG.DEBUG==LogConfig.THREADS
-                        || LOG_CONFIG.DEBUG==LogConfig.RESTORE)
+                if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE || LOG_CONFIG.DEBUG==AcousticLogConfig.THREADS
+                        || LOG_CONFIG.DEBUG==AcousticLogConfig.RESTORE)
                     Log.d(TAG, ".onResume: after unpause() "
                             + Thread.currentThread());
             } else {
                 // is not paused
-                if (LOG_CONFIG.DEBUG==LogConfig.PAUSE || LOG_CONFIG.DEBUG==LogConfig.THREADS
-                        || LOG_CONFIG.DEBUG==LogConfig.RESTORE)
+                if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE || LOG_CONFIG.DEBUG==AcousticLogConfig.THREADS
+                        || LOG_CONFIG.DEBUG==AcousticLogConfig.RESTORE)
                     Log.d(TAG, ".onResume: not paused, do nothing " + Thread.currentThread());
             }
         }
@@ -3080,19 +3070,20 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      * Designed to be done very early in the activity startup step.
      */
     private void restorePreferences() {
-        if (LOG_CONFIG.DEBUG==LogConfig.INIT)
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT)
             Log.d(TAG, ".restorePreferences: entering...");
 
         final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
 
-        if (LOG_CONFIG.DEBUG==LogConfig.INIT)
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT)
             Log.d(TAG, ".restorePreferences: prefs = " + prefs);
 
-        SettingsForSoundPreferences.restoreInputSettings(prefs);
+//        SettingsForSoundPreferences.restoreInputSettings(prefs);
+          AcousticSettings.restoreFromPreferences(prefs);
 
 //        restoreUrlToPlay(prefs);
 
-        if (LOG_CONFIG.DEBUG==LogConfig.INIT)
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT)
             Log.d(TAG, ".restorePreferences: exiting...");
     }
 
@@ -3105,14 +3096,14 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //
 //        fileNameToPlayFromPref = prefs.getString(PREF_URL_FILE_NAME_KEY, "");
 //
-//        if (LOG_CONFIG.DEBUG==LogConfig.RESTORE || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+//        if (LOG_CONFIG.DEBUG==AcousticLogConfig.RESTORE || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
 //            Log.d(TAG, ".restoreUrlToPlay: fileNameToPlayFromPref {" + fileNameToPlayFromPref
 //                    + "} fileSizeToPlayFromPref {"+ fileSizeToPlayFromPref +"}");
 //    }
 
     private void onExceptionAtInit(Throwable ex) {
         String s = "" + ex; //ex.getLocalizedMessage() + "\n";
-        if (LOG_CONFIG.ERROR==LogConfig.ON || LOG_CONFIG.DEBUG==LogConfig.THREADS) {
+        if (LOG_CONFIG.ERROR==AcousticLogConfig.ON || LOG_CONFIG.DEBUG==AcousticLogConfig.THREADS) {
             s += "\n" + Log.getStackTraceString(ex);
             Log.e(TAG, ".onExceptionAtInit: " + s + " " + Thread.currentThread());
         }
@@ -3126,7 +3117,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      */
     private boolean isOnRealDeviceOrEmulator() {
 
-        return isOnRealDevice();
+        return Acoustic.getIt().isOnRealDevice();
     }
 
     /**
@@ -3137,28 +3128,35 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
         //includes sound configs kept in DeviceSoundCapabilities
         //============================================================
-        DeviceSoundCapabilities.initFundamentalsForDevice(this,false);
+        //DeviceSoundCapabilities.initFundamentalsForDevice(this,false);
+        AcousticDeviceCapabilities.getIt().init(false);
         //============================================================
 
-        if (!DeviceSoundCapabilities.isDeviceCapableOfSoundInput()) {
-            if (LOG_CONFIG.DEBUG==LogConfig.INIT 
-                    || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
-                    || LOG_CONFIG.DEBUG==LogConfig.DEVICE_SOUND_CAPABILITIES
+        if( ! AcousticDeviceCapabilities.getIt().doesSoundInput){
+
+        //if (!DeviceSoundCapabilities.isDeviceCapableOfSoundInput()) {
+            if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT
+                    || LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
+                    || LOG_CONFIG.DEBUG==AcousticLogConfig.DEVICE_SOUND_CAPABILITIES
                     ) {
                 Log.d(TAG, ".setDeviceSoundCapabilities: device cannot do sound input");
-                boolean outputOk = DeviceSoundCapabilities.isDeviceCapableOfSoundOutput();
-                Log.d(TAG, ".setDeviceSoundCapabilities: DeviceSoundCapabilities.isDeviceCapableOfSoundOutput() returned {"+outputOk+"}");
+                boolean outputOk = AcousticDeviceCapabilities.getIt().doesSoundOutput; //DeviceSoundCapabilities.isDeviceCapableOfSoundOutput();
+                Log.d(TAG, ".setDeviceSoundCapabilities: AcousticDeviceCapabilities.getIt().doesSoundOutput is {"+outputOk+"}");
             }
             return false;
         }
-        if(LOG_CONFIG.DEBUG==LogConfig.DEVICE_SOUND_CAPABILITIES){
+        if(LOG_CONFIG.DEBUG==AcousticLogConfig.DEVICE_SOUND_CAPABILITIES){
             Log.d(TAG, ".setDeviceSoundCapabilities: device can do sound input");
-            boolean outputOk = DeviceSoundCapabilities.isDeviceCapableOfSoundOutput();
-            Log.d(TAG, ".setDeviceSoundCapabilities: DeviceSoundCapabilities.isDeviceCapableOfSoundOutput() returned {"+outputOk+"}");
+            boolean outputOk = AcousticDeviceCapabilities.getIt().doesSoundOutput;
+            Log.d(TAG, ".setDeviceSoundCapabilities: AcousticDeviceCapabilities.getIt().doesSoundOutput is {"+outputOk+"}");
         }
 
-        SettingsForSoundInput.dependentsOnVoltageSamplingRate(
-                DeviceSoundCapabilities.getSelectedVoltageSamplingForInput());//does not depend on preferences in this version; depends on device capabilities
+        //VoltageSampling vs = DeviceSoundCapabilities.getSelectedVoltageSamplingForInput();
+
+        AcousticSettings.dependentsOnVoltageSamplingRate();
+
+//        SettingsForSoundInput.dependentsOnVoltageSamplingRate(
+//                DeviceSoundCapabilities.getSelectedVoltageSamplingForInput());//does not depend on preferences in this version; depends on device capabilities
 
         //writeInMonitor(DeviceSoundCapabilities.getFundamentalsForDisplay());
 
@@ -3167,15 +3165,15 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //			writeInMonitor(DeviceSoundCapabilities.getForDisplay(
 //			    true,false,false)); //LeafyLog.SOUND_QUALITY_LOG_ENABLED)); //getDeviceAudioCapabilities();//2014-11
 
-        if (LOG_CONFIG.DEBUG==LogConfig.INIT 
-                || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
-                || LOG_CONFIG.DEBUG==LogConfig.DEVICE_SOUND_CAPABILITIES)
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT
+                || LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
+                || LOG_CONFIG.DEBUG==AcousticLogConfig.DEVICE_SOUND_CAPABILITIES)
             Log.d(TAG, ".setDeviceSoundCapabilities: " + Timestamp.getNanosForDisplay()
                 + "; first part of initFundamentalsForDevice completed ok;" +
-                "\n xInputHzPerBinFloat = " + SettingsForSoundInput.xInputHzPerBinFloat
-                + "\n getSelectedVspsInputInt = " + DeviceSoundCapabilities.getSelectedVspsInputInt()
+                "\n xInputHzPerBinFloat = " + AcousticSettings.xInputHzPerBinFloat // SettingsForSoundInput.xInputHzPerBinFloat
+                + "\n selectedVspsInputInt = " + AcousticDeviceCapabilities.getIt().selectedVspsOutputInt //DeviceSoundCapabilities.getSelectedVspsInputInt()
                 //+ "\n cTimeIncSecDouble = " + Settings.cTimeIncSec
-                + "\n MAX_PCM_ADJUSTED_FORMAT = " + SoundQualitySettings.MAX_PCM_ADJUSTED_FORMAT
+                + "\n MAX_PCM_ADJUSTED_FORMAT = " + AcousticSettings.MAX_PCM_ADJUSTED_FORMAT
                 + " is close to the maximum value for a pcm value " +
                 "(out of the A/D subsystem, or as input to the D/A subsystem)" +
                 ", adjusted to a little below max to" +
@@ -3255,8 +3253,8 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      */
     public void notifyForAnomaly(final String text, final Throwable ex) {
 
-        if(LOG_CONFIG.DEBUG==LogConfig.SOUND_QUALITY
-                || LOG_CONFIG.ERROR==LogConfig.ON) {
+        if(LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_QUALITY
+                || LOG_CONFIG.ERROR==AcousticLogConfig.ON) {
             Log.e(TAG, "notifyForAnomaly: isSupportEmailEnabled() "
                     + isSupportEmailEnabled()
                     //+"; Settings.anomalyReportToFileIsEnabled "+Settings.anomalyReportToFileIsEnabled
@@ -3347,16 +3345,14 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
     @Override
     public boolean isPauseButtonChecked() {
-        return false;
+        return pause.isPressed();
     }
 
-    @Override
-    public void acousticSignalReceived(Signal signal) {
-        
+    public void onAcousticSliceReceived(AcousticSlice slice){ //TODO washere 2018-6-7
+
     }
 
-    @Override
-    public void acousticSliceReceived(SoundSlice soundSlice) {
+    public void onAcousticSignalReceived(AcousticSignal signal){
 
     }
 
@@ -3368,7 +3364,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      */
     @Override
     public void results(int statusCode, String text) {
-        if(LOG_CONFIG.DEBUG > LogConfig.OFF)
+        if(LOG_CONFIG.DEBUG > AcousticLogConfig.OFF)
             Log.d(TAG, ".results: statusCode " + statusCode + ": " + text);
         if(SHOW_USER_INIT_EVENTS_ENABLED) {
             showStatusSnackbar( "results: statusCode " + statusCode + ": " + text );
@@ -3390,7 +3386,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
             String s = "results: statusCode " + statusCode + ": " + text + "; millis " + millis
                     + "; user " + user + "; isNewLine " + isNewLine;
             showStatusSnackbar(s);
-            if(LOG_CONFIG.DEBUG >= LogConfig.ON)
+            if(LOG_CONFIG.DEBUG >= AcousticLogConfig.ON)
                 Log.d(TAG, "."+s);
         }
     }
@@ -3401,18 +3397,15 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     }
 
     @Override
-    public boolean isPaused() {//TODO future review with preserve bg image when app interrupted
-        if (DeviceSoundCapabilities.getFundamentalsInitialized()) {
-            //initialized, then depends on listener being null or not
-            return !BasicListener.isRunning();
-        }
-        //not initialized, then not paused
-        return false;
+    public boolean isPaused() {
+        //return Acoustic.getIt().isRunning();
+        return isPauseButtonChecked();
     }
 
     @Override
     public void unpause() throws Exception {
-        getListener();
+        //getListener();
+        Acoustic.getIt().restart();
     }
 
     @Override
@@ -3451,10 +3444,10 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //            try {
 ////                listener.startSoundInput(this);
 //                listener = BasicListener.getARunningListener(this);
-//                if(LOG_CONFIG.DEBUG==LogConfig.PAUSE)
+//                if(LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE)
 //                    Log.d(TAG, ".startListener(): *listener.startSoundInput(this)* completed ok.");
 //            } catch (Exception e) {
-//                if(LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT || LOG_CONFIG.ERROR==LogConfig.ON)
+//                if(LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT || LOG_CONFIG.ERROR==AcousticLogConfig.ON)
 //                    Log.e(TAG,".startListener(): *BasicListener.getARunningListener(this)* raised "+e.getMessage()
 //                            +"\n"+DeviceSoundCapabilities.getFundamentalsSummaryForDisplay());
 //                Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
@@ -3589,7 +3582,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         soundPrefs.isEncodingPcmFloatPreferred = false;//TODO future true with new code for float processing
         soundPrefs.isNativeSampleRateRequested = true;
         soundPrefs.isSameEncodingPcmForInputAndOutputRequested = false;
-        if(LOG_CONFIG.DEBUG==LogConfig.ON){
+        if(LOG_CONFIG.DEBUG==AcousticLogConfig.ON){
             Log.d(TAG,".getAcousticConfig: isMicPreferred {"+soundPrefs.isMicPreferred
             +"} isChannelMonoRequested {"+soundPrefs.isChannelMonoRequested
             +"} isEncodingPcmFloatPreferred {"+soundPrefs.isEncodingPcmFloatPreferred
@@ -3614,58 +3607,75 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     /**
      * not used in this version
      *
-     * @param tf boolean; emission success status; true or false.
+     * @param success boolean; emission success status; true or false.
      */
     @Override
-    public void emissionCompletionStatus(boolean tf) {
+    public void emissionCompletionStatus(boolean success) {
     }
 
-    /**
-     * Not used in this app.
-     *
-     * @return null for EmitterGrandParent
-     */
-    @Override
-    public EmitterGrandParent getEmitter() {
-        return null;
-    }
+//    public SpectrogramView getSpectrogramView(){
+//        return spectrogramView;
+//    }
 
-    public SpectrogramView getSpectrogramView(){
-        return spectrogramView;
+    private boolean startAcoustic() throws Exception {
+        synchronized (LOCK_FOR_LISTENER) {
+
+            try {
+                Acoustic.getIt().start(true);
+
+            } catch (Exception e) {
+                disableThePauseButton("Failed");
+                showProblemStartingListener();
+                if (LOG_CONFIG.ERROR>=AcousticLogConfig.ON)
+                    Log.e(TAG, ".startAcoustic: " + e + " " + Log.getStackTraceString(e));
+                //throw e;
+            }
+
+            return false;
+        }
+
     }
 
     private final Object LOCK_FOR_LISTENER = new Object();
 
     //private final ReentrantLock REL_FOR_LISTENER = new ReentrantLock();
 
-    /**
-     * The listener is started by calling {@code listener.startSoundInput(clientApp)} in
-     * {@code BasicListener.getARunningListener()}.
-     *
-     * @return A BasicListener which is started. Is null when failure.
-     * @throws Exception
-     */
-    @Override
-    public BasicListener getListener() throws Exception {
-        //REL_FOR_LISTENER.hasQueuedThreads();
-        synchronized (LOCK_FOR_LISTENER) {
-            try {
-                enableThePauseButton("Pause");
-                BasicListener listener = BasicListener.getARunningListener(this);
-                if (listener == null) {
-                    disableThePauseButton("Failed");
-                    showProblemStartingListener();
-                }
-                return listener;
-            } catch (Exception e) {
-                disableThePauseButton(null);
-                showProblemStartingListener();
-                if (LOG_CONFIG.ERROR>=LogConfig.ON)
-                    Log.e(TAG, ".getListener: " + e + " " + Log.getStackTraceString(e));
-                throw e;
-            }
-        }//sync.
-    }
+    //private BasicListener listener = null;
+
+    //TODO review washere 2018-6-1 do we need to always create a new listener in this method
+    //TODO or can we store the listener in an attribute when it is already created??????
+    //TODO this method is often used to _restart_ the listener, not to create a new one
+
+//    /**
+//     * Gets a new BasicListener from the Acoustic API.
+//     * The new listener is started here.
+//     *
+//     * @return A new BasicListener which is started here. Is null when failure.
+//     * @throws Exception
+//     */
+//    private BasicListener getListener() throws Exception {
+//        synchronized (LOCK_FOR_LISTENER) {
+//            try {
+//                enableThePauseButton("Pause");
+//                if(listener==null) {
+//                    listener = Acoustic.getIt().getTheBasicListener(true); //BasicListener.getARunningListener(this);
+//                    if (listener == null) {
+//                        disableThePauseButton("Failed");
+//                        showProblemStartingListener();
+//                    }
+//                }else {
+//                    listener.startSoundInput(this);
+//                }
+//                return listener;
+//            } catch (Exception e) {
+//                disableThePauseButton(null);
+//                showProblemStartingListener();
+//                if (LOG_CONFIG.ERROR>=AcousticLogConfig.ON)
+//                    Log.e(TAG, ".getListener: " + e + " " + Log.getStackTraceString(e));
+//                throw e;
+//            }
+//        }//sync.
+//    }
 
     private void showProblemStartingListener() {
 //        if (coordinatorLayout != null) {
@@ -3677,7 +3687,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         Toast.makeText(this, "The sound listener cannot be started",
                 Toast.LENGTH_LONG).show();
         // show error in text view
-        showFailureInMethod(null, "BasicListener.getARunningListener");
+        showFailureInMethod(null, "BasicListener");
     }
 
 //    private final Object LOCK_FOR_LISTENER = new Object();
@@ -3693,10 +3703,10 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //            try {
 ////                listener.startSoundInput(this);
 //                listener = BasicListener.getARunningListener(this);
-//                if(LOG_CONFIG.DEBUG==LogConfig.PAUSE)
+//                if(LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE)
 //                    Log.d(TAG, ".startListener(): *listener.startSoundInput(this)* completed ok.");
 //            } catch (Exception e) {
-//                if(LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT || LOG_CONFIG.ERROR==LogConfig.ON)
+//                if(LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT || LOG_CONFIG.ERROR==AcousticLogConfig.ON)
 //                    Log.e(TAG,".startListener(): *BasicListener.getARunningListener(this)* raised "+e.getMessage()
 //                            +"\n"+DeviceSoundCapabilities.getFundamentalsSummaryForDisplay());
 //                Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
@@ -3708,7 +3718,8 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //    }
 
     private void closeListener() {
-        BasicListener.shutdownTheRunningListener();
+        //BasicListener.shutdownTheRunningListener();
+        Acoustic.getIt().shutdown();
     }
 
     @Override
@@ -3719,12 +3730,12 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (LOG_CONFIG.DEBUG!=LogConfig.OFF) Log.d(TAG, ".onDestroy: entering");
+        if (LOG_CONFIG.DEBUG!=AcousticLogConfig.OFF) Log.d(TAG, ".onDestroy: entering");
         closeListener();
         AudioPlayer.getIt().onActivityStop();
         // remove notification if any showing
         notifyCancelAll();
-        if (LOG_CONFIG.DEBUG!=LogConfig.OFF) Log.d(TAG, ".onDestroy: exiting");
+        if (LOG_CONFIG.DEBUG!=AcousticLogConfig.OFF) Log.d(TAG, ".onDestroy: exiting");
     }
 
     @Override
@@ -3732,7 +3743,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         super.onRestart();
         // start listener if listener not running
         try {
-            getListener();
+            Acoustic.getIt().restart();
         } catch (Exception e) {
             //done upstream: Log.e(TAG,"Problem with the sound listener: "+e+" "+Log.getStackTraceString(e));
         }
@@ -3743,9 +3754,9 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         super.onPause();
         savePrefs();
         isPausedByHUser = false;
-        if (LOG_CONFIG.DEBUG==LogConfig.PAUSE
-                || LOG_CONFIG.DEBUG==LogConfig.THREADS
-                || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE
+                || LOG_CONFIG.DEBUG==AcousticLogConfig.THREADS
+                || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL
                 )
             Log.d(TAG, ".onPause: prefs saved; calling closeListener() " + Thread.currentThread());
         closeListener();
@@ -3771,9 +3782,9 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //        editor.putString(PREF_URL_FILE_NAME_KEY, fileNameToPlay);
 //        editor.putString(PREF_URL_FILE_SIZE_KEY, fileSizeToPlay);
 //        editor.apply();
-//        if (LOG_CONFIG.DEBUG==LogConfig.RESTORE
-//                || LOG_CONFIG.DEBUG==LogConfig.SAVE_PREF
-//                || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL) {
+//        if (LOG_CONFIG.DEBUG==AcousticLogConfig.RESTORE
+//                || LOG_CONFIG.DEBUG==AcousticLogConfig.SAVE_PREF
+//                || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL) {
 //            Log.d(TAG, ".saveUrl: fileNameToPlay {" + fileNameToPlay
 //                    + "} PREF_URL_FILE_NAME_KEY {" + PREF_URL_FILE_NAME_KEY + "}");
 //        }
@@ -3788,7 +3799,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
         DataFromIntent si = new DataFromIntent(intent);
 
-        if (LOG_CONFIG.DEBUG==LogConfig.INTENT || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
             Log.d(TAG,".isInboundIntentOkToPlay: "+si);
 
         return si.URI != null;
@@ -3806,7 +3817,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         final String action = intent.getAction();
         String type = intent.getType();
         if (!Intent.ACTION_SEND.equals(action) || type == null) {
-            if (LOG_CONFIG.DEBUG==LogConfig.INTENT || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+            if (LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
                 Log.d(TAG,".isInboundIntentOkToPlay: returning false; not SEND or type is null");
             return false;
         }
@@ -3839,8 +3850,8 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
                     j = i+1;
 
-                    if (LOG_CONFIG.DEBUG==LogConfig.INTENT
-                            || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+                    if (LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT
+                            || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
                         Log.d(TAG,"isInboundIntentOkToPlay: clipData item "+j+" of "+itemCount+": "
                                 +itemAt
                             +"\nText {"+text+"}"
@@ -3849,8 +3860,8 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
                             );
                     if(isContainingWavUrl(text)){
                         // this will return the last link if more than one
-                        if (LOG_CONFIG.DEBUG==LogConfig.INTENT
-                                || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+                        if (LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT
+                                || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
                             Log.d(TAG,"isInboundIntentOkToPlay: clipData item "+j+" of "+itemCount
                                 +": clipDataItemText {"+clipDataItemText+"}");
                         clipDataItemText = text;
@@ -4058,8 +4069,8 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //
 //                    j = i + 1;
 //
-//                    if (LOG_CONFIG.DEBUG == LogConfig.INTENT
-//                            || LOG_CONFIG.DEBUG == LogConfig.PLAY_URL)
+//                    if (LOG_CONFIG.DEBUG == AcousticLogConfig.INTENT
+//                            || LOG_CONFIG.DEBUG == AcousticLogConfig.PLAY_URL)
 //                        Log.d(TAG, "extractClips: clipData item " + j
 //                                + " of " + nbClips + ": "
 //                                + item
@@ -4069,8 +4080,8 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //                        );
 ////                    if (isContainingWavUrl(text)) {
 ////                        // this will return the last link if more than one
-////                        if (LOG_CONFIG.DEBUG == LogConfig.INTENT
-////                                || LOG_CONFIG.DEBUG == LogConfig.PLAY_URL)
+////                        if (LOG_CONFIG.DEBUG == AcousticLogConfig.INTENT
+////                                || LOG_CONFIG.DEBUG == AcousticLogConfig.PLAY_URL)
 ////                            Log.d(TAG, "isInboundIntentOkToPlay: clipData item " + j + " of " + itemCount
 ////                                    + ": clipDataItemText {" + clipDataItemText + "}");
 ////                        clipDataItemText = text;
@@ -4165,11 +4176,11 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      * @return boolean true when intent is valid; false when no valid intent present or when failure
      */
     private boolean handleIncomingIntent() {
-        if (LOG_CONFIG.DEBUG==LogConfig.INIT
-                || LOG_CONFIG.DEBUG==LogConfig.SOUND_INPUT_INIT
-                || LOG_CONFIG.DEBUG==LogConfig.INTENT
-                || LOG_CONFIG.DEBUG==LogConfig.RESTORE
-                || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL) {
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT
+                || LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
+                || LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT
+                || LOG_CONFIG.DEBUG==AcousticLogConfig.RESTORE
+                || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL) {
             Log.d(TAG, ".handleIncomingIntent: entering");
         }
 
@@ -4208,7 +4219,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
             dataFromIntent = new DataFromIntent(intentToPlay);
 
-            if (LOG_CONFIG.DEBUG==LogConfig.INTENT || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+            if (LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
                 Log.d(TAG,".handleIncomingIntent: "+dataFromIntent);
 
             if(dataFromIntent.URI == null && dataFromIntent.URL_STRING == null){
@@ -4217,8 +4228,8 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
                 // could be normal start without an play intent or invalid send or play intent
                 // so don't notify user
 
-                if (LOG_CONFIG.DEBUG==LogConfig.INTENT
-                        || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+                if (LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT
+                        || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
                     Log.d(TAG, ".handleIncomingIntent: not valid intent to play {"
                             + intentToPlay + "}");
 
@@ -4250,8 +4261,8 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
                 String[] pair = dataFromIntent.getFilenameAndSize(this);
 
-                if (LOG_CONFIG.DEBUG == LogConfig.INTENT
-                        || LOG_CONFIG.DEBUG == LogConfig.PLAY_URL)
+                if (LOG_CONFIG.DEBUG == AcousticLogConfig.INTENT
+                        || LOG_CONFIG.DEBUG == AcousticLogConfig.PLAY_URL)
                     Log.d(TAG, ".handleIncomingIntent: OnAnyThread.getFileNameAndSizeFromContentDb returned "
                             + Arrays.toString(pair)
                     );
@@ -4268,8 +4279,8 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
                 setUrlToPlayInUi();
 
-                if (LOG_CONFIG.DEBUG==LogConfig.INTENT
-                        || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+                if (LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT
+                        || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
                     Log.d(TAG, ".handleIncomingIntent: possibly valid intent to play;" +
                             " calling play(\n intent {" + intentToPlay
                             + "})\n fileTextDisplayed {"+fileTextDisplayed
@@ -4290,8 +4301,8 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
                 setUrlToPlayInUi();
 
-                if (LOG_CONFIG.DEBUG==LogConfig.INTENT
-                        || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+                if (LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT
+                        || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
                     Log.d(TAG, ".handleIncomingIntent: possibly valid intent to play;" +
                             " calling play(\n dfi.URL_STRING {" + dataFromIntent.URL_STRING
                             + "})");
@@ -4301,8 +4312,8 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
                 // ===================================================
             }
 
-            if (LOG_CONFIG.DEBUG==LogConfig.INTENT
-                    || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+            if (LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT
+                    || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
                 Log.d(TAG,".handleIncomingIntent: play(intent or dfi.URL_STRING) returned "
                         +intentToPlayIsValid
                         +"; intent = "+intentToPlay);
@@ -4326,7 +4337,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         } catch (Throwable e) {
             intentToPlayIsValid = false;
             try {
-                if (LOG_CONFIG.ERROR == LogConfig.ON)
+                if (LOG_CONFIG.ERROR == AcousticLogConfig.ON)
                     Log.e(TAG, ".handleIncomingIntent: " + e
                             + "; " + Log.getStackTraceString(e));
                 invalidIntent(intentToPlay, fileNameToPlay);
@@ -4363,8 +4374,8 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      * @param filename
      */
     private void invalidIntent(final Intent intent, final String filename) {
-        if (LOG_CONFIG.DEBUG==LogConfig.INTENT
-                || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT
+                || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
             Log.d(TAG, ".invalidIntent: invalid intent {" + intent + "}");
         String x = filename == null || filename.isEmpty() ? "" : ", filename {" + filename+"}";
         String s = "The Intent is invalid" + x;//from another app ???
@@ -4381,9 +4392,9 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     }
 
     private void showError(final String text) {
-        if (LOG_CONFIG.DEBUG==LogConfig.INTENT
-                || LOG_CONFIG.DEBUG==LogConfig.ON
-                || LOG_CONFIG.ERROR==LogConfig.ON)
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT
+                || LOG_CONFIG.DEBUG==AcousticLogConfig.ON
+                || LOG_CONFIG.ERROR==AcousticLogConfig.ON)
             Log.e(TAG, ".showError {" + text + "}");
 //        if (coordinatorLayout != null) {
 //            Snackbar.make(findViewById(android.R.id.content), //coordinatorLayout,
@@ -4411,7 +4422,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     private final Runnable RUNNABLE_TO_SHOW_ANOMALY_TEXT = new Runnable() {
         @Override
         public void run() {
-            if (LOG_CONFIG.ERROR==LogConfig.ON)
+            if (LOG_CONFIG.ERROR==AcousticLogConfig.ON)
                 Log.e(SpectrogramActivity.TAG, getLastAnomalyTextInHtml());
 
             notifyForAnomaly("Anomaly detected",lastThrowable);
@@ -4462,13 +4473,13 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         if (lastAnomalyText == null || lastAnomalyText.length() == 0) {
             if (about != null) {
                 about.setText("About");//TODO use res
-                if (LOG_CONFIG.DEBUG==LogConfig.UI)
+                if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
                     Log.d(TAG,"updateAboutButtonOnUIThread: about button label set to *About*");
             }
         } else {
             if (about != null) {
                 about.setText("Error");//TODO use res
-                if (LOG_CONFIG.DEBUG==LogConfig.UI)
+                if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
                     Log.d(TAG,"updateAboutButtonOnUIThread: about button label set to *Error*");
             }
         }
@@ -4741,7 +4752,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
                 //there is a previous back button press time; this is the second back-key
                 if (System.currentTimeMillis() - previousBackButtonMs > BACK_BUTTON_TIMEOUT_MS) {
                     // timeout exceeded, reset previous one; no exit
-                    if(LOG_CONFIG.DEBUG!=LogConfig.OFF) Log.d(TAG,".onKeyDown: timeout exceeded, reset previous one; no exit");
+                    if(LOG_CONFIG.DEBUG!=AcousticLogConfig.OFF) Log.d(TAG,".onKeyDown: timeout exceeded, reset previous one; no exit");
                     previousBackButtonMs = System.currentTimeMillis();
                     //if a text is showing, add  s = "; to hide the text, touch the text button"
                     //if(coordinatorLayout!=null) {
@@ -4756,12 +4767,12 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
                     return true;
                 } else {
                     // timeout not exceeded, then exit; propagate the action
-                    if (LOG_CONFIG.DEBUG!=LogConfig.OFF) Log.d(TAG,".onKeyDown: timeout not exceeded, then exit; propagate the action");
+                    if (LOG_CONFIG.DEBUG!=AcousticLogConfig.OFF) Log.d(TAG,".onKeyDown: timeout not exceeded, then exit; propagate the action");
                     shutdown(true);
                 }
             } else {
                 // there is no previous back button press time; no exit TODO washere bug 2018-4-17 snackbar fails maybe internal error
-                if(LOG_CONFIG.DEBUG!=LogConfig.OFF) Log.d(TAG,".onKeyDown: no previous back button press time; no exit");
+                if(LOG_CONFIG.DEBUG!=AcousticLogConfig.OFF) Log.d(TAG,".onKeyDown: no previous back button press time; no exit");
                 previousBackButtonMs = System.currentTimeMillis();
                 //if(coordinatorLayout!=null) {
                 /*
@@ -4784,7 +4795,7 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
                 return true;
             }
         }
-        if(LOG_CONFIG.DEBUG!=LogConfig.OFF) Log.d(TAG,".onKeyDown: calling *super.onKeyDown(keyCode, event)*");
+        if(LOG_CONFIG.DEBUG!=AcousticLogConfig.OFF) Log.d(TAG,".onKeyDown: calling *super.onKeyDown(keyCode, event)*");
         return super.onKeyDown(keyCode, event);
     }
 
@@ -4801,7 +4812,7 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
 ////        restoreUrlToPlay();
 ////        if(editTextUrlToPlay!=null)
 ////            editTextUrlToPlay.setText(urlToPlayString);
-////        if(LOG_CONFIG.DEBUG==LogConfig.RESTORE){
+////        if(LOG_CONFIG.DEBUG==AcousticLogConfig.RESTORE){
 ////            Log.d(TAG,".onConfigurationChanged: urlToPlayString {"+urlToPlayString+"}");
 ////        }
 //    }
@@ -4889,18 +4900,18 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
      * called for finish, onStop
      */
     private void shutdown( final boolean withFinish ){
-        if (LOG_CONFIG.DEBUG > LogConfig.OFF) Log.d(TAG, ".shutdown: entering withFinish = "+withFinish);
+        if (LOG_CONFIG.DEBUG > AcousticLogConfig.OFF) Log.d(TAG, ".shutdown: entering withFinish = "+withFinish);
         //the player is also shutdown in onPause
         AudioPlayer.getIt().onActivityStop();
         if(withFinish){
             finish();
         }
-        if (LOG_CONFIG.DEBUG > LogConfig.OFF) Log.d(TAG, ".shutdown: exiting");
+        if (LOG_CONFIG.DEBUG > AcousticLogConfig.OFF) Log.d(TAG, ".shutdown: exiting");
     }
 
     @Override
     public void onStop() {
-        if (LOG_CONFIG.DEBUG > LogConfig.OFF) Log.d(TAG,".onStop: entering");
+        if (LOG_CONFIG.DEBUG > AcousticLogConfig.OFF) Log.d(TAG,".onStop: entering");
 
         shutdown(false);
 
@@ -4938,8 +4949,8 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
 //     * @param urlString
 //     */
 //    private void invalidUrl(final String urlString) {
-//        if (LOG_CONFIG.DEBUG==LogConfig.INTENT
-//                || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+//        if (LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT
+//                || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
 //            Log.d(TAG, ".invalidUrl: invalid URL text {" + urlString + "}");
 //        if (coordinatorLayout != null)
 //            Snackbar.make(findViewById(android.R.id.content), //coordinatorLayout,
@@ -4965,7 +4976,7 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
 //        urlToPlayDecoded = "";
 //        //TO DO was here was here spectro b u g this does not work for extra_stream for type AUDIO_*
 //        urlToPlayRaw = intent.getStringExtra(Intent.EXTRA_TEXT);
-//        if (LOG_CONFIG.DEBUG==LogConfig.INTENT)
+//        if (LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT)
 //            Log.d(TAG, ".handleIncomingIntent: urlToPlayRaw from Intent.EXTRA_TEXT {"
 //                    + urlToPlayRaw + "}");
 //        if (urlToPlayRaw == null) {
@@ -5016,7 +5027,7 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
 //    }
 
 //    private boolean play(final Intent intent, final String urlToPlayGiven){
-//        if (LOG_CONFIG.DEBUG==LogConfig.INTENT)
+//        if (LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT)
 //            Log.d(TAG, ".play: trying to play intent for remote file {" + intent
 //                    + "} urlToPlayGiven {"+urlToPlayGiven+"}");
 //        //urlToPlayString = urlToPlayDecoded;
@@ -5038,13 +5049,13 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
 //            throws UnsupportedEncodingException {
 //
 //        urlToPlayDecoded = URLDecoder.decode(urlToPlayRawGiven, "UTF-8");
-//        if (LOG_CONFIG.DEBUG==LogConfig.INTENT)
+//        if (LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT)
 //            Log.d(TAG, ".playRemoteFile: url is text; urlToPlayDecoded {"
 //                    + urlToPlayDecoded + "}");
 //
 //        if (urlToPlayDecoded != null && !urlToPlayDecoded.isEmpty()) {
 //            // external url or uri to play may be ok, try it
-//            if (LOG_CONFIG.DEBUG==LogConfig.INTENT || LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+//            if (LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
 //                Log.e(TAG, ".playRemoteFile: trying to play intent with text URL to remote file {"
 //                        + intent + "}");
 //            urlToPlayString = urlToPlayDecoded;
@@ -5072,7 +5083,7 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
 //     * @deprecated
 //     */
 //    private boolean playLocalFile(final Intent intent, final Uri uriGiven, final String filepath) {
-//        if (LOG_CONFIG.DEBUG==LogConfig.INTENT)
+//        if (LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT)
 //            Log.d(TAG, ".playLocalFile: entering with filepath {" + filepath + "}");
 //
 ////      Try to open the file for "read" access using the
@@ -5081,13 +5092,13 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
 //        FileDescriptor fd = getFileDescriptorForPrivateFileWithRetries(filepath);
 //
 //        if (fd == null) {
-//            if (LOG_CONFIG.DEBUG==LogConfig.INTENT)
+//            if (LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT)
 //                Log.d(TAG, "playLocalFile: File cannot be opened {" + filepath + "}");
 //            showError("File cannot be opened");
 //            return false;
 //        }
 //
-//        if (LOG_CONFIG.DEBUG==LogConfig.INTENT)
+//        if (LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT)
 //            Log.d(TAG, "playLocalFile: File opened!!! {" + filepath + "} descriptor {" + fd + "}");
 //
 //        boolean success = false;
@@ -5099,7 +5110,7 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
 ////            try {
 ////                pfd.close();
 ////            } catch (IOException ignore) {
-////                if (LOG_CONFIG.DEBUG==LogConfig.INTENT||LOG_CONFIG.ERROR==LogConfig.ON)
+////                if (LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT||LOG_CONFIG.ERROR==AcousticLogConfig.ON)
 ////                    Log.e(TAG, "playLocalFile: File found: {"+filepath+"}, descriptor {"+fd+"}"
 ////                    +" IOException "+ignore+" "+Log.getStackTraceString(ignore));
 ////            }
@@ -5116,13 +5127,13 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
 //        try {
 //            fd = openFileInput(filepath).getFD();
 //        } catch (IllegalArgumentException e) {
-//            if (LOG_CONFIG.DEBUG==LogConfig.INTENT || LOG_CONFIG.ERROR==LogConfig.ON)
+//            if (LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT || LOG_CONFIG.ERROR==AcousticLogConfig.ON)
 //                Log.e(TAG, "getFileDescriptorForPrivateFile: File {" + filepath + "}"
 //                        + " IOException " + e + " " + Log.getStackTraceString(e));
 //            //showError("File cannot be opened");
 //            return null;
 //        } catch (IOException e) {
-//            if (LOG_CONFIG.DEBUG==LogConfig.INTENT || LOG_CONFIG.ERROR==LogConfig.ON)
+//            if (LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT || LOG_CONFIG.ERROR==AcousticLogConfig.ON)
 //                Log.e(TAG, "getFileDescriptorForPrivateFile: File {" + filepath + "}"
 //                        + " IOException " + e + " " + Log.getStackTraceString(e));
 //            //showError("File cannot be opened");
@@ -5180,7 +5191,7 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
 //        Uri uri = uriGiven;
 //        if (uri == null) {
 //            uri = Uri.parse(filepath);
-//            if (LOG_CONFIG.DEBUG==LogConfig.INTENT)
+//            if (LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT)
 //                Log.d(TAG, ".getFileDescriptorWithContentResolverAndPfd: " +
 //                        "Uri.parse(filepath) returned uri {" + uri + "}");
 //        }
@@ -5220,7 +5231,7 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
 
 
 //    private boolean doPlayUrlString(final String urlString){//TO DO use to test 2017-7-26 when using the Play button
-//        if (LOG_CONFIG.DEBUG==LogConfig.PLAY_URL)
+//        if (LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
 //            Log.d(TAG, ".doPlayUrlString: entering with urlString {" + urlString + "}");
 //        try {
 //            Intent intent = makeIntentFromString(urlString); //Intent.parseUri(urlString,Intent.FLAG_GRANT_READ_URI_PERMISSION);
@@ -5229,7 +5240,7 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
 //
 //        } catch (Throwable ex) {
 //            //e.printStackTrace();
-//            if(LOG_CONFIG.ERROR==LogConfig.ON)
+//            if(LOG_CONFIG.ERROR==AcousticLogConfig.ON)
 //                Log.e(TAG, ".doPlayUrlString(String {"+urlString+"}) " + ex + " "
 //                        + Log.getStackTraceString(ex));
 //        }
@@ -5323,8 +5334,8 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
 //     */
 //    private boolean doPlayUrl(final String urlString) {
 //        isCancelling = false;
-//        if (LOG_CONFIG.DEBUG==LogConfig.PLAY_URL
-//                || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
+//        if (LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL
+//                || LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS)
 //            Log.d(TAG, ".play(String url): entering with urlString {" + urlString
 //                    //+"} permissionGrantedForStorageAccess = "+permissionGrantedForStorageAccess
 //                    + "}, SOUND_TO_PLAY_IS_ENABLED = " + SOUND_TO_PLAY_IS_ENABLED
@@ -5343,26 +5354,26 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
 //
 //        if (isLocalFile(urlStrg)) {
 //            // is local file, check external storage access permission
-//            if (LOG_CONFIG.DEBUG==LogConfig.PLAY_URL
-//                    || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
+//            if (LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL
+//                    || LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS)
 //                Log.d(TAG, ".play: is local file {" + urlStrg + "}; get access permission...");
 //
 //            if ( ! getPermissionForExternalStorageAccess(urlStrg)) {
 //                // external storage access permission was definitively denied
 //                // or permission is being requested, don't play
-//                if (LOG_CONFIG.DEBUG==LogConfig.PLAY_URL
-//                        || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
+//                if (LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL
+//                        || LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS)
 //                    Log.d(TAG, ".play: access denied or being requested...");
 //                return false;
 //            }
 //            // local file access granted, then play it
-//            if (LOG_CONFIG.DEBUG==LogConfig.PLAY_URL
-//                    || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
+//            if (LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL
+//                    || LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS)
 //                Log.d(TAG, ".play: access granted, try to play local file");
 //        } else {
 //            // not local file, then remote file, try to play
-//            if (LOG_CONFIG.DEBUG==LogConfig.PLAY_URL
-//                    || LOG_CONFIG.DEBUG==LogConfig.PERMISSIONS)
+//            if (LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL
+//                    || LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS)
 //                Log.d(TAG, ".play: not local file, try to play remote file");
 //        }
 //
