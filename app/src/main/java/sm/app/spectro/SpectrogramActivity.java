@@ -74,10 +74,9 @@ import java.util.Date;
 import sm.lib.acoustic.Acoustic;
 import sm.lib.acoustic.AcousticConfig;
 import sm.lib.acoustic.AcousticDeviceCapabilities;
+import sm.lib.acoustic.AcousticEvent;
 import sm.lib.acoustic.AcousticLogConfig;
 import sm.lib.acoustic.AcousticSettings;
-import sm.lib.acoustic.AcousticSignal;
-import sm.lib.acoustic.AcousticSlice;
 import sm.lib.acoustic.AudioPlayer;
 import sm.lib.acoustic.gui.SpectrogramView;
 import sm.lib.acoustic.util.AppContext;
@@ -291,10 +290,6 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     Button hideUrlButton;
     LinearLayout urlLayout;
 
-    /*
-    Snackbar is in the optional design support lib; gives rendering bug on samsung tablet
-     */
-//    Snackbar urlPrepareSnackbar;
 
     /**
      * to disable an Intent type, the corresponding {@code *_ENABLED} flag is set to false and
@@ -428,52 +423,13 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         return LOG_CONFIG;
     }
 
-    @Override
-    public void onError(String s) {
+
+    private void onError(String s) {
         if(Acoustic.getIt().isAnyLogEnabled() ){
             Log.d(TAG,"onError: "+s);
         }
     }
 
-    @Override
-    public void onShutdown() {
-
-    }
-
-    @Override
-    public void writeInConsole(String s, long l, String s1) {
-
-    }
-
-    @Override
-    public void writeInConsole(String s, long l, String s1, boolean b) {
-
-    }
-
-    @Override
-    public void writeInConsoleByApp(String s) {
-
-    }
-
-    @Override
-    public void writeInMonitorAndShow(String s) {
-
-    }
-
-    @Override
-    public void writeInMonitorToShow(String s) {
-
-    }
-
-    @Override
-    public void writeInMonitor(String s) {
-
-    }
-
-    @Override
-    public void writeInMonitorToShowWithEmailSupport(String s) {
-
-    }
 
 //    /**
 //     * designed to be reset in children onCreate.
@@ -487,7 +443,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 //     *
 //     * @return int such as LogClient.APP_TYPE_FREE
 //     */
-//    @Override
+//
 //    public int getAppType() {
 //        return appType;
 //    }
@@ -497,12 +453,12 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 //     * Default: LogClient.APP_TYPE_FREE
 //     * @param appType
 //     */
-//    @Override
+//
 //    public void setAppType(int appType) {
 //        this.appType = appType;
 //    }
 
-//    @Override
+//
 //    public String getAppTypeString(final Object object, final int appTypeInt) {
 //        final Context contextGiven = (Context)object;
 //        switch (appTypeInt) {
@@ -518,12 +474,12 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 //        return contextGiven.getString(R.string.app_type_unknown);
 //    }
 //
-//    @Override
+//
 //    public String getAppTypeString(){
 //        return getAppTypeString(AppContext.getIt().APP_CONTEXT,appType);
 //    }
 
-    @Override
+
     public boolean isDbCapable() {
         return false;
     }
@@ -568,7 +524,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
                     + "} version name {" + AppContext.getIt().getVersionName()
                     + "} AppPublisher.emailAddressForSupport {" + AppPublisher.emailAddressForSupport
                     +"}"//TODO prio 2 2017-7-1 and use the email support enabled flag in LogClient.Callback
-                    + "\n" + forDisplay()
+                    + "\n" + getTextForDisplayFromClient()
                     + "\n" + Thread.currentThread()
             );
         }
@@ -1052,7 +1008,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     private volatile String pauseButtonLabel = null;
 
     private Runnable RUNNABLE_TO_ENABLE_THE_PAUSE_BUTTON = new Runnable() {
-        @Override
+
         public void run() {
             if(pause==null)return;
             pause.setOnClickListener(ON_CLICK_LISTENER);
@@ -1064,7 +1020,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     };
 
     private Runnable RUNNABLE_TO_DISABLE_THE_PAUSE_BUTTON = new Runnable() {
-        @Override
+
         public void run() {
             if(pause==null)return;
             pause.setOnClickListener(null);
@@ -1081,8 +1037,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
      *
      * @param label not used if null
      */
-    @Override
-    public void enableThePauseButton(final String label) {
+    private void enableThePauseButton(final String label) {
         pauseButtonLabel = label;
         runOnUiThread(RUNNABLE_TO_ENABLE_THE_PAUSE_BUTTON);
     }
@@ -1092,8 +1047,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
      *
      * @param label not change if param is null
      */
-    @Override
-    public void disableThePauseButton(final String label) {
+    private void disableThePauseButton(final String label) {
         pauseButtonLabel = label;
         runOnUiThread(RUNNABLE_TO_DISABLE_THE_PAUSE_BUTTON);
     }
@@ -1103,8 +1057,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
      *
      * @return String, empty when not dev.
      */
-    @Override
-    public String forDisplay() {
+    private String getTextForDisplayFromClient() {
         if (!isDevMode()) return getClass().getSimpleName();
         boolean isDbCapable = isDbCapable();
         return "isDevMode() " + isDevMode()
@@ -1374,7 +1327,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
          *
          * @param v The user-selected view (button or other gui)
          */
-        @Override
+
         public void onClick(View v) {
             try {
                 if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
@@ -1944,7 +1897,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     }
 
     private final Runnable RUNNABLE_FOR_URL_PREPARE = new Runnable() {
-        @Override
+
         public void run() {
 //            if(coordinatorLayout==null)return;
 //            urlPrepareSnackbar = Snackbar.make(findViewById(android.R.id.content), //coordinatorLayout,
@@ -1964,7 +1917,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     private volatile String statusText = "";
 
     private final Runnable RUNNABLE_FOR_STATUS = new Runnable() {
-        @Override
+
         public void run() {
 //            if(coordinatorLayout!=null) {
 //                Snackbar statusSnackbar = Snackbar.make(findViewById(android.R.id.content), //coordinatorLayout,
@@ -1977,21 +1930,6 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 //            }
         }
     };
-
-    /**
-     * Designed to show status updates from library logic.
-     *
-     * @param givenStatusText
-     */
-    public void showStatusSnackbar(final String givenStatusText) {//TODO 2017-7-1 add param isIndefinite and OK action with listener to dismiss it
-        statusText = givenStatusText;
-        runOnUiThread(RUNNABLE_FOR_STATUS);
-    }
-
-//    @Override
-//    public boolean isVerifyIabPayload() {
-//        return false;
-//    }
 
 
     /**
@@ -2423,6 +2361,45 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     }
 
 
+    public boolean isPaused() {
+        //return Acoustic.getIt().isRunning();
+        return isPauseButtonChecked();
+    }
+
+
+    public void unpause() throws Exception {
+        //getListener();
+        Acoustic.getIt().restart();
+    }
+
+
+    public boolean isPauseSelected() {
+        return false;
+    }
+
+    public boolean onPauseSoundInput(String s) {
+        return false;
+    }
+
+
+    public boolean isPauseButtonChecked() {
+        if(pause==null)return false;
+        return pause.isPressed();
+    }
+
+    //AcousticEvent.GET_IS_SOUND_INPUT_PAUSED_BY_CLIENT
+
+    /**
+     * checks the pause button and maybe a status attribute in some cases
+     *
+     * @return true when paused
+     */
+    boolean isSoundInputPaused(){ //TODO washere 2018-7-14 called by onAcousticEvent
+        return isPauseButtonChecked();
+    }
+
+
+
 //    @ Override
 //    public boolean onCreateOptionsMenu(Menu menu) { TODO do we need an Options Menu???
 //        // Inflate the menu; this adds items to the action bar if it is present.
@@ -2499,25 +2476,25 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         startActivity(intent);
     }
 
-    @Override
-    public Runnable getRunnableForUiAfterDbLoaded() {
-        return null;
-    }
-
-    @Override
-    public Runnable getRunnableForMainProcess() {
-        return null;
-    }
-
-    @Override
-    public Runnable getRunnableToUnpauseOnUi() {
-        return null;
-    }
-
-    @Override
-    public Runnable getRunnableToEnableEmitButton() {
-        return null;
-    }
+//
+//    public Runnable getRunnableForUiAfterDbLoaded() {
+//        return null;
+//    }
+//
+//
+//    public Runnable getRunnableForMainProcess() {
+//        return null;
+//    }
+//
+//
+//    public Runnable getRunnableToUnpauseOnUi() {
+//        return null;
+//    }
+//
+//
+//    public Runnable getRunnableToEnableEmitButton() {
+//        return null;
+//    }
 
     /**
      * Set to null when cleared. May be null even when anomaly detected.
@@ -3303,134 +3280,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //        }
     }
 
-    @Override
-    public boolean saveAndCopyDataOnAnotherThread(Button button, boolean b, boolean b1) { //TODO washere 2018-5-27
-        return false;
-    }
 
-    @Override
-    public void onSaveDataOrCopyDbCompleted(boolean b, boolean b1, String s, boolean b2, long l) {
-
-    }
-
-    @Override
-    public void afterDbEnabledChanged(boolean b) {
-
-    }
-
-    @Override
-    public void afterDbLoaded(long l, boolean b) {
-
-    }
-
-    @Override
-    public boolean onSaveDataCompleted(boolean b, boolean b1, boolean b2, long l, boolean b3) {
-        return false;
-    }
-
-    @Override
-    public int getMipmapIcLauncher() {
-        return 0;
-    }
-
-    @Override
-    public boolean isPauseSelected() {
-        return false;
-    }
-
-    @Override
-    public boolean pauseAll(String s) {
-        return false;
-    }
-
-    @Override
-    public boolean isPauseButtonChecked() {
-        return pause.isPressed();
-    }
-
-    public void onAcousticSliceReceived(AcousticSlice slice){ //TODO washere 2018-6-7
-
-    }
-
-    public void onAcousticSignalReceived(AcousticSignal signal){
-
-    }
-
-    /**
-     * writes results in texts views for user to see
-     *
-     * @param statusCode int
-     * @param text
-     */
-    @Override
-    public void results(int statusCode, String text) {
-        if(LOG_CONFIG.DEBUG > AcousticLogConfig.OFF)
-            Log.d(TAG, ".results: statusCode " + statusCode + ": " + text);
-        if(SHOW_USER_INIT_EVENTS_ENABLED) {
-            showStatusSnackbar( "results: statusCode " + statusCode + ": " + text );
-        }
-    }
-
-    /**
-     * Designed to write results from background threads, such as recognition.
-     *
-     * @param statusCode int
-     * @param text       signal name or other text
-     * @param millis     long TODO future maybe remove, the method will get it from the system
-     * @param user       String ID; ex.: H, C, A
-     * @param isNewLine  boolean; true will force a new line to be started
-     */
-    @Override
-    public void results(int statusCode, String text, long millis, String user, boolean isNewLine) {
-        if(SHOW_USER_INIT_EVENTS_ENABLED) {
-            String s = "results: statusCode " + statusCode + ": " + text + "; millis " + millis
-                    + "; user " + user + "; isNewLine " + isNewLine;
-            showStatusSnackbar(s);
-            if(LOG_CONFIG.DEBUG >= AcousticLogConfig.ON)
-                Log.d(TAG, "."+s);
-        }
-    }
-
-    @Override
-    public void results(int i, String s, long l, String s1) {
-
-    }
-
-    @Override
-    public boolean isPaused() {
-        //return Acoustic.getIt().isRunning();
-        return isPauseButtonChecked();
-    }
-
-    @Override
-    public void unpause() throws Exception {
-        //getListener();
-        Acoustic.getIt().restart();
-    }
-
-    @Override
-    public CharSequence getConsoleCharSeq() {
-        return null;
-    }
-
-    @Override
-    public String getOrientationForDisplay() {
-        return null;
-    }
-
-//    private void getListenerWithNotif() {
-//        try {
-//            if (getListener() == null) {
-//                Toast.makeText(this, "The listener failed to start", Toast.LENGTH_LONG).show();
-//                // show error in text view
-//                showFailureInMethod(null, "BasicListener.getARunningListener");
-//            }
-//        }catch (Exception e){
-//            Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
-//            // show error in text view
-//            showFailureInMethod(e, "BasicListener.getARunningListener");
-//        }
-//    }
 
 //    /**
 //     * Shows anomaly text in text-view when detected, and in a toast.
@@ -3458,14 +3308,168 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //        return listener;
 //    }
 
-    @Override
-    public String getHUser() {
-        return "H";
-    }
 
-    @Override
-    public String getNonHUser() {
-        return "X";
+//    /**
+//     * called by the Acoustic library.
+//     *
+//     * @param ev AcousticEvent
+//     * @return success or failure; the ev object also contains the returnCode attribute.
+//     */
+//
+//    public boolean onAcousticEvent(AcousticEvent ev){
+//
+//        // here the returnCode is probably UNDETERMINED
+//
+//        switch(ev.id){
+//            case AcousticEvent.UNDETERMINED:
+//                ev.returnCode = AcousticEvent.OK;
+//                return false;
+//
+//            case AcousticEvent.UNKNOWN:
+//                ev.returnCode = AcousticEvent.OK;
+//                return false;
+//
+//            case AcousticEvent.SEVERE_ANOMALY_DETECTED_IN_LIB:
+//                ev.returnCode = AcousticEvent.OK;
+//
+//                //TODO process the error msg from lib
+//
+//                return true;
+//
+//            //TODO washere more from Acoustic.giveResultsToClientForLibs
+//
+//        }
+//
+//        // we should not get here normally
+//
+//        //TODO log or report bug to user and publisher, etc
+//        // here ev.returnCode is probably AcousticEvent.UNDETERMINED by default
+//        ev.returnCode = AcousticEvent.ERROR_RETURNED_BY_CALLBACK;
+//        return false;
+//    }
+
+
+    /**
+     * called by the overriding method in the child.
+     *
+     * @param ev AcousticEvent
+     * @return success or failure; the ev object also contains the returnCode attribute.
+     */
+    public boolean onAcousticEvent(AcousticEvent ev){
+
+        switch(ev.id){
+
+            case AcousticEvent.UNDETERMINED:
+                //TODO log or report bug to user and publisher, etc
+                ev.returnCode = AcousticEvent.ON_SEVERE_ANOMALY_DETECTED_IN_LIB;
+                return false;
+
+            case AcousticEvent.UNKNOWN:
+                // up to the child to decide if this situation is an error or not
+                // here ev.returnCode == AcousticEvent.UNDETERMINED by default
+                return false;
+
+            // when the id is SEVERE_ANOMALY_DETECTED_IN_LIB
+            // then the returnCode should be UNDETERMINED here
+
+
+            case AcousticEvent.ON_NON_SEVERE_ANOMALY_DETECTED_IN_LIB:
+                if(ev.ob!=null) {
+                    //TODO washere 2018-7-8 writeInMonitorToShow(ev.ob.toString());
+                }
+                ev.returnCode = AcousticEvent.OK;
+                return true;
+
+//            case AcousticEvent.TEXT_FOR_NORMAL_MONITORING:
+//                if(ev.ob!=null) {
+//                    writeInMonitor(ev.ob.toString());
+//                }
+//                ev.returnCode = AcousticEvent.OK;
+//                return true;
+
+            case AcousticEvent.ON_AUDIOTRACK_INIT_FAILED:
+            case AcousticEvent.ON_SEVERE_ANOMALY_DETECTED_IN_LIB:
+                if(ev.ob!=null) {
+                    //writeInMonitorToShowWithEmailSupport(ev.ob.toString());
+                    //TODO washere 2018-07-08
+                }
+                ev.returnCode = AcousticEvent.OK;
+                return true;
+
+            case AcousticEvent.GET_SYSTEM_SERVICE:
+                ev.returnedObject = getSystemService(ev.genericString);
+                ev.returnCode = AcousticEvent.OK;
+                return true;
+
+            case AcousticEvent.GET_TEXT_FOR_DISPLAY_FROM_CLIENT:
+                ev.returnedObject = getTextForDisplayFromClient();
+                ev.returnCode = AcousticEvent.OK;
+                return true;
+
+            case AcousticEvent.ON_NOTIFY_VOLUME:
+                notifyVolume();
+                ev.returnCode = AcousticEvent.OK;
+                return true;
+
+            case AcousticEvent.ON_ERROR:
+                onError(ev.genericString);
+                ev.returnCode = AcousticEvent.OK;
+                return true;
+
+            case AcousticEvent.ON_SHOW_STATUS:
+                showStatus(ev.genericString);
+                ev.returnCode = AcousticEvent.OK;
+                return true;
+
+
+            case AcousticEvent.GET_ACOUSTIC_CONFIG:
+                ev.returnedObject = getAcousticConfigFromClient();
+                ev.returnCode = AcousticEvent.OK;
+                return true;
+
+            case AcousticEvent.ON_CHANGE_PAUSE:
+                if(ev.genericBoolean){
+                    enableThePauseButton(null);
+                }else{
+                    disableThePauseButton(null);
+                }
+                ev.returnCode = AcousticEvent.OK;
+                return true;
+
+//            case AcousticEvent.GET_IS_PAUSE_BUTTON_CHECKED:
+//                ev.returnedObject = isPauseButtonChecked();
+//                ev.returnCode = AcousticEvent.OK;
+//                return true;
+
+            case AcousticEvent.GET_IS_SOUND_INPUT_PAUSED_BY_CLIENT:
+                ev.returnedObject = isSoundInputPaused();
+                ev.returnCode = AcousticEvent.OK;
+                return true;
+
+            case AcousticEvent.ON_PAUSE_SOUND_INPUT://TODO update acousticevent and callers
+                ev.returnedObject = onPauseSoundInput(""+ev.ob);
+                ev.returnCode = AcousticEvent.OK;
+                return true;
+        }
+
+//        // cases from Command.executeCommand() etc
+//        // ---------------------------------------
+//
+//        if(ev.id>= CommandEnum.ID_MIN && ev.id<=CommandEnum.ID_MAX){
+//            if(ev.ob!=null) {
+//                writeInMonitorAndShow(ev.ob.toString());
+//            }
+//            ev.returnCode = AcousticEvent.OK;
+//            return true;
+//        }
+
+        //TODO log or report bug to user and publisher, etc
+        // here ev.returnCode == AcousticEvent.UNDETERMINED by default
+        // the calling child will do it's own ev.id matching
+
+        ev.returnCode = AcousticEvent.ON_ERROR_RETURNED_BY_CALLBACK;
+        return false;
+
     }
 
     /* *
@@ -3574,14 +3578,23 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
       TODO prio 2 keep list of urls to play, give them names, delete, move up/down, export list (share)
      */
-    @Override
-    public AcousticConfig getAcousticConfig(){
-        AcousticConfig soundPrefs = new AcousticConfig();
+
+    AcousticConfig soundPrefs = null;
+
+
+    private AcousticConfig getAcousticConfigFromClient(){
+        if(soundPrefs!=null) return soundPrefs;
+        soundPrefs = new AcousticConfig();
         soundPrefs.isMicPreferred = true;
         soundPrefs.isChannelMonoRequested = true;
         soundPrefs.isEncodingPcmFloatPreferred = false;//TODO future true with new code for float processing
         soundPrefs.isNativeSampleRateRequested = true;
         soundPrefs.isSameEncodingPcmForInputAndOutputRequested = false;
+//        soundPrefs.isDevMode = false;
+//        soundPrefs.isDbCapable = false;
+//        soundPrefs.emissionIsEnabled = false;
+        soundPrefs.mipmap_ic_launcher = R.mipmap.ic_launcher;
+
         if(LOG_CONFIG.DEBUG==AcousticLogConfig.ON){
             Log.d(TAG,".getAcousticConfig: isMicPreferred {"+soundPrefs.isMicPreferred
             +"} isChannelMonoRequested {"+soundPrefs.isChannelMonoRequested
@@ -3599,23 +3612,16 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     /**
      * @return float volume percent
      */
-    @Override
-    public float notifyVolume() {
+    private float notifyVolume() {
         return 0;
     }
 
-    /**
-     * not used in this version
-     *
-     * @param success boolean; emission success status; true or false.
-     */
-    @Override
-    public void emissionCompletionStatus(boolean success) {
-    }
 
 //    public SpectrogramView getSpectrogramView(){
 //        return spectrogramView;
 //    }
+
+    private final Object LOCK_FOR_LISTENER = new Object();
 
     private boolean startAcoustic() throws Exception {
         synchronized (LOCK_FOR_LISTENER) {
@@ -3636,7 +3642,18 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
     }
 
-    private final Object LOCK_FOR_LISTENER = new Object();
+    private void showProblemStartingListener() {
+//        if (coordinatorLayout != null) {
+//            Snackbar.make(findViewById(android.R.id.content), //coordinatorLayout,
+//                     "The sound listener cannot be started", Snackbar.LENGTH_LONG).show();
+//        } else {
+//            Toast.makeText(this, "The listener failed to start", Toast.LENGTH_LONG).show();
+//        }
+        Toast.makeText(this, "The sound listener cannot be started",
+                Toast.LENGTH_LONG).show();
+        // show error in text view
+        showFailureInMethod(null, "BasicListener");
+    }
 
     //private final ReentrantLock REL_FOR_LISTENER = new ReentrantLock();
 
@@ -3676,19 +3693,6 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //            }
 //        }//sync.
 //    }
-
-    private void showProblemStartingListener() {
-//        if (coordinatorLayout != null) {
-//            Snackbar.make(findViewById(android.R.id.content), //coordinatorLayout,
-//                     "The sound listener cannot be started", Snackbar.LENGTH_LONG).show();
-//        } else {
-//            Toast.makeText(this, "The listener failed to start", Toast.LENGTH_LONG).show();
-//        }
-        Toast.makeText(this, "The sound listener cannot be started",
-                Toast.LENGTH_LONG).show();
-        // show error in text view
-        showFailureInMethod(null, "BasicListener");
-    }
 
 //    private final Object LOCK_FOR_LISTENER = new Object();
 //    /**
@@ -4420,7 +4424,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      * Designed to be used in runOnUiThread.
      */
     private final Runnable RUNNABLE_TO_SHOW_ANOMALY_TEXT = new Runnable() {
-        @Override
+
         public void run() {
             if (LOG_CONFIG.ERROR==AcousticLogConfig.ON)
                 Log.e(SpectrogramActivity.TAG, getLastAnomalyTextInHtml());
@@ -4463,7 +4467,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     }
 
     private final Runnable RUNNABLE_TO_CLEAR_ANOMALY_TEXT = new Runnable() {
-        @Override
+
         public void run() {
             updateAboutButtonOnUIThread();
         }
@@ -4494,7 +4498,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
 
     private final Runnable RUNNABLE_FOR_PLAYER_STARTING_TO_PLAY = new Runnable() {
-        @Override
+
         public void run() {
 
 //            if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
@@ -4511,7 +4515,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     volatile String textForEndOfPlay = "Normal end of play";
 
     private final Runnable RUNNABLE_FOR_PLAYER_NORMAL_END = new Runnable() {
-        @Override
+
         public void run() {
             notifyPlayNormalEnd();
             //if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
@@ -4535,7 +4539,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     }
 
     private final Runnable RUNNABLE_FOR_ANOMALY_IN_PLAYER = new Runnable() {
-        @Override
+
         public void run() {
             if(editTextUrlToPlay==null)return;
             notifyPlayAbnormalEnd(throwableFromPlayer);
@@ -4574,7 +4578,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     }
 
     private final Runnable RUNNABLE_FOR_AUDIO_FOCUS_REFUSED = new Runnable() {
-        @Override
+
         public void run() {
 
             notifyPlayAbnormalEnd(new Exception("Audio focus was refused by the system"));
@@ -4817,57 +4821,66 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
 ////        }
 //    }
 
-    @Override
-    public boolean isDevMode() {
-        return false;// TODO false in prod
+
+    private boolean isDevMode() {
+        return getAcousticConfigFromClient().isDevMode;
     }
 
-//    @Override
-//    public boolean isEduVersion() {
-//        return false;
-//    }
 
-    @Override
-    public boolean isSupportEmailEnabled() {//TODO prio 2 2017-6-28 review with another class
-        return false;
+    private boolean isSupportEmailEnabled() {
+        return getAcousticConfigFromClient().isSupportEmailEnabled;
     }
 
-//    @Override
+//
 //    public boolean isAdsCapable() {
 //        return false;
 //    }
 
-//    @Override
+//
 //    public boolean isShowAdsWhenDonated() {
 //        return false;
 //    }
 //
-//    @Override
+//
 //    public boolean isDonationsCapable() {
 //        return false;
 //    }
 //
-//    @Override
+//
 //    public boolean isUseTestPurchase() {
 //        return false;
 //    }
 //
-//    @Override
+//
 //    public boolean isUseEmptyIabPayload() {
 //        return false;
 //    }
 
-    @Override
-    public boolean isSimulatingNoConnection() {
-        return false;
-    }
 
-    @Override
-    public void showStatus(String s) {
+    private boolean isSimulatingNoConnection() {
+
+        return getAcousticConfigFromClient().isSimulatingNoConnection;
 
     }
 
-//    @Override
+    /**
+     * Designed to show status updates from library logic.
+     *
+     * @param givenStatusText
+     */
+    public void showStatusSnackbar(final String givenStatusText) {//TODO 2017-7-1 add param isIndefinite and OK action with listener to dismiss it
+        statusText = givenStatusText;
+        runOnUiThread(RUNNABLE_FOR_STATUS);
+    }
+
+    private void showStatus(String s) {
+//        Toast.makeText(this,s,
+//                Toast.LENGTH_LONG).show();
+        statusText = s;
+        runOnUiThread(RUNNABLE_FOR_STATUS);
+    }
+
+//
 //    public boolean isSimulatingNoPurchase() {
 //        return false;
 //    }
