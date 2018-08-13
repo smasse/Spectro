@@ -416,7 +416,10 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
      * <br>warning off
      * <br>debug off
      */
-    private final AcousticLogConfig LOG_CONFIG = new AcousticLogConfig(AcousticLogConfig.OFF,AcousticLogConfig.OFF,AcousticLogConfig.INIT); //LogConfig.DEVICE_SOUND_CAPABILITIES);
+    private final AcousticLogConfig LOG_CONFIG = new AcousticLogConfig(
+            AcousticLogConfig.OFF,
+            AcousticLogConfig.OFF,
+            AcousticLogConfig.INIT); //LogConfig.DEVICE_SOUND_CAPABILITIES);
 
     @Override
     public AcousticLogConfig getLogConfig() {
@@ -512,7 +515,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
                 Log.w(TAG, ".onCreate: not TaskRoot and continuing...");
         }
 
-        Acoustic.firstCall(this);
+        Acoustic.firstCall(this,LOG_CONFIG);
 
 //        tempHackForCpuAtFullSpeed();
 
@@ -1841,7 +1844,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     }
 
     /**
-     * Creates a new player
+     *
      *
      * @param fileUrlString
      * @return boolean true when ok, false when failure
@@ -3309,46 +3312,6 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //    }
 
 
-//    /**
-//     * called by the Acoustic library.
-//     *
-//     * @param ev AcousticEvent
-//     * @return success or failure; the ev object also contains the returnCode attribute.
-//     */
-//
-//    public boolean onAcousticEvent(AcousticEvent ev){
-//
-//        // here the returnCode is probably UNDETERMINED
-//
-//        switch(ev.id){
-//            case AcousticEvent.UNDETERMINED:
-//                ev.returnCode = AcousticEvent.OK;
-//                return false;
-//
-//            case AcousticEvent.UNKNOWN:
-//                ev.returnCode = AcousticEvent.OK;
-//                return false;
-//
-//            case AcousticEvent.SEVERE_ANOMALY_DETECTED_IN_LIB:
-//                ev.returnCode = AcousticEvent.OK;
-//
-//                //TODO process the error msg from lib
-//
-//                return true;
-//
-//            //TODO washere more from Acoustic.giveResultsToClientForLibs
-//
-//        }
-//
-//        // we should not get here normally
-//
-//        //TODO log or report bug to user and publisher, etc
-//        // here ev.returnCode is probably AcousticEvent.UNDETERMINED by default
-//        ev.returnCode = AcousticEvent.ERROR_RETURNED_BY_CALLBACK;
-//        return false;
-//    }
-
-
     /**
      * called by the overriding method in the child.
      *
@@ -3627,7 +3590,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         synchronized (LOCK_FOR_LISTENER) {
 
             try {
-                Acoustic.getIt().start(true);
+                return Acoustic.getIt().start(true);
 
             } catch (Exception e) {
                 disableThePauseButton("Failed");
