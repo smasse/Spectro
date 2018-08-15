@@ -45,7 +45,7 @@
         android:layout_height="match_parent">
     </android.support.design.widget.CoordinatorLayout>
 
-    <sm.lib.acoustic.sound.forandroid.input.spectrogram.SpectrogramView
+    <sm.lib.acoustic.gui.SpectrogramView
         android:id="@+id/spectrogram2"
         android:layout_width="match_parent"
         android:layout_height="match_parent"

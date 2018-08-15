@@ -421,11 +421,46 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
             AcousticLogConfig.OFF,
             AcousticLogConfig.INIT); //LogConfig.DEVICE_SOUND_CAPABILITIES);
 
-    @Override
-    public AcousticLogConfig getLogConfig() {
-        return LOG_CONFIG;
-    }
+    /* TODO new pref
+    - for mic, offer to user all choices supported by the device and give the app one of the options
+    future:
+    - for channel, mono or stereo, same as above
+    - for float pcm encoding, same as above, float/int for input, float/int for output, depending on version of android
+    - for sampling rate, offer to user the native rate and some other rates supported by device, and let user pick one
+      and let user decide for same encoding for input and output
 
+      TODO prio 2 keep list of urls to play, give them names, delete, move up/down, export list (share)
+     */
+
+    AcousticConfig soundPrefs = AcousticConfig.DEFAULT;
+
+    private AcousticConfig getAcousticConfigFromClient(){
+        if(soundPrefs!=null && ! AcousticConfig.DEFAULT.equals(soundPrefs)) return soundPrefs;
+        soundPrefs = new AcousticConfig();
+        soundPrefs.logConfig = LOG_CONFIG;
+        soundPrefs.isMicPreferred = true;
+        soundPrefs.isChannelMonoRequested = true;
+        soundPrefs.isEncodingPcmFloatPreferred = false;//TODO future true with new code for float processing
+        soundPrefs.isNativeSampleRateRequested = true;
+        soundPrefs.isSameEncodingPcmForInputAndOutputRequested = false;
+//        soundPrefs.isDevMode = false;
+//        soundPrefs.isDbCapable = false;
+//        soundPrefs.emissionIsEnabled = false;
+        soundPrefs.mipmap_ic_launcher = R.mipmap.ic_launcher;
+
+        if(LOG_CONFIG.DEBUG==AcousticLogConfig.ON){
+            Log.d(TAG,".getAcousticConfigFromClient: isMicPreferred {"+soundPrefs.isMicPreferred
+                    +"} isChannelMonoRequested {"+soundPrefs.isChannelMonoRequested
+                    +"} isEncodingPcmFloatPreferred {"+soundPrefs.isEncodingPcmFloatPreferred
+                    +"} isNativeSampleRateRequested {"+soundPrefs.isNativeSampleRateRequested
+                    +"} isSameEncodingPcmForInputAndOutputRequested {"+soundPrefs.isSameEncodingPcmForInputAndOutputRequested
+                    +"}");
+        }
+        if(SHOW_USER_INIT_EVENTS_ENABLED){
+            showStatusSnackbar("AcousticConfig were set");
+        }
+        return soundPrefs;
+    }
 
     private void onError(String s) {
         if(Acoustic.getIt().isAnyLogEnabled() ){
@@ -500,6 +535,17 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     @Override
     protected void onCreate(Bundle savedInstanceState) {
 
+        final Acoustic acoustic = Acoustic.firstCall(this, getAcousticConfigFromClient());
+        if( ! acoustic.isConfigOk() ){
+            // error message: acoustic.acousticConfig.statusText
+            if(LOG_INIT_ENABLED) {
+                Log.w(TAG, ".onCreate: Acoustic lib reporting anomaly in config: "+
+                        acoustic.getAcousticConfig().statusText);
+            }
+
+            //TODO show user downstream
+        }
+
         super.onCreate(savedInstanceState);
 
         if (!isTaskRoot()) {
@@ -514,8 +560,6 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
                 //Log.e(TAG, ".onCreate: finishing quietly because not TaskRoot");
                 Log.w(TAG, ".onCreate: not TaskRoot and continuing...");
         }
-
-        Acoustic.firstCall(this,LOG_CONFIG);
 
 //        tempHackForCpuAtFullSpeed();
 
@@ -3531,46 +3575,6 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
 //    public boolean isMicPreferred(){ return true; }
 
-    /* TODO new pref
-    - for mic, offer to user all choices supported by the device and give the app one of the options
-    future:
-    - for channel, mono or stereo, same as above
-    - for float pcm encoding, same as above, float/int for input, float/int for output, depending on version of android
-    - for sampling rate, offer to user the native rate and some other rates supported by device, and let user pick one
-      and let user decide for same encoding for input and output
-
-      TODO prio 2 keep list of urls to play, give them names, delete, move up/down, export list (share)
-     */
-
-    AcousticConfig soundPrefs = null;
-
-
-    private AcousticConfig getAcousticConfigFromClient(){
-        if(soundPrefs!=null) return soundPrefs;
-        soundPrefs = new AcousticConfig();
-        soundPrefs.isMicPreferred = true;
-        soundPrefs.isChannelMonoRequested = true;
-        soundPrefs.isEncodingPcmFloatPreferred = false;//TODO future true with new code for float processing
-        soundPrefs.isNativeSampleRateRequested = true;
-        soundPrefs.isSameEncodingPcmForInputAndOutputRequested = false;
-//        soundPrefs.isDevMode = false;
-//        soundPrefs.isDbCapable = false;
-//        soundPrefs.emissionIsEnabled = false;
-        soundPrefs.mipmap_ic_launcher = R.mipmap.ic_launcher;
-
-        if(LOG_CONFIG.DEBUG==AcousticLogConfig.ON){
-            Log.d(TAG,".getAcousticConfig: isMicPreferred {"+soundPrefs.isMicPreferred
-            +"} isChannelMonoRequested {"+soundPrefs.isChannelMonoRequested
-            +"} isEncodingPcmFloatPreferred {"+soundPrefs.isEncodingPcmFloatPreferred
-            +"} isNativeSampleRateRequested {"+soundPrefs.isNativeSampleRateRequested
-            +"} isSameEncodingPcmForInputAndOutputRequested {"+soundPrefs.isSameEncodingPcmForInputAndOutputRequested
-            +"}");
-        }
-        if(SHOW_USER_INIT_EVENTS_ENABLED){
-            showStatusSnackbar("AcousticConfig were set");
-        }
-        return soundPrefs;
-    }
 
     /**
      * @return float volume percent

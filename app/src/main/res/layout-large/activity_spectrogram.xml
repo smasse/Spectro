@@ -39,7 +39,7 @@
     tools:context="sm.app.spectro.SpectrogramActivity">
     <!-- android:background="#0099cc" -->
 
-    <sm.lib.acoustic.sound.forandroid.input.spectrogram.SpectrogramView
+    <sm.lib.acoustic.gui.SpectrogramView
         android:id="@+id/spectrogram2"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
