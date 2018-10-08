@@ -338,10 +338,12 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 
     SpectrogramView spectrogramView;
     LinearLayout largeGuiLayout;
+
     /**
      * used for snackbar
      */
     CoordinatorLayout coordinatorLayout;//TODO washere bug 2018-4-17 does not seem to work: text not shown when exiting app
+
     LinearLayout buttonsLayout;
     TextView contentTextView;
     Button pause;
@@ -2587,9 +2589,10 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 
     @NonNull
     private String getDeviceText(){
-        StringBuilder buf = new StringBuilder();
-        buf.append( Html.fromHtml( getDeviceTextInHtml() ));
-        return buf.toString();
+//        StringBuilder buf = new StringBuilder();
+//        buf.append( Html.fromHtml( getDeviceTextInHtml() ));
+//        return buf.toString();
+        return fromHtmlToString(getDeviceTextInHtml());
     }
 
     @NonNull
@@ -2635,18 +2638,23 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 
     /**
      * TODO prio 2 move to library 2017-5
-     * @param html Stxing text
-     * @return android.text.Spanned, implements CharSequence
+     * @param html String text including html tags
+     * @return android.text.Spanned, implements CharSequence, formatted and without html tags
      */
     @SuppressWarnings("deprecation")
-    public static Spanned fromHtml(String html){
+    public static Spanned fromHtml(final String html){
         Spanned result;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             result = Html.fromHtml(html,Html.FROM_HTML_MODE_LEGACY);
         } else {
+            // deprecated
             result = Html.fromHtml(html);
         }
         return result;
+    }
+
+    public static String fromHtmlToString(final String html){
+        return fromHtml(html).toString();
     }
 
     @NonNull
@@ -4394,7 +4402,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
         public void run() {
             if (LOG_CONFIG.ERROR==AcousticLogConfig.ON)
-                Log.e(SpectrogramActivity.TAG, getLastAnomalyTextInHtml());
+                Log.e(SpectrogramActivity.TAG, fromHtmlToString(getLastAnomalyTextInHtml()));
 
             notifyForAnomaly("Anomaly detected",lastThrowable);
 
