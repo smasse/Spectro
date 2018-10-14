@@ -48,11 +48,6 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
-import android.support.annotation.NonNull;
-import android.support.design.widget.CoordinatorLayout;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.app.NotificationCompat;
-import android.support.v4.content.ContextCompat;
 import android.text.Html;
 import android.text.Spanned;
 import android.text.method.ScrollingMovementMethod;
@@ -71,6 +66,11 @@ import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 import java.util.Date;
 
+import androidx.annotation.NonNull;
+import androidx.coordinatorlayout.widget.CoordinatorLayout;
+import androidx.core.app.ActivityCompat;
+import androidx.core.app.NotificationCompat;
+import androidx.core.content.ContextCompat;
 import sm.lib.acoustic.Acoustic;
 import sm.lib.acoustic.AcousticConfig;
 import sm.lib.acoustic.AcousticDeviceCapabilities;
@@ -79,6 +79,7 @@ import sm.lib.acoustic.AcousticLogConfig;
 import sm.lib.acoustic.AcousticSettings;
 import sm.lib.acoustic.AudioPlayer;
 import sm.lib.acoustic.gui.SpectrogramView;
+import sm.lib.acoustic.gui.TextDisplayWithEmailActivity;
 import sm.lib.acoustic.util.AppContext;
 import sm.lib.acoustic.util.AppPublisher;
 import sm.lib.acoustic.util.DataFromIntent;
@@ -2443,7 +2444,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
      *
      * @return true when paused
      */
-    boolean isSoundInputPaused(){ //TODO washere 2018-7-14 called by onAcousticEvent
+    boolean isSoundInputPaused(){ //TODO washere 2018-7-14 called by onAcousticEvent ???
         return isPauseButtonChecked();
     }
 
@@ -3229,7 +3230,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      * @return String "A severe anomaly was detected " with text param
      */
     static String getMonitorTextForAnomalyNotif(final String text, final Throwable ex) {
-        return "A severe anomaly was detected " + text
+        return "A severe anomaly was detected – " + text
 //                + (text != null
 //                && (!text.contains("main") && !text.contains("appParent"))
 //                ? "; and attribute *appParent* (or *main*) is null"
@@ -3295,17 +3296,32 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
         notifyGenericAnomaly(ex);
 
-        if(SHOW_USER_INIT_EVENTS_ENABLED){
-            showStatusSnackbar(text);
-        }
+//        if(SHOW_USER_INIT_EVENTS_ENABLED){
+//            showStatusSnackbar(text);
+//        }
 
         final String detailsForEmail = getAnomalyDetailsForEmail(ex);
 
         final String monitorText = getMonitorTextForAnomalyNotif(text, ex);
 
-        final String consoleMsg = "Anomaly detected, please consult app messages for details";
+        //final String consoleMsg = "Anomaly detected, please consult app messages for details";
 
         final String all = monitorText + "\n\n" + detailsForEmail;
+
+
+
+        TextDisplayWithEmailActivity.show(activity,
+                all,
+                16.0F,
+                getResources().getString(R.string.app_name_short),
+                "Severe Anomaly",
+                "Severe Anomaly", //this.getResources().getString(R.string.device_sound_capabilities),
+                OnAnyThread.IT.isConnected(isSimulatingNoConnection()),
+                "" //this.getDeviceOwnerEmailAddress()
+        );
+
+
+
 
         if (isSupportEmailEnabled() 
                 && OnAnyThread.IT.isConnected(isSimulatingNoConnection())) {
@@ -3390,7 +3406,9 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
             case AcousticEvent.ON_NON_SEVERE_ANOMALY_DETECTED_IN_LIB:
                 if(ev.ob!=null) {
-                    //TODO washere 2018-7-8 writeInMonitorToShow(ev.ob.toString());
+
+                    showAnomalyText(null, ev.ob.toString());
+
                 }
                 ev.returnCode = AcousticEvent.OK;
                 return true;
@@ -4401,7 +4419,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     private final Runnable RUNNABLE_TO_SHOW_ANOMALY_TEXT = new Runnable() {
 
         public void run() {
-            if (LOG_CONFIG.ERROR==AcousticLogConfig.ON)
+            if (LOG_CONFIG.ERROR!=AcousticLogConfig.OFF)
                 Log.e(SpectrogramActivity.TAG, fromHtmlToString(getLastAnomalyTextInHtml()));
 
             notifyForAnomaly("Anomaly detected",lastThrowable);
@@ -4425,8 +4443,8 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
 
     /**
-     * @param e    may be null
-     * @param text
+     * @param e    Throwable, may be null.
+     * @param text String
      */
     private void showAnomalyText(final Throwable e, final String text) {
         lastThrowable = e;
@@ -4513,6 +4531,8 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         runOnUiThread(RUNNABLE_FOR_PLAYER_NORMAL_END);
     }
 
+    private Activity activity = this;
+
     private final Runnable RUNNABLE_FOR_ANOMALY_IN_PLAYER = new Runnable() {
 
         public void run() {
@@ -4521,7 +4541,9 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
             doCancelUrl();
 //            if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
             editTextUrlToPlay.setTextColor(Color.RED);
+
             showAnomalyText(throwableFromPlayer, errorMessageFromPlayer);
+
 //            if (coordinatorLayout != null)
 //                Snackbar.make(findViewById(android.R.id.content), //coordinatorLayout,
 //                        errorMessageFromPlayer, Snackbar.LENGTH_LONG)
