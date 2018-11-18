@@ -570,8 +570,8 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 
         if (Acoustic.getIt().isAnyLogEnabled()){
             Log.d(TAG, ".onCreate: entering..." +
-                    "app name {" + AppContext.getIt().getAppName()
-                    + "} version name {" + AppContext.getIt().getVersionName()
+                    "app name {" + AppContext.getAppName()
+                    + "} version name {" + AppContext.getVersionName()
                     + "} AppPublisher.emailAddressForSupport {" + AppPublisher.emailAddressForSupport
                     +"}"//TODO prio 2 2017-7-1 and use the email support enabled flag in LogClient.Callback
                     + "\n" + getTextForDisplayFromClient()
@@ -2713,9 +2713,9 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
                 "of a group of dolphins, probably Tursiops, where sometimes at least 5 individuals are whistling at the same time.");
 
         buf.append("<p/>").append("Application Version Code: ")
-        .append(AppContext.getIt().getVersionCode())
+        .append(AppContext.getVersionCode())
         .append("<br>Version Name: ")
-        .append(AppContext.getIt().getVersionName())
+        .append(AppContext.getVersionName())
         .append("<p/>Questions, defects, suggestions, please contact ")
                 .append(AppPublisher.emailAddressForSupport);
 
@@ -4635,7 +4635,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         notifySimple(
                 e,
                 "Anomaly detected",
-                AppContext.getIt().getAppName(),
+                AppContext.getAppName(),
                 R.drawable.ic_stat_error
         );
     }
@@ -4650,7 +4650,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         notifySimple(
                 null,
                 "Sound file paying",
-                AppContext.getIt().getAppName(),
+                AppContext.getAppName(),
                 R.drawable.ic_stat_playing
         );
     }
@@ -4660,7 +4660,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         notifySimple(
                 null,
                 "Sound file ended normally",
-                AppContext.getIt().getAppName(),
+                AppContext.getAppName(),
                 R.drawable.ic_stat_recording_ended_normally
         );
     }
@@ -4670,7 +4670,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         notifySimple(
                 e,
                 "Sound file ended abnormally",
-                AppContext.getIt().getAppName(),
+                AppContext.getAppName(),
                 R.drawable.ic_stat_error
         );
     }
@@ -4680,7 +4680,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         notifySimple(
                 e,
                 "Sound file failed to start playing",
-                AppContext.getIt().getAppName(),
+                AppContext.getAppName(),
                 R.drawable.ic_stat_error
         );
     }

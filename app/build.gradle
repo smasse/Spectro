@@ -4,7 +4,7 @@ android {
     compileSdkVersion 28
     defaultConfig {
         applicationId "sm.app.spectro"
-        minSdkVersion 14
+        minSdkVersion 23
         targetSdkVersion 28
         versionCode 4
         versionName '4.0'
@@ -19,18 +19,29 @@ android {
     }
     buildToolsVersion '28.0.3'
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_7
-        targetCompatibility JavaVersion.VERSION_1_7
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
     }
     productFlavors {
     }
 }
 repositories {
-    flatDir {
-        dirs 'libs'
-    }
+    flatDir { dirs 'libs' }
     google()
     jcenter()
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.0.2'
+    implementation 'com.google.android.material:material:1.0.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.0.0-alpha2'
+    testImplementation 'junit:junit:4.12'
+    androidTestImplementation 'androidx.test:runner:1.1.0'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.1.0'
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    //implementation(name: 'sm-lib-sound-release', ext: 'aar')
+    implementation(name: 'sm-lib-sound-debug', ext: 'aar')
+    //implementation files('/Users/sergemasse/sm-apps/sm-lib-acoustic/sm-lib-sound/build/outputs/aar/sm-lib-sound-debug.aar')
 }
 
 /*
@@ -64,31 +75,3 @@ repositories {
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-//dependencies {
-////    compile(name: 'sm-lib-sound-release', ext: 'aar')
-//    implementation fileTree(include: ['*.jar'], dir: 'libs')
-////    androidTestImplementation('com.android.support.test.espresso:espresso-core:2.2.2', {
-////        exclude group: 'com.android.support', module: 'support-annotations'
-////    })
-//    androidTestImplementation 'com.android.support.test:runner:1.0.1'
-//    androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.1'
-//    implementation 'com.android.support:appcompat-v7:27.1.0'
-//    implementation 'com.android.support:design:27.1.0'
-//    implementation 'com.android.support:support-vector-drawable:27.1.0'
-//    testImplementation 'junit:junit:4.12'
-//    implementation files('/Users/sergemasse/sm-apps/sm-lib-acoustic/sm-lib-sound/build/outputs/aar/sm-lib-sound-release.aar')
-//}
-dependencies {
-    implementation fileTree(include: ['*.jar'], dir: 'libs')
-    implementation 'androidx.appcompat:appcompat:1.0.0'
-    implementation 'com.google.android.material:material:1.0.0'
-    implementation 'androidx.constraintlayout:constraintlayout:2.0.0-alpha2'
-    testImplementation 'junit:junit:4.12'
-    androidTestImplementation 'androidx.test:runner:1.1.0-beta02'
-    androidTestImplementation 'androidx.test.espresso:espresso-core:3.1.0-beta02'
-    //    implementation files('/Users/sergemasse/sm-apps/sm-lib-acoustic/sm-lib-comm/build/outputs/aar/sm-lib-comm-release.aar')
-    implementation files('/Users/sergemasse/sm-apps/sm-lib-acoustic/sm-lib-sound/build/outputs/aar/sm-lib-sound-debug.aar')
-    //implementation files('/Users/sergemasse/sm-apps/sm-lib-acoustic/sm-lib-sound/build/outputs/aar/sm-lib-sound-release.aar')
-    //    implementation 'com.android.support:support-vector-drawable:27.1.0'
-}
