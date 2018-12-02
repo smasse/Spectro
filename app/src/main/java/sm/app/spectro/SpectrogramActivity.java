@@ -451,12 +451,18 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 //        soundPrefs.emissionIsEnabled = false;
         soundPrefs.mipmap_ic_launcher = R.mipmap.ic_launcher;
 
+        //settings for textviews
+        soundPrefs.textColorHexString = "#33b5e5";
+        soundPrefs.textSizeSp = 14;
+        soundPrefs.textStyleString = "bold";
+
         if(LOG_CONFIG.DEBUG==AcousticLogConfig.ON){
             Log.d(TAG,".getAcousticConfigFromClient: isMicPreferred {"+soundPrefs.isMicPreferred
                     +"} isChannelMonoRequested {"+soundPrefs.isChannelMonoRequested
                     +"} isEncodingPcmFloatPreferred {"+soundPrefs.isEncodingPcmFloatPreferred
                     +"} isNativeSampleRateRequested {"+soundPrefs.isNativeSampleRateRequested
-                    +"} isSameEncodingPcmForInputAndOutputRequested {"+soundPrefs.isSameEncodingPcmForInputAndOutputRequested
+                    +"} isSameEncodingPcmForInputAndOutputRequested {"
+                    +soundPrefs.isSameEncodingPcmForInputAndOutputRequested
                     +"}");
         }
         if(SHOW_USER_INIT_EVENTS_ENABLED){
@@ -525,7 +531,6 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         return false;
     }
 
-
     public String getDbProviderAuthority() {
         return "N/A";
     }
@@ -538,7 +543,13 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     @Override
     protected void onCreate(Bundle savedInstanceState) {
 
-        final Acoustic acoustic = Acoustic.firstCall(this, getAcousticConfigFromClient());
+        Acoustic acoustic = null;
+        try {
+            acoustic = Acoustic.firstCall(this, getAcousticConfigFromClient(), getApplicationContext());
+        }catch(Throwable ex){
+            if(LOG_INIT_ENABLED) Log.e(TAG,"onCreate: "+ex);
+        }
+
         if( ! acoustic.isConfigOk() ){
             // error message: acoustic.acousticConfig.statusText
             if(LOG_INIT_ENABLED) {
@@ -3454,7 +3465,6 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
                 ev.returnCode = AcousticEvent.OK;
                 return true;
 
-
             case AcousticEvent.GET_ACOUSTIC_CONFIG:
                 ev.returnedObject = getAcousticConfigFromClient();
                 ev.returnCode = AcousticEvent.OK;
@@ -3719,10 +3729,6 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         Acoustic.getIt().shutdown();
     }
 
-    @Override
-    public Context getAndroidActivityContext() {
-        return this;
-    }
 
     @Override
     protected void onDestroy() {

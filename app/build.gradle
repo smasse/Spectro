@@ -39,8 +39,8 @@ dependencies {
     androidTestImplementation 'androidx.test:runner:1.1.0'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.1.0'
     implementation fileTree(include: ['*.jar'], dir: 'libs')
-    //implementation(name: 'sm-lib-sound-release', ext: 'aar')
-    implementation(name: 'sm-lib-sound-debug', ext: 'aar')
+    implementation(name: 'sm-lib-sound-release', ext: 'aar')
+    //implementation(name: 'sm-lib-sound-debug', ext: 'aar')
     //implementation files('/Users/sergemasse/sm-apps/sm-lib-acoustic/sm-lib-sound/build/outputs/aar/sm-lib-sound-debug.aar')
 }
 
