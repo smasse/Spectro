@@ -452,9 +452,12 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         soundPrefs.mipmap_ic_launcher = R.mipmap.ic_launcher;
 
         //settings for textviews
-        soundPrefs.textColorHexString = "#33b5e5";
         soundPrefs.textSizeSp = 14;
         soundPrefs.textStyleString = "bold";
+        soundPrefs.textColorHexString = "white";
+        soundPrefs.bgColorHexString = "#0099cc";
+
+        //TODO washere textview container bg color
 
         if(LOG_CONFIG.DEBUG==AcousticLogConfig.ON){
             Log.d(TAG,".getAcousticConfigFromClient: isMicPreferred {"+soundPrefs.isMicPreferred
