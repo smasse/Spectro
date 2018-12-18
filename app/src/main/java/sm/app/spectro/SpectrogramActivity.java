@@ -2616,9 +2616,9 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 
         buf.append(getContentSectionForDeviceTextInHtml())
                 .append(AcousticDeviceCapabilities.getIt().getDeviceCapabilitiesInHtml())
-        //.append(DeviceSoundCapabilities.getDeviceCapabilitiesInHtml(true, true, this))
-        .append(AcousticSettings.getForAppTextInHtml()) //.getForAppTextInHtml(true))
-        .append(getPerfMeasurementsInHtml())
+                //.append(DeviceSoundCapabilities.getDeviceCapabilitiesInHtml(true, true, this))
+                .append(AcousticSettings.getForAppTextInHtml()) //.getForAppTextInHtml(true))
+                .append(getPerfMeasurementsInHtml())
         ;
 
         return buf.toString();
