@@ -76,7 +76,6 @@ import sm.lib.acoustic.AcousticConfig;
 import sm.lib.acoustic.AcousticDeviceCapabilities;
 import sm.lib.acoustic.AcousticEvent;
 import sm.lib.acoustic.AcousticLogConfig;
-import sm.lib.acoustic.AcousticSettings;
 import sm.lib.acoustic.AudioPlayer;
 import sm.lib.acoustic.gui.SpectrogramView;
 import sm.lib.acoustic.gui.TextDisplayWithEmailActivity;
@@ -582,7 +581,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 
         restorePreferences();
 
-        if (Acoustic.getIt().isAnyLogEnabled()){
+        if (Acoustic.IT.isAnyLogEnabled()){
             Log.d(TAG, ".onCreate: entering..." +
                     "app name {" + AppContext.getAppName()
                     + "} version name {" + AppContext.getVersionName()
@@ -881,7 +880,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
      */
     protected void onCreateComplete(final Bundle savedInstanceStateGiven) {
         try {
-            if (Acoustic.getIt().isLogDebugEnabled())
+            if (Acoustic.IT.isLogDebugEnabled())
                 Log.d(TAG, ".onCreateComplete: entering...");
 
             // 1. sound capabilities
@@ -890,9 +889,9 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 
             doesSoundInput = setDeviceSoundCapabilities();
 
-            doesSoundOutput = AcousticDeviceCapabilities.getIt().doesSoundOutput; //DeviceSoundCapabilities.isDeviceCapableOfSoundOutput();
+            doesSoundOutput = Acoustic.IT.doesSoundOutput(); //DeviceSoundCapabilities.isDeviceCapableOfSoundOutput();
 
-            if (Acoustic.getIt().isLogDebugEnabled()) {
+            if (Acoustic.IT.isLogDebugEnabled()) {
                 String soundInputSupported = doesSoundInput?"supported":"_not_ supported";
                 String soundOutputSupported = doesSoundOutput?"supported":"_not_ supported";;
                 Log.d(TAG, ".onCreateComplete: isOnRealDevice = " +isOnRealDevice+
@@ -928,7 +927,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 
             if ( ! success ) {
                 // the listener failed to start
-                if (Acoustic.getIt().isLogDebugEnabled()) {
+                if (Acoustic.IT.isLogDebugEnabled()) {
                     Log.d(TAG,".onCreateComplete: exiting; the listener failed to start");
                 }
                 //TODO better info to user for this critical issue
@@ -947,11 +946,11 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
             //------------------------------------------
 
         } catch (Exception ex) {
-            if(Acoustic.getIt().isAnyLogEnabled())Log.e(TAG,".onCreateComplete: "+ex);
+            if(Acoustic.IT.isAnyLogEnabled())Log.e(TAG,".onCreateComplete: "+ex);
             disableThePauseButton("Error");
             onExceptionAtInit(ex);//TODO prio 2 2016-11 does this work???
         } finally {
-            if (Acoustic.getIt().isLogDebugEnabled())
+            if (Acoustic.IT.isLogDebugEnabled())
                 Log.d(TAG, ".onCreateComplete: exiting...");
         }
     }
@@ -2617,7 +2616,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         buf.append(getContentSectionForDeviceTextInHtml())
                 .append(AcousticDeviceCapabilities.getIt().getDeviceCapabilitiesInHtml())
                 //.append(DeviceSoundCapabilities.getDeviceCapabilitiesInHtml(true, true, this))
-                .append(AcousticSettings.getForAppTextInHtml()) //.getForAppTextInHtml(true))
+                .append(AcousticConfig.getForAppTextInHtml()) //.getForAppTextInHtml(true))
                 .append(getPerfMeasurementsInHtml())
         ;
 
@@ -3126,12 +3125,16 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
             Log.d(TAG, ".restorePreferences: prefs = " + prefs);
 
 //        SettingsForSoundPreferences.restoreInputSettings(prefs);
-          AcousticSettings.restoreFromPreferences(prefs);
+          Acoustic.IT.secondCallRestorePreferences(prefs); //restoreFromPreferences(prefs);
 
 //        restoreUrlToPlay(prefs);
 
         if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT)
             Log.d(TAG, ".restorePreferences: exiting...");
+    }
+
+    public SharedPreferences getSharedPreferences(){
+        return PreferenceManager.getDefaultSharedPreferences(this);
     }
 
 //    / **
@@ -3164,7 +3167,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      */
     private boolean isOnRealDeviceOrEmulator() {
 
-        return Acoustic.getIt().isOnRealDevice();
+        return Acoustic.IT.isOnRealDevice();
     }
 
     /**
@@ -3175,11 +3178,10 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
         //includes sound configs kept in DeviceSoundCapabilities
         //============================================================
-        //DeviceSoundCapabilities.initFundamentalsForDevice(this,false);
-        AcousticDeviceCapabilities.getIt().init(false);
+        Acoustic.IT.thirdCallInitDeviceCapabilitiesAndSettings();
         //============================================================
 
-        if( ! AcousticDeviceCapabilities.getIt().doesSoundInput){
+        if( ! Acoustic.IT.doesSoundInput()){
 
         //if (!DeviceSoundCapabilities.isDeviceCapableOfSoundInput()) {
             if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT
@@ -3187,20 +3189,20 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
                     || LOG_CONFIG.DEBUG==AcousticLogConfig.DEVICE_SOUND_CAPABILITIES
                     ) {
                 Log.d(TAG, ".setDeviceSoundCapabilities: device cannot do sound input");
-                boolean outputOk = AcousticDeviceCapabilities.getIt().doesSoundOutput; //DeviceSoundCapabilities.isDeviceCapableOfSoundOutput();
+                boolean outputOk = AcousticDeviceCapabilities.IT.doesSoundOutput; //DeviceSoundCapabilities.isDeviceCapableOfSoundOutput();
                 Log.d(TAG, ".setDeviceSoundCapabilities: AcousticDeviceCapabilities.getIt().doesSoundOutput is {"+outputOk+"}");
             }
             return false;
         }
         if(LOG_CONFIG.DEBUG==AcousticLogConfig.DEVICE_SOUND_CAPABILITIES){
             Log.d(TAG, ".setDeviceSoundCapabilities: device can do sound input");
-            boolean outputOk = AcousticDeviceCapabilities.getIt().doesSoundOutput;
-            Log.d(TAG, ".setDeviceSoundCapabilities: AcousticDeviceCapabilities.getIt().doesSoundOutput is {"+outputOk+"}");
+            boolean outputOk = Acoustic.IT.doesSoundOutput();
+            Log.d(TAG, ".setDeviceSoundCapabilities: Acoustic.IT.doesSoundOutput() returned {"+outputOk+"}");
         }
 
         //VoltageSampling vs = DeviceSoundCapabilities.getSelectedVoltageSamplingForInput();
 
-        AcousticSettings.dependentsOnVoltageSamplingRate();
+//        AcousticSettings.updateAllDependents(); //dependentsOnVoltageSamplingRate();
 
 //        SettingsForSoundInput.dependentsOnVoltageSamplingRate(
 //                DeviceSoundCapabilities.getSelectedVoltageSamplingForInput());//does not depend on preferences in this version; depends on device capabilities
@@ -3217,10 +3219,10 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
                 || LOG_CONFIG.DEBUG==AcousticLogConfig.DEVICE_SOUND_CAPABILITIES)
             Log.d(TAG, ".setDeviceSoundCapabilities: " + Timestamp.getNanosForDisplay()
                 + "; first part of initFundamentalsForDevice completed ok;" +
-                "\n xInputHzPerBinFloat = " + AcousticSettings.xInputHzPerBinFloat // SettingsForSoundInput.xInputHzPerBinFloat
-                + "\n selectedVspsInputInt = " + AcousticDeviceCapabilities.getIt().selectedVspsOutputInt //DeviceSoundCapabilities.getSelectedVspsInputInt()
+                "\n xInputHzPerBinFloat = " + AcousticConfig.getxInputHzPerBinFloat() // SettingsForSoundInput.xInputHzPerBinFloat
+                + "\n selectedVspsInputInt = " + AcousticDeviceCapabilities.IT.selectedVspsOutputInt //DeviceSoundCapabilities.getSelectedVspsInputInt()
                 //+ "\n cTimeIncSecDouble = " + Settings.cTimeIncSec
-                + "\n MAX_PCM_ADJUSTED_FORMAT = " + AcousticSettings.MAX_PCM_ADJUSTED_FORMAT
+                //+ "\n MAX_PCM_ADJUSTED_FORMAT = " + AcousticConfig.MAX_PCM_ADJUSTED_FORMAT
                 + " is close to the maximum value for a pcm value " +
                 "(out of the A/D subsystem, or as input to the D/A subsystem)" +
                 ", adjusted to a little below max to" +
@@ -3322,19 +3324,21 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
         final String all = monitorText + "\n\n" + detailsForEmail;
 
-
-
+        /*
+         * @param parent            Activity
+         * @param givenText         String
+         * @param givenTextTitle    String
+         * @param givenSubjectLine  String
+         * @param givenIsConnected  boolean
+         * @param givenEmailToAddress String, may be null or empty
+         */
         TextDisplayWithEmailActivity.show(activity,
                 all,
-                16.0F,
-                getResources().getString(R.string.app_name_short),
-                "Severe Anomaly",
-                "Severe Anomaly", //this.getResources().getString(R.string.device_sound_capabilities),
+                getResources().getString(R.string.app_name_short), //title
+                "Severe Anomaly", //email subject line
                 OnAnyThread.IT.isConnected(isSimulatingNoConnection()),
                 "" //this.getDeviceOwnerEmailAddress()
         );
-
-
 
 
         if (isSupportEmailEnabled() 
@@ -3631,10 +3635,11 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
     private boolean startAcoustic() throws Exception {
         synchronized (LOCK_FOR_LISTENER) {
-
             try {
-                return Acoustic.getIt().start(true);
-
+                //---------------------------------------------------------------
+                Acoustic.IT.fourthCallStartDataAndInput();
+                //---------------------------------------------------------------
+                return true;
             } catch (Exception e) {
                 disableThePauseButton("Failed");
                 showProblemStartingListener();
@@ -3642,10 +3647,8 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
                     Log.e(TAG, ".startAcoustic: " + e + " " + Log.getStackTraceString(e));
                 //throw e;
             }
-
             return false;
-        }
-
+        }//sync.
     }
 
     private void showProblemStartingListener() {
