@@ -75,9 +75,10 @@ import sm.lib.acoustic.Acoustic;
 import sm.lib.acoustic.AcousticConfig;
 import sm.lib.acoustic.AcousticDeviceCapabilities;
 import sm.lib.acoustic.AcousticEvent;
+import sm.lib.acoustic.AcousticLog;
 import sm.lib.acoustic.AcousticLogConfig;
 import sm.lib.acoustic.AudioPlayer;
-import sm.lib.acoustic.gui.SpectrogramView;
+import sm.lib.acoustic.SpectrogramView;
 import sm.lib.acoustic.gui.TextDisplayWithEmailActivity;
 import sm.lib.acoustic.util.AppContext;
 import sm.lib.acoustic.util.AppPublisher;
@@ -458,6 +459,8 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 
         //TODO washere textview container bg color
 
+        soundPrefs.xMinHzInputFromApp = 2;
+
         if(LOG_CONFIG.DEBUG==AcousticLogConfig.ON){
             Log.d(TAG,".getAcousticConfigFromClient: isMicPreferred {"+soundPrefs.isMicPreferred
                     +"} isChannelMonoRequested {"+soundPrefs.isChannelMonoRequested
@@ -474,7 +477,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     }
 
     private void onError(String s) {
-        if(Acoustic.getIt().isAnyLogEnabled() ){
+        if(Acoustic.IT.isAnyLogEnabled() ){
             Log.d(TAG,"onError: "+s);
         }
     }
@@ -547,7 +550,8 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 
         Acoustic acoustic = null;
         try {
-            acoustic = Acoustic.firstCall(this, getAcousticConfigFromClient(), getApplicationContext());
+            //acoustic = Acoustic.firstCall(this, getAcousticConfigFromClient(), getApplicationContext());
+            acoustic = Acoustic.firstCall(this, soundPrefs, getApplicationContext());
         }catch(Throwable ex){
             if(LOG_INIT_ENABLED) Log.e(TAG,"onCreate: "+ex);
         }
@@ -556,7 +560,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
             // error message: acoustic.acousticConfig.statusText
             if(LOG_INIT_ENABLED) {
                 Log.w(TAG, ".onCreate: Acoustic lib reporting anomaly in config: "+
-                        acoustic.getAcousticConfig().statusText);
+                        AcousticConfig.getIt().getStatusText());
             }
 
             //TODO show user downstream
@@ -615,10 +619,11 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
      */
     private boolean getPermissionForRecordAudio(final String[] permissionsGiven, final int requestCode) {
         //savedInstanceStateTemp = savedInstanceStateGiven;
-        if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT || LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
+        final boolean LOG = LOG_CONFIG.DEBUG==AcousticLogConfig.INIT
+                || LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
                 || LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS
-                || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
-            Log.d(TAG, ".getPermissionForRecordAudio entering...Build.VERSION.SDK_INT = "
+                || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL;
+        if (LOG) Log.d(TAG, ".getPermissionForRecordAudio entering...Build.VERSION.SDK_INT = "
                     + Build.VERSION.SDK_INT);
 
 //        getPermissionForExternalStorageAccess();//TO DO was here integrate with the rest of this method
@@ -634,28 +639,19 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
             aprioriGranted = ContextCompat.checkSelfPermission(this,
                     Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
         }
-        if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT || LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
-                || LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS
-                || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
-            Log.d(TAG, ".getPermissionForRecordAudio: aprioriGranted " + aprioriGranted);
+        if (LOG) Log.d(TAG, ".getPermissionForRecordAudio: aprioriGranted " + aprioriGranted);
 
         if (!aprioriGranted) {
             // we don't have permission yet, ask user;
             // No explanation needed to give user, we can request the permission.
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT || LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
-                        || LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS
-                        || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL )
-                    Log.d(TAG, ".getPermissionForRecordAudio about to call requestPermissions(...)");
+                if (LOG) Log.d(TAG, ".getPermissionForRecordAudio about to call requestPermissions(...)");
                 // -----------------------------------------------------------------------
                 requestPermissions(permissionsGiven, requestCode);
                 // -----------------------------------------------------------------------
             } else {
-                if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT || LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
-                        || LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS
-                        || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
-                    Log.d(TAG, ".getPermissionForRecordAudio about to call ActivityCompat.requestPermissions(...)");
+                if (LOG) Log.d(TAG, ".getPermissionForRecordAudio about to call ActivityCompat.requestPermissions(...)");
 
                 ActivityCompat.requestPermissions(this, permissionsGiven, requestCode);
             }
@@ -664,10 +660,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
             // result of the request.
         } else {
             //granted apriori
-            if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT || LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
-                    || LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS
-                    || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
-                Log.d(TAG, ".getPermissionForRecordAudio: was granted apriori" +
+            if (LOG) Log.d(TAG, ".getPermissionForRecordAudio: was granted apriori" +
                         "; calling onCreateComplete...");
 
 //            permissionGrantedForRecordAudio = true;
@@ -676,10 +669,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         }
         //here when permission granted before running the app, e.g., older version of android
 
-        if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT || LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
-                || LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS
-                || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
-            Log.d(TAG, ".getPermissionForRecordAudio exiting...");
+        if (LOG) Log.d(TAG, ".getPermissionForRecordAudio exiting...");
 
         return false;
     }
@@ -2457,70 +2447,10 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
      *
      * @return true when paused
      */
-    boolean isSoundInputPaused(){ //TODO washere 2018-7-14 called by onAcousticEvent ???
+    boolean isSoundInputPaused(){
         return isPauseButtonChecked();
     }
 
-
-
-//    @ Override
-//    public boolean onCreateOptionsMenu(Menu menu) { TODO do we need an Options Menu???
-//        // Inflate the menu; this adds items to the action bar if it is present.
-////        getMenuInflater().inflate(R.menu.menu, menu);
-////        return true;
-//        return false;
-//    }
-//
-//    @ Override
-//    public boolean onOptionsItemSelected(MenuItem item) {
-//        // Handle action bar item clicks here. The action bar will
-//        // automatically handle clicks on the Home/Up button, so long
-//        // as you specify a parent activity in AndroidManifest.xml.
-//        int id = item.getItemId();
-//
-//        //noinspection SimplifiableIfStatement
-////        if (id == R.id.action_settings) {
-////            SettingsTextActivity.show(this, //getSettingsText(),
-////                    16f, //null);
-////                    getResources().getString(R.string.app_name_short)); //MENU_SETTINGS_NAME);
-////            return true;
-////        }
-//        if (id == R.id.action_device_sound_capabilities) {
-//            //DeviceSoundCapabilitiesFullscreenActivity.show(this);
-//            final String text = DeviceSoundCapabilities.getOptimalConfigsForDisplay(true);
-//            TextDisplayActivity.show(this,text,AppContext.getAppName(),TextDisplayActivity.TYPE_MATERIAL_SM_1);
-//            return true;
-//        }
-//
-//        if (id == R.id.action_about) {
-//            //FullscreenTextActivity.show(this, getAboutText(),false);
-//            TextDisplayActivity.show(this,getAboutText(),AppContext.getAppName(),TextDisplayActivity.TYPE_MATERIAL_SM_1);
-//            return true;
-//        }
-//
-//        if (id == R.id.action_email) {
-////            onUiThread.emailOption(new String[]{"info@simplocode.com"},
-////                    "",getAppName(this),-1);
-//            sendEmail(getString(R.string.email_address),
-//                    "write your subject line here",
-//                    "write your text here");
-//            return true;
-//        }
-//
-//        if (id == R.id.action_our_apps) {
-//            //FullscreenTextActivity.showOurAppsText(this);
-//            final String text = LeafyManagedTextView.getOurAppsText(this);
-//            TextDisplayActivity.show(this,text,AppContext.getAppName(),TextDisplayActivity.TYPE_MATERIAL_SM_CENTERED);
-//            return true;
-//        }
-//
-//        if (id == R.id.action_pause) {
-//            pause();
-//            return true;
-//        }
-//
-//        return super.onOptionsItemSelected(item);
-//    }
 
     public void sendEmail(final String address, final String subject, final String text) {
         Intent intent = new Intent(Intent.ACTION_VIEW,
@@ -2616,7 +2546,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         buf.append(getContentSectionForDeviceTextInHtml())
                 .append(AcousticDeviceCapabilities.getIt().getDeviceCapabilitiesInHtml())
                 //.append(DeviceSoundCapabilities.getDeviceCapabilitiesInHtml(true, true, this))
-                .append(AcousticConfig.getForAppTextInHtml()) //.getForAppTextInHtml(true))
+                .append(AcousticConfig.getIt().getForAppTextInHtml()) //.getForAppTextInHtml(true))
                 .append(getPerfMeasurementsInHtml())
         ;
 
@@ -3174,7 +3104,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      * @return false when device does not support sound input
      * @throws Exception
      */
-    private boolean setDeviceSoundCapabilities() throws Exception { //TODO washere 2018-5-27
+    private boolean setDeviceSoundCapabilities() throws Exception {
 
         //includes sound configs kept in DeviceSoundCapabilities
         //============================================================
@@ -3183,7 +3113,6 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
         if( ! Acoustic.IT.doesSoundInput()){
 
-        //if (!DeviceSoundCapabilities.isDeviceCapableOfSoundInput()) {
             if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT
                     || LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
                     || LOG_CONFIG.DEBUG==AcousticLogConfig.DEVICE_SOUND_CAPABILITIES
@@ -3194,32 +3123,19 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
             }
             return false;
         }
+
         if(LOG_CONFIG.DEBUG==AcousticLogConfig.DEVICE_SOUND_CAPABILITIES){
             Log.d(TAG, ".setDeviceSoundCapabilities: device can do sound input");
             boolean outputOk = Acoustic.IT.doesSoundOutput();
             Log.d(TAG, ".setDeviceSoundCapabilities: Acoustic.IT.doesSoundOutput() returned {"+outputOk+"}");
         }
 
-        //VoltageSampling vs = DeviceSoundCapabilities.getSelectedVoltageSamplingForInput();
-
-//        AcousticSettings.updateAllDependents(); //dependentsOnVoltageSamplingRate();
-
-//        SettingsForSoundInput.dependentsOnVoltageSamplingRate(
-//                DeviceSoundCapabilities.getSelectedVoltageSamplingForInput());//does not depend on preferences in this version; depends on device capabilities
-
-        //writeInMonitor(DeviceSoundCapabilities.getFundamentalsForDisplay());
-
-        //writeInMonitor(DeviceSoundCapabilities.getForDisplay());
-
-//			writeInMonitor(DeviceSoundCapabilities.getForDisplay(
-//			    true,false,false)); //LeafyLog.SOUND_QUALITY_LOG_ENABLED)); //getDeviceAudioCapabilities();//2014-11
-
         if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT
                 || LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
                 || LOG_CONFIG.DEBUG==AcousticLogConfig.DEVICE_SOUND_CAPABILITIES)
             Log.d(TAG, ".setDeviceSoundCapabilities: " + Timestamp.getNanosForDisplay()
                 + "; first part of initFundamentalsForDevice completed ok;" +
-                "\n xInputHzPerBinFloat = " + AcousticConfig.getxInputHzPerBinFloat() // SettingsForSoundInput.xInputHzPerBinFloat
+                "\n xInputHzPerBinFloat = " + AcousticConfig.getIt().getxInputHzPerBinFloat() // SettingsForSoundInput.xInputHzPerBinFloat
                 + "\n selectedVspsInputInt = " + AcousticDeviceCapabilities.IT.selectedVspsOutputInt //DeviceSoundCapabilities.getSelectedVspsInputInt()
                 //+ "\n cTimeIncSecDouble = " + Settings.cTimeIncSec
                 //+ "\n MAX_PCM_ADJUSTED_FORMAT = " + AcousticConfig.MAX_PCM_ADJUSTED_FORMAT
@@ -3246,13 +3162,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      * @return String "A severe anomaly was detected " with text param
      */
     static String getMonitorTextForAnomalyNotif(final String text, final Throwable ex) {
-        return "A severe anomaly was detected – " + text
-//                + (text != null
-//                && (!text.contains("main") && !text.contains("appParent"))
-//                ? "; and attribute *appParent* (or *main*) is null"
-//                : "")
-                //+(ex==null?"":"; "+ex.toString()+" - "+ex.getLocalizedMessage());
-                ;
+        return "A severe anomaly was detected – " + text;
     }
 
     static String getAnomalyDetailsForEmail(final Throwable ex) {
@@ -3441,8 +3351,9 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
             case AcousticEvent.ON_AUDIOTRACK_INIT_FAILED:
             case AcousticEvent.ON_SEVERE_ANOMALY_DETECTED_IN_LIB:
                 if(ev.ob!=null) {
-                    //writeInMonitorToShowWithEmailSupport(ev.ob.toString());
-                    //TODO washere 2018-07-08
+                    String s = ".onAcousticEvent: ON_SEVERE_ANOMALY_DETECTED_IN_LIB; "+ev;
+                    if(AcousticLog.isLogErrorEnabled()) Log.e(TAG,s);
+                    notifyForAnomaly(s);
                 }
                 ev.returnCode = AcousticEvent.OK;
                 return true;
@@ -5533,4 +5444,65 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
 //        Intent intent = new Intent(Intent.ACTION_SEND, uri);
 //
 //        return play(intent);
+//    }
+
+
+
+//    @ Override
+//    public boolean onCreateOptionsMenu(Menu menu) { TODO do we need an Options Menu???
+//        // Inflate the menu; this adds items to the action bar if it is present.
+////        getMenuInflater().inflate(R.menu.menu, menu);
+////        return true;
+//        return false;
+//    }
+//
+//    @ Override
+//    public boolean onOptionsItemSelected(MenuItem item) {
+//        // Handle action bar item clicks here. The action bar will
+//        // automatically handle clicks on the Home/Up button, so long
+//        // as you specify a parent activity in AndroidManifest.xml.
+//        int id = item.getItemId();
+//
+//        //noinspection SimplifiableIfStatement
+////        if (id == R.id.action_settings) {
+////            SettingsTextActivity.show(this, //getSettingsText(),
+////                    16f, //null);
+////                    getResources().getString(R.string.app_name_short)); //MENU_SETTINGS_NAME);
+////            return true;
+////        }
+//        if (id == R.id.action_device_sound_capabilities) {
+//            //DeviceSoundCapabilitiesFullscreenActivity.show(this);
+//            final String text = DeviceSoundCapabilities.getOptimalConfigsForDisplay(true);
+//            TextDisplayActivity.show(this,text,AppContext.getAppName(),TextDisplayActivity.TYPE_MATERIAL_SM_1);
+//            return true;
+//        }
+//
+//        if (id == R.id.action_about) {
+//            //FullscreenTextActivity.show(this, getAboutText(),false);
+//            TextDisplayActivity.show(this,getAboutText(),AppContext.getAppName(),TextDisplayActivity.TYPE_MATERIAL_SM_1);
+//            return true;
+//        }
+//
+//        if (id == R.id.action_email) {
+////            onUiThread.emailOption(new String[]{"info@simplocode.com"},
+////                    "",getAppName(this),-1);
+//            sendEmail(getString(R.string.email_address),
+//                    "write your subject line here",
+//                    "write your text here");
+//            return true;
+//        }
+//
+//        if (id == R.id.action_our_apps) {
+//            //FullscreenTextActivity.showOurAppsText(this);
+//            final String text = LeafyManagedTextView.getOurAppsText(this);
+//            TextDisplayActivity.show(this,text,AppContext.getAppName(),TextDisplayActivity.TYPE_MATERIAL_SM_CENTERED);
+//            return true;
+//        }
+//
+//        if (id == R.id.action_pause) {
+//            pause();
+//            return true;
+//        }
+//
+//        return super.onOptionsItemSelected(item);
 //    }
