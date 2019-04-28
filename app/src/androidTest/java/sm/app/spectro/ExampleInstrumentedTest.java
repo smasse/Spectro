@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Serge Masse
+ * Copyright (c) 2019 Serge Masse
  *
  * Redistribution and use in source and binary forms, with or without modification, are permitted
  * provided that the following conditions are met:
@@ -34,11 +34,11 @@ package sm.app.spectro;
 
 import android.content.Context;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-
 import androidx.test.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
+
+import org.junit.Test;
+import org.junit.runner.RunWith;
 
 import static org.junit.Assert.assertEquals;
 

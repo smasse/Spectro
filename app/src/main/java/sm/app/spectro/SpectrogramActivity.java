@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Serge Masse
+ * Copyright (c) 2019 Serge Masse
  *
  * Redistribution and use in source and binary forms, with or without modification, are permitted
  * provided that the following conditions are met:
@@ -62,26 +62,26 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.io.UnsupportedEncodingException;
-import java.util.Arrays;
-import java.util.Date;
-
 import androidx.annotation.NonNull;
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
+
+import java.io.UnsupportedEncodingException;
+import java.util.Arrays;
+import java.util.Date;
+
 import sm.lib.acoustic.Acoustic;
-import sm.lib.acoustic.AcousticConfig;
 import sm.lib.acoustic.AcousticDeviceCapabilities;
 import sm.lib.acoustic.AcousticEvent;
+import sm.lib.acoustic.AcousticLibConfig;
 import sm.lib.acoustic.AcousticLog;
 import sm.lib.acoustic.AcousticLogConfig;
 import sm.lib.acoustic.AudioPlayer;
 import sm.lib.acoustic.SpectrogramView;
 import sm.lib.acoustic.gui.TextDisplayWithEmailActivity;
 import sm.lib.acoustic.util.AppContext;
-import sm.lib.acoustic.util.AppPublisher;
 import sm.lib.acoustic.util.DataFromIntent;
 import sm.lib.acoustic.util.OnAnyThread;
 import sm.lib.acoustic.util.Timestamp;
@@ -435,11 +435,11 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
       TODO prio 2 keep list of urls to play, give them names, delete, move up/down, export list (share)
      */
 
-    AcousticConfig soundPrefs = AcousticConfig.DEFAULT;
+    AcousticLibConfig soundPrefs = AcousticLibConfig.DEFAULT;
 
-    private AcousticConfig getAcousticConfigFromClient(){
-        if(soundPrefs!=null && ! AcousticConfig.DEFAULT.equals(soundPrefs)) return soundPrefs;
-        soundPrefs = new AcousticConfig();
+    private AcousticLibConfig getAcousticConfigFromClient(){
+        if(soundPrefs!=null && ! AcousticLibConfig.DEFAULT.equals(soundPrefs)) return soundPrefs;
+        soundPrefs = new AcousticLibConfig();
         soundPrefs.logConfig = LOG_CONFIG;
         soundPrefs.isMicPreferred = true;
         soundPrefs.isChannelMonoRequested = true;
@@ -471,7 +471,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
                     +"}");
         }
         if(SHOW_USER_INIT_EVENTS_ENABLED){
-            showStatusSnackbar("AcousticConfig were set");
+            showStatusSnackbar("AcousticLibConfig were set");
         }
         return soundPrefs;
     }
@@ -560,7 +560,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
             // error message: acoustic.acousticConfig.statusText
             if(LOG_INIT_ENABLED) {
                 Log.w(TAG, ".onCreate: Acoustic lib reporting anomaly in config: "+
-                        AcousticConfig.getIt().getStatusText());
+                        AcousticLibConfig.getIt().getStatusText());
             }
 
             //TODO show user downstream
@@ -589,7 +589,9 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
             Log.d(TAG, ".onCreate: entering..." +
                     "app name {" + AppContext.getAppName()
                     + "} version name {" + AppContext.getVersionName()
-                    + "} AppPublisher.emailAddressForSupport {" + AppPublisher.emailAddressForSupport
+                    //+ "} AppPublisher.emailAddressForSupport {" + AppPublisher.emailAddressForSupport
+                    + "} AcousticLibConfig.getIt().getSupportEmailAddress() {"
+                        +AcousticLibConfig.getIt().getSupportEmailAddress()
                     +"}"//TODO prio 2 2017-7-1 and use the email support enabled flag in LogClient.Callback
                     + "\n" + getTextForDisplayFromClient()
                     + "\n" + Thread.currentThread()
@@ -2463,7 +2465,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     public void sendEmailToSupport(final String text) {
         if (!isSupportEmailEnabled()) return;
         Intent intent = new Intent(Intent.ACTION_VIEW,
-                Uri.parse("mailto:" + AppPublisher.emailAddressForSupport));
+                Uri.parse("mailto:" + AcousticLibConfig.getIt().getSupportEmailAddress())); //AppPublisher.emailAddressForSupport));
         intent.putExtra(Intent.EXTRA_SUBJECT, "Email to support");
         intent.putExtra(Intent.EXTRA_TEXT, text);
         startActivity(intent);
@@ -2517,8 +2519,10 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
             if (lastThrowable != null)
                 buf.append("<p/>").append(Log.getStackTraceString(lastThrowable));
         } else {
-            buf.append("<p/>For support, please contact ")
-                    .append(AppPublisher.emailAddressForSupport);
+            buf.append("<p/>").append(AcousticLibConfig.getIt().getSupportEmailAddressWithText());
+            // For support, please contact ")
+                    //append(AppPublisher.emailAddressForSupport
+                    //);
         }
         buf.append("<p/>The anomaly was detected ").append(new Date(lastAnomalyTimeMillis));
 
@@ -2546,7 +2550,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         buf.append(getContentSectionForDeviceTextInHtml())
                 .append(AcousticDeviceCapabilities.getIt().getDeviceCapabilitiesInHtml())
                 //.append(DeviceSoundCapabilities.getDeviceCapabilitiesInHtml(true, true, this))
-                .append(AcousticConfig.getIt().getForAppTextInHtml()) //.getForAppTextInHtml(true))
+                .append(AcousticLibConfig.getIt().getForAppTextInHtml()) //.getForAppTextInHtml(true))
                 .append(getPerfMeasurementsInHtml())
         ;
 
@@ -2648,7 +2652,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         .append("<p/>")
         ;
 
-        buf.append("<p/>").append(AppPublisher.copyright);
+        buf.append("<p/>").append(AcousticLibConfig.getIt().appPublisherCopyright); //AppPublisher.copyright);
 
         buf.append("<p/>")
         .append("Some links to cetacean vocalisation recordings are Copyright Aguasonic Acoustics.")
@@ -2660,7 +2664,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         .append("<br>Version Name: ")
         .append(AppContext.getVersionName())
         .append("<p/>Questions, defects, suggestions, please contact ")
-                .append(AppPublisher.emailAddressForSupport);
+                .append(AcousticLibConfig.getIt().getPublisherEmailAddress());//AppPublisher.emailAddressForSupport);
 
         // ##### intro #####
 
@@ -2704,7 +2708,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 
         // ##### our apps text #####
 
-        if (!SEPARATE_OUR_APPS_GUI_IS_ENABLED && AppPublisher.googlePlayPubAppsTextIsEnabled) {
+        if (!SEPARATE_OUR_APPS_GUI_IS_ENABLED && AcousticLibConfig.getIt().googlePlayPubAppsTextIsEnabled) {
             buf.append(getOurAppsText());
         }
 
@@ -2980,7 +2984,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
             ourAppsText = "<p/><h2>OUR APPS</h2><p/>"
                     + getString(R.string.our_apps_short_part1)
                     + "<p/>"
-                    + AppPublisher.googlePlayPub
+                    + AcousticLibConfig.getIt().googlePlayPub
                     + "<p/>"
                     + getString(R.string.our_apps_please_note)
                     + "<p/>";
@@ -3135,10 +3139,10 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
                 || LOG_CONFIG.DEBUG==AcousticLogConfig.DEVICE_SOUND_CAPABILITIES)
             Log.d(TAG, ".setDeviceSoundCapabilities: " + Timestamp.getNanosForDisplay()
                 + "; first part of initFundamentalsForDevice completed ok;" +
-                "\n xInputHzPerBinFloat = " + AcousticConfig.getIt().getxInputHzPerBinFloat() // SettingsForSoundInput.xInputHzPerBinFloat
+                "\n xInputHzPerBinFloat = " + AcousticLibConfig.getIt().getxInputHzPerBinFloat() // SettingsForSoundInput.xInputHzPerBinFloat
                 + "\n selectedVspsInputInt = " + AcousticDeviceCapabilities.IT.selectedVspsOutputInt //DeviceSoundCapabilities.getSelectedVspsInputInt()
                 //+ "\n cTimeIncSecDouble = " + Settings.cTimeIncSec
-                //+ "\n MAX_PCM_ADJUSTED_FORMAT = " + AcousticConfig.MAX_PCM_ADJUSTED_FORMAT
+                //+ "\n MAX_PCM_ADJUSTED_FORMAT = " + AcousticLibConfig.MAX_PCM_ADJUSTED_FORMAT
                 + " is close to the maximum value for a pcm value " +
                 "(out of the A/D subsystem, or as input to the D/A subsystem)" +
                 ", adjusted to a little below max to" +
