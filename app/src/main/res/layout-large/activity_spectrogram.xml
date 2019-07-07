@@ -39,7 +39,7 @@
     tools:context="sm.app.spectro.SpectrogramActivity">
     <!-- android:background="#0099cc" -->
 
-    <sm.lib.acoustic.gui.SpectrogramView
+    <sm.lib.acoustic.SpectrogramView
         android:id="@+id/spectrogram2"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -82,8 +82,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:alpha="0.5"
-                android:clickable="false"
-                android:text="Pause" />
+
+                android:text="Pause" /><!-- android:clickable="false" -->
 
             <Button
                 android:id="@+id/spectrogram2_hide"

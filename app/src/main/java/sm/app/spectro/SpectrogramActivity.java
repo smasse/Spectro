@@ -80,12 +80,40 @@ import sm.lib.acoustic.AcousticLog;
 import sm.lib.acoustic.AcousticLogConfig;
 import sm.lib.acoustic.AudioPlayer;
 import sm.lib.acoustic.SpectrogramView;
-import sm.lib.acoustic.gui.TextDisplayWithEmailActivity;
 import sm.lib.acoustic.util.AppContext;
 import sm.lib.acoustic.util.DataFromIntent;
 import sm.lib.acoustic.util.OnAnyThread;
 import sm.lib.acoustic.util.Timestamp;
 
+/*
+TODO washere washere bugs 2019-7-5
+
+SpectrogramActivity: .notifyForAnomaly: detailsForEmail - missing much text
+
+fixed: device button does not show device text
+
+fixed: pauseButton button does not work as intended (pauses only when pressed continuously)
+
+the log settings are not working in the library
+
+acousticevents used by the lib for getting data from the client may not be working
+
+disable the url to play for now
+
+init issues:
+
+AcousticForLib: .notifyClientAppOfSevereAnomaly: text {SettingsForSound.dependentsOnVoltageSamplingRate() raised sm.lib.acoustic.DeviceCannotDoSoundInputAndOutputException at sm.lib.acoustic.DeviceCannotDoSoundInputAndOutputException
+        at sm.lib.acoustic.SettingsForSound.dependentsOnVoltageSamplingRate(SettingsForSound.java:216)
+        at sm.lib.acoustic.SettingsForSound.updateDependencies(SettingsForSound.java:260)
+        at sm.lib.acoustic.SettingsForPreferences.restoreAllFromPreferences(SettingsForPreferences.java:523)
+        at sm.lib.acoustic.Acoustic.restoreFromPreferences(Acoustic.java:1036)
+        at sm.lib.acoustic.Acoustic.secondCallRestorePreferences(Acoustic.java:452)
+        at sm.app.spectro.SpectrogramActivity.restorePreferences(SpectrogramActivity.java:3064)
+        at sm.app.spectro.SpectrogramActivity.onCreate(SpectrogramActivity.java:586)
+        at android.app.Activity.performCreate(Activity.java:6679)
+        at android.app.Instrumentation.callActivityOnCreate(Instrumentation.java:1118)
+
+ */
 
 public final class SpectrogramActivity extends Activity implements Acoustic.Callback {
 
@@ -347,7 +375,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 
     LinearLayout buttonsLayout;
     TextView contentTextView;
-    Button pause;
+    Button pauseButton;
     Button hideGui;
     Button device;
     Button about;
@@ -420,9 +448,9 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
      * <br>debug off
      */
     private final AcousticLogConfig LOG_CONFIG = new AcousticLogConfig(
-            AcousticLogConfig.OFF,
-            AcousticLogConfig.OFF,
-            AcousticLogConfig.INIT); //LogConfig.DEVICE_SOUND_CAPABILITIES);
+            AcousticLogConfig.ON,
+            AcousticLogConfig.ON,
+            AcousticLogConfig.UI);// INIT  DEVICE_SOUND_CAPABILITIES
 
     /* TODO new pref
     - for mic, offer to user all choices supported by the device and give the app one of the options
@@ -441,9 +469,9 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         if(soundPrefs!=null && ! AcousticLibConfig.DEFAULT.equals(soundPrefs)) return soundPrefs;
         soundPrefs = new AcousticLibConfig();
         soundPrefs.logConfig = LOG_CONFIG;
-        soundPrefs.isMicPreferred = true;
-        soundPrefs.isChannelMonoRequested = true;
-        soundPrefs.isEncodingPcmFloatPreferred = false;//TODO future true with new code for float processing
+//        soundPrefs.isMicPreferred = true;
+//        soundPrefs.isChannelMonoRequested = true;
+//        soundPrefs.isEncodingPcmFloatPreferred = false;//TODO future true with new code for float processing
         soundPrefs.isNativeSampleRateRequested = true;
         soundPrefs.isSameEncodingPcmForInputAndOutputRequested = false;
 //        soundPrefs.isDevMode = false;
@@ -454,7 +482,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         //settings for textviews
         soundPrefs.textSizeSp = 14;
         soundPrefs.textStyleString = "bold";
-        soundPrefs.textColorHexString = "white";
+        soundPrefs.textColorHexString = "#33b5e5"; //"white"; TODO washere washere bug when failure: screen text and bg are not good
         soundPrefs.bgColorHexString = "#0099cc";
 
         //TODO washere textview container bg color
@@ -462,11 +490,11 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         soundPrefs.xMinHzInputFromApp = 2;
 
         if(LOG_CONFIG.DEBUG==AcousticLogConfig.ON){
-            Log.d(TAG,".getAcousticConfigFromClient: isMicPreferred {"+soundPrefs.isMicPreferred
-                    +"} isChannelMonoRequested {"+soundPrefs.isChannelMonoRequested
-                    +"} isEncodingPcmFloatPreferred {"+soundPrefs.isEncodingPcmFloatPreferred
-                    +"} isNativeSampleRateRequested {"+soundPrefs.isNativeSampleRateRequested
-                    +"} isSameEncodingPcmForInputAndOutputRequested {"
+            Log.d(TAG,".getAcousticConfigFromClient:" // isMicPreferred {"+soundPrefs.isMicPreferred
+//                    +"} isChannelMonoRequested {"+soundPrefs.isChannelMonoRequested
+//                    +"} isEncodingPcmFloatPreferred {"+soundPrefs.isEncodingPcmFloatPreferred
+                    +"\n isNativeSampleRateRequested {"+soundPrefs.isNativeSampleRateRequested
+                    +"}\n isSameEncodingPcmForInputAndOutputRequested {"
                     +soundPrefs.isSameEncodingPcmForInputAndOutputRequested
                     +"}");
         }
@@ -983,13 +1011,13 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         hideGui.setAlpha(ALPHA_NEUTRAL_ENABLED);
         hideBgIsSet = false;
 
-        pause = findViewById(R.id.spectrogram2_pause);
+        pauseButton = findViewById(R.id.spectrogram2_pause);
         enableThePauseButton(null);
-//        pause.setBackgroundColor(Color.LTGRAY);
-//        pause.setOnClickListener(ON_CLICK_LISTENER);
-//        pause.setClickable(true);
-//        pause.setAlpha(ALPHA_NOT_SET);
-//        pause.setText("Pause");
+//        pauseButton.setBackgroundColor(Color.LTGRAY);
+//        pauseButton.setOnClickListener(ON_CLICK_LISTENER);
+//        pauseButton.setClickable(true);
+//        pauseButton.setAlpha(ALPHA_NOT_SET);
+//        pauseButton.setText("Pause");
 
         device = findViewById(R.id.spectrogram2_device);
         //device.setBackgroundColor(Color.LTGRAY);
@@ -1054,9 +1082,9 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
             playUrlButton.setAlpha(ALPHA_NEUTRAL_ENABLED);
             hideUrlButton.setAlpha(ALPHA_NEUTRAL_ENABLED);
         }
-//        pause.setClickable(true);
-//        pause.setFocusable(true);
-//        pause.requestFocus();
+//        pauseButton.setClickable(true);
+//        pauseButton.setFocusable(true);
+//        pauseButton.requestFocus();
         //Log.e(TAG,".onCreateUI: contentTextView is set");
     }
 
@@ -1065,25 +1093,27 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     private Runnable RUNNABLE_TO_ENABLE_THE_PAUSE_BUTTON = new Runnable() {
 
         public void run() {
-            if(pause==null)return;
-            pause.setOnClickListener(ON_CLICK_LISTENER);
-            pause.setAlpha(ALPHA_NEUTRAL_ENABLED);
+            if(pauseButton ==null)return;
+            pauseButton.setOnClickListener(ON_CLICK_LISTENER);
+            pauseButton.setAlpha(ALPHA_NEUTRAL_ENABLED);
             if (pauseButtonLabel != null) {
-                pause.setText(pauseButtonLabel);
+                pauseButton.setText(pauseButtonLabel);
             }
+            pauseButton.setPressed(false);
         }
     };
 
     private Runnable RUNNABLE_TO_DISABLE_THE_PAUSE_BUTTON = new Runnable() {
 
         public void run() {
-            if(pause==null)return;
-            pause.setOnClickListener(null);
-            pause.setClickable(false);
-            pause.setAlpha(ALPHA_DARK_DISABLED);
+            if(pauseButton ==null)return;
+            pauseButton.setOnClickListener(null);
+            pauseButton.setClickable(false);
+            pauseButton.setAlpha(ALPHA_DARK_DISABLED);
             if (pauseButtonLabel != null) {
-                pause.setText(pauseButtonLabel);
+                pauseButton.setText(pauseButtonLabel);
             }
+            pauseButton.setPressed(false);
         }
     };
 
@@ -1365,7 +1395,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 
     /**
      * <ul>
-     * <li>pause: second choice is restart</li>
+     * <li>pauseButton: second choice is restart</li>
      * <li>hide: touch big screen to show buttons</li>
      * <li>device: second choice is hide text</li>
      * <li>about: second choice is hide text</li>
@@ -1382,7 +1412,6 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
          *
          * @param v The user-selected view (button or other gui)
          */
-
         public void onClick(View v) {
             try {
                 if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
@@ -1398,7 +1427,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
                         //for a button
                         if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
                             Log.d(TAG, "ON_CLICK_LISTENER_FOR_SPECTROGRAM.onClick(v): " +
-                                    ". is instance of button");
+                                    "param View v is instance of button");
 
                         if (v.equals(hideGui)) {
                             //hide button selected, then toggle the bg
@@ -1406,17 +1435,17 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
                         } else {
                             // a button and not the hide gui button,
                             // guiLayout set downstream dependent on the selected button
-                            if (v.equals(pause)) {
-                                //pause spectro selected, so pause spectrogram, or restart if was paused
+                            if (v.equals(pauseButton)) {
+                                //pauseButton spectro selected, so pause spectrogram, or restart if was paused
                                 pauseToggle();
                                 //the display will be taken care of downstream in postButtonSelected(v)
                             } else {
-                                //not hide, not pause spectro, check others
+                                //not hide, not pauseButton spectro, check others
                                 if (v.equals(device)) {
                                     //the device button was selected
                                     deviceButtonSelected();
                                 } else {
-                                    //not pause button, not hide, not device, then check about
+                                    //not pauseButton, not hide, not device, then check about
                                     if (v.equals(about)) {
                                         //about selected
                                         aboutButtonSelected();
@@ -1424,10 +1453,10 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
                                         //not about button or any other button upstream
                                         // check URL to play
                                         if (v.equals(playUrlButton)) {
-                                            //play or pause url
+                                            //play or pauseButton url
                                             playUrlButtonSelected();
                                         } else {
-                                            //not play/pause url, maybe hide url
+                                            //not play/pauseButton url, maybe hide url
                                             if (v.equals(hideUrlButton)) {
                                                 // hide url gui or cancel url;
                                                 // the space is made available for text
@@ -1488,12 +1517,12 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
             return;
         }
 
-        //setting the pause button
+        //setting the pauseButton button
         if (isPaused()) {
-            pause.setAlpha(ALPHA_LIGHT_SET);
+            pauseButton.setAlpha(ALPHA_LIGHT_SET);
         } else {
             //is not paused
-            if (pause != null) pause.setAlpha(ALPHA_NEUTRAL_ENABLED);
+            if (pauseButton != null) pauseButton.setAlpha(ALPHA_NEUTRAL_ENABLED);
 //                if(spectrogramShown){
 //                    //not paused and spectro should be shown, then show it
 //                    if(guiLayout!=null)guiLayout.setBackgroundColor(Color.TRANSPARENT);
@@ -1586,9 +1615,9 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     }
 
     private void deviceButtonSelected(){
-        if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
-            Log.d(TAG, "ON_CLICK_LISTENER_FOR_SPECTROGRAM.onClick(v): " +
-                    "DEVICE button selected");
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI) //TODO washere washere 2019-7-5
+            Log.d(TAG, ".deviceButtonSelected: " +
+                    "DEVICE button selected; deviceShown = "+deviceShown);
         if (!deviceShown) {
             //the text is not shown, then show text of device sound capabilities
             if(ALWAYS_HIDE_BG_WHEN_TEXT){
@@ -1604,6 +1633,8 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
             if (contentTextView != null) {
                 contentTextView.setVisibility(View.VISIBLE);
                 contentTextView.setText(getDeviceText());
+                Log.d(TAG, ".deviceButtonSelected: " + //TODO if(debug on) ...
+                        "getDeviceText() = "+getDeviceText());
             }
             if (largeGuiLayout != null) {
                 if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
@@ -1859,8 +1890,9 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
      * <p/>Designed to be run on the ui thread.
      * All callers are run on the ui thread in this version.
      *
+     * <p/>throws IllegalArgumentException
+     *
      * @param intent referencing a remote audio or media file
-     * @throws IllegalArgumentException
      */
     private boolean play(final Intent intent) {
         if(LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL||LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT)
@@ -2340,32 +2372,40 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     private void restartSpectro() {
         try {
             if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE
+                    || LOG_CONFIG.DEBUG==AcousticLogConfig.UI
                     || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
-                Log.d(TAG, ".restartSpectro: calling unpause()...");
-            unpause();
-            pause.setText(getString(R.string.pause_button));
+                Log.d(TAG, ".restartSpectro: calling restartLib()...");
+            //--------
+            restartLib();
+            //--------
+            pauseButton.setText(getString(R.string.pause_button));
             if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE
+                    || LOG_CONFIG.DEBUG==AcousticLogConfig.UI
                     || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
-                Log.d(TAG, ".restartSpectro: unpause() ok");
+                Log.d(TAG, ".restartSpectro: after restartLib()");
         } catch (Exception e) {
             //e.printStackTrace();
             if (LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
                     || LOG_CONFIG.ERROR==AcousticLogConfig.ON
+                    || LOG_CONFIG.DEBUG==AcousticLogConfig.UI
+                    || LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE
                     || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
-                Log.e(TAG, ".restartSpectro: unpause() raised: " + e
+                Log.e(TAG, ".restartSpectro: restartLib() raised: " + e
                     +"\n"+Log.getStackTraceString(e));
             return;
         }
-        if(LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
+        if(LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL
+                || LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
             Log.d(TAG, ".restartSpectro: exiting, isPausedByHUser set to false");
         isPausedByHUser = false;
     }
 
     private void pauseSpectro() {
-        if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE)
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE
+                || LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
             Log.d(TAG, ".pauseSpectro entering");
         closeListener();
-        pause.setText(getString(R.string.pause_button_restart));
+        pauseButton.setText(getString(R.string.pause_button_restart));
         isPausedByHUser = true;
         if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE)
             Log.d(TAG, ".pauseSpectro exiting");
@@ -2377,13 +2417,16 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
      * <p/>Designed to be run on the ui thread.
      * All callers are run on the ui thread in this version.
      */
-    private void pauseToggle() {
-        if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
+    private void pauseToggle() {//TODO washere washere bug 2019-7-6 isPaused returns true and should be false
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE
+                || LOG_CONFIG.DEBUG==AcousticLogConfig.UI
+                || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
             Log.d(TAG, ".pauseToggle: entering; isPausedByHUser " + isPausedByHUser
                             + "; isPaused() " + isPaused()
             );
-        if (isPausedByHUser || isPaused()) {
-            // is paused, then restart
+        if (isPausedByHUser){// || isPaused()) {
+            // spectro is paused, then restart
+            isPausedByHUser = false;
             // --------------
             restartSpectro();
             // --------------
@@ -2397,19 +2440,23 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
                 // was not paused, so play, don't resume
                 // there is a time limit on attempt to play
                 // play(editTextUrlToPlay.getText().toString());
-                if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
+                if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE
+                        || LOG_CONFIG.DEBUG==AcousticLogConfig.UI
+                        || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
                     Log.d(TAG, ".pauseToggle: entering; isPausedByHUser " + isPausedByHUser
                             + "; urlIsPaused " + urlIsPaused
                     );
             }
         } else {
-            //is running, then pause
+            // spectro is running, then pause it
+            isPausedByHUser = true;
             // -----------------------------
             pauseSpectro();
             doPauseUrl();
             // -----------------------------
         }
-        if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE)
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE
+                || LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
             Log.d(TAG, ".pauseToggle: exiting; isPausedByHUser " + isPausedByHUser
                             + "; isPaused() " + isPaused()
             );
@@ -2417,14 +2464,17 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 
 
     public boolean isPaused() {
-        //return Acoustic.getIt().isRunning();
-        return isPauseButtonChecked();
+        return Acoustic.IT.isRunning();
+        //return isPauseButtonChecked();
+        //return isPausedByHUser;
     }
 
 
-    public void unpause() throws Exception {
-        //getListener();
-        Acoustic.getIt().restart();
+    public void restartLib() throws Exception {
+        if(LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
+            Log.d(TAG,".restartLib: calling *Acoustic.IT.restart()*");
+        Acoustic.IT.restart();
+        //pauseButton.setPressed(false);
     }
 
 
@@ -2438,19 +2488,19 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 
 
     public boolean isPauseButtonChecked() {
-        if(pause==null)return false;
-        return pause.isPressed();
+        if(pauseButton ==null)return false;
+        return pauseButton.isPressed();
     }
 
     //AcousticEvent.GET_IS_SOUND_INPUT_PAUSED_BY_CLIENT
 
     /**
-     * checks the pause button and maybe a status attribute in some cases
+     * checks the isPausedByHUser status attribute
      *
      * @return true when paused
      */
     boolean isSoundInputPaused(){
-        return isPauseButtonChecked();
+        return isPausedByHUser; // isPauseButtonChecked();
     }
 
 
@@ -2544,11 +2594,12 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     }
 
     @NonNull
-    private String getDeviceTextInHtml(){
+    private String getDeviceTextInHtml(){//TODO washere 2019-7-5
+        // make it robust in case lib fails
         StringBuilder buf = new StringBuilder();
 
         buf.append(getContentSectionForDeviceTextInHtml())
-                .append(AcousticDeviceCapabilities.getIt().getDeviceCapabilitiesInHtml())
+                .append(AcousticDeviceCapabilities.IT.getDeviceCapabilitiesInHtml())
                 //.append(DeviceSoundCapabilities.getDeviceCapabilitiesInHtml(true, true, this))
                 .append(AcousticLibConfig.getIt().getForAppTextInHtml()) //.getForAppTextInHtml(true))
                 .append(getPerfMeasurementsInHtml())
@@ -2927,7 +2978,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //        .append("<br>- if there was a previous link in the URL widget, ensure that it is entirely replaced by the new link,")
 //        .append("<br>- you tap the *Play* button, wait a few seconds for the file to get accessed and played,")
 //        .append(" and you should hear the sound and see the spectrogram.");
-//        buf.append("<br>- You may want to pause the app in order to better observe the spectrogram being displayed.");
+//        buf.append("<br>- You may want to pauseButton the app in order to better observe the spectrogram being displayed.");
 //        buf.append("<br>- You can replay the file as many times as needed.");
 
         buf.append("<p/>The images on this NOAA page below are linked to wav files that are played when you select one:")
@@ -3005,11 +3056,15 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     @Override
     protected void onResume() {
         super.onResume();
-        if (LOG_CONFIG.DEBUG==AcousticLogConfig.THREADS || LOG_CONFIG.DEBUG==AcousticLogConfig.RESTORE)
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.THREADS
+                || LOG_CONFIG.DEBUG==AcousticLogConfig.UI
+                || LOG_CONFIG.DEBUG==AcousticLogConfig.RESTORE)
             Log.d(TAG, ".onResume: entering");
         if (isPausedByHUser) {
             //don't restart bg threads
-            if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE || LOG_CONFIG.DEBUG==AcousticLogConfig.THREADS
+            if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE
+                    || LOG_CONFIG.DEBUG==AcousticLogConfig.UI
+                    || LOG_CONFIG.DEBUG==AcousticLogConfig.THREADS
                     || LOG_CONFIG.DEBUG==AcousticLogConfig.RESTORE)
                 Log.d(TAG, ".onResume: isPausedByHUser, don't restart " + Thread.currentThread());
         } else {
@@ -3017,29 +3072,39 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
             //was not paused by H user, then restart if paused by system
             if (isPaused()) {
                 // is paused, listener is null
-                if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE || LOG_CONFIG.DEBUG==AcousticLogConfig.THREADS
+                if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE
+                        || LOG_CONFIG.DEBUG==AcousticLogConfig.UI
+                        || LOG_CONFIG.DEBUG==AcousticLogConfig.THREADS
                         || LOG_CONFIG.DEBUG==AcousticLogConfig.RESTORE)
-                    Log.d(TAG, ".onResume: before unpause() "
+                    Log.d(TAG, ".onResume: before restartLib() "
                             + Thread.currentThread());
                 try {
-                    //========
-                    unpause();
-                    //========
-//                    pauseButton.setText(getString(R.string.pause_button));
+                    //===========
+                    restartLib();
+                    //===========
                 } catch (Exception e) {
-                    if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE || LOG_CONFIG.ERROR==AcousticLogConfig.ON
-                            || LOG_CONFIG.DEBUG==AcousticLogConfig.THREADS || LOG_CONFIG.DEBUG==AcousticLogConfig.RESTORE)
-                        Log.e(TAG, "onResume: unpause() raised " + e + " " + Thread.currentThread());
+                    if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE
+                            || LOG_CONFIG.DEBUG==AcousticLogConfig.UI
+                            || LOG_CONFIG.ERROR==AcousticLogConfig.ON
+                            || LOG_CONFIG.DEBUG==AcousticLogConfig.THREADS
+                            || LOG_CONFIG.DEBUG==AcousticLogConfig.RESTORE)
+                        Log.e(TAG, "onResume: restartLib() raised " + e + " "
+                                + Thread.currentThread());
                 }
-                if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE || LOG_CONFIG.DEBUG==AcousticLogConfig.THREADS
+                if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE
+                        || LOG_CONFIG.DEBUG==AcousticLogConfig.UI
+                        || LOG_CONFIG.DEBUG==AcousticLogConfig.THREADS
                         || LOG_CONFIG.DEBUG==AcousticLogConfig.RESTORE)
-                    Log.d(TAG, ".onResume: after unpause() "
+                    Log.d(TAG, ".onResume: after restartLib() "
                             + Thread.currentThread());
             } else {
                 // is not paused
-                if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE || LOG_CONFIG.DEBUG==AcousticLogConfig.THREADS
+                if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE
+                        || LOG_CONFIG.DEBUG==AcousticLogConfig.UI
+                        || LOG_CONFIG.DEBUG==AcousticLogConfig.THREADS
                         || LOG_CONFIG.DEBUG==AcousticLogConfig.RESTORE)
-                    Log.d(TAG, ".onResume: not paused, do nothing " + Thread.currentThread());
+                    Log.d(TAG, ".onResume: not paused, do nothing "
+                            + Thread.currentThread());
             }
         }
 
@@ -3105,8 +3170,8 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     }
 
     /**
+     * throws Exception
      * @return false when device does not support sound input
-     * @throws Exception
      */
     private boolean setDeviceSoundCapabilities() throws Exception {
 
@@ -3246,14 +3311,16 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
          * @param givenIsConnected  boolean
          * @param givenEmailToAddress String, may be null or empty
          */
-        TextDisplayWithEmailActivity.show(activity,
+        /*
+        TextDisplayWithEmailActivity.show(activity, //TODO washere washere bug? 2019-7-5
                 all,
                 getResources().getString(R.string.app_name_short), //title
                 "Severe Anomaly", //email subject line
                 OnAnyThread.IT.isConnected(isSimulatingNoConnection()),
                 "" //this.getDeviceOwnerEmailAddress()
         );
-
+        */
+        Log.e(TAG,".notifyForAnomaly: detailsForEmail = "+detailsForEmail);
 
         if (isSupportEmailEnabled() 
                 && OnAnyThread.IT.isConnected(isSimulatingNoConnection())) {
@@ -3406,7 +3473,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //                ev.returnCode = AcousticEvent.OK;
 //                return true;
 
-            case AcousticEvent.GET_IS_SOUND_INPUT_PAUSED_BY_CLIENT:
+            case AcousticEvent.GET_IS_SOUND_INPUT_PAUSED_BY_CLIENT://TODO washere washere bug 2019-7-6 returning null to lib
                 ev.returnedObject = isSoundInputPaused();
                 ev.returnCode = AcousticEvent.OK;
                 return true;
@@ -3647,7 +3714,11 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
     private void closeListener() {
         //BasicListener.shutdownTheRunningListener();
-        Acoustic.getIt().shutdown();
+        if (LOG_CONFIG.DEBUG!=AcousticLogConfig.PAUSE
+                || LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
+            Log.d(TAG, ".closeListener: entering; "
+                +"calling *Acoustic.IT.shutdown()*...");
+        Acoustic.IT.shutdown();
     }
 
 
@@ -5504,7 +5575,7 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
 //        }
 //
 //        if (id == R.id.action_pause) {
-//            pause();
+//            pauseButton();
 //            return true;
 //        }
 //
