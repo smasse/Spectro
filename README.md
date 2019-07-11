@@ -112,9 +112,12 @@ Some current Android devices can perform sampling of sounds at 96,000 samples pe
 
 ### Publication Process ###
 
+review this list with the one in the lib project
+
 1. Review all "washere", "bug", "prio 1", and "prod" to-do's
 
-2. disable all log flags (in libs and apps) and isDevMode(), ensure all Log uses are in flagged blocks
+2. disable all log flags (in libs and apps) and isDevMode(), ensure all Log uses are in flagged blocks;
+run test with all 3 logconfig levels off and check logcat to see log statements that are not flagged.
 
 3. Libs: Compile (assemble) release aar's, then copy aar's to 3 client projects, and test in these projects
 
@@ -133,7 +136,9 @@ Some current Android devices can perform sampling of sounds at 96,000 samples pe
 10. Update git local and remote 
 
 10. Publish one or more client projects to G Play 
-https://developer.android.com/studio/publish/index.html
+- https://developer.android.com/studio/publish/index.html
+- new icon
+- review texts and links and screen shots in G Play
 
 #### TODO's Legend/Definitions ####
 

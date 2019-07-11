@@ -6,8 +6,8 @@ android {
         applicationId "sm.app.spectro"
         minSdkVersion 19
         targetSdkVersion 28
-        versionCode 4
-        versionName '4.0'
+        versionCode 5 //currently published versionCode is 4 as of 2019-7-11
+        versionName 'v5-2019-7-11'
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
     }

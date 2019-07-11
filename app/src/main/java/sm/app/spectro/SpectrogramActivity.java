@@ -80,6 +80,7 @@ import sm.lib.acoustic.AcousticLog;
 import sm.lib.acoustic.AcousticLogConfig;
 import sm.lib.acoustic.AudioPlayer;
 import sm.lib.acoustic.SpectrogramView;
+import sm.lib.acoustic.gui.TextDisplayWithEmailActivity;
 import sm.lib.acoustic.util.AppContext;
 import sm.lib.acoustic.util.DataFromIntent;
 import sm.lib.acoustic.util.OnAnyThread;
@@ -90,29 +91,25 @@ TODO washere washere bugs 2019-7-5
 
 SpectrogramActivity: .notifyForAnomaly: detailsForEmail - missing much text
 
-fixed: device button does not show device text
-
-fixed: pauseButton button does not work as intended (pauses only when pressed continuously)
-
-the log settings are not working in the library
+text activity colors wrong, ex. the one with email button
 
 acousticevents used by the lib for getting data from the client may not be working
 
 disable the url to play for now
 
-init issues:
+---
+
+fixed: device button does not show device text
+
+fixed: pauseButton button does not work as intended (pauses only when pressed continuously)
+
+fixed: the log settings are not working in the library
+
+fixed init issues:
 
 AcousticForLib: .notifyClientAppOfSevereAnomaly: text {SettingsForSound.dependentsOnVoltageSamplingRate() raised sm.lib.acoustic.DeviceCannotDoSoundInputAndOutputException at sm.lib.acoustic.DeviceCannotDoSoundInputAndOutputException
         at sm.lib.acoustic.SettingsForSound.dependentsOnVoltageSamplingRate(SettingsForSound.java:216)
-        at sm.lib.acoustic.SettingsForSound.updateDependencies(SettingsForSound.java:260)
-        at sm.lib.acoustic.SettingsForPreferences.restoreAllFromPreferences(SettingsForPreferences.java:523)
-        at sm.lib.acoustic.Acoustic.restoreFromPreferences(Acoustic.java:1036)
-        at sm.lib.acoustic.Acoustic.secondCallRestorePreferences(Acoustic.java:452)
-        at sm.app.spectro.SpectrogramActivity.restorePreferences(SpectrogramActivity.java:3064)
-        at sm.app.spectro.SpectrogramActivity.onCreate(SpectrogramActivity.java:586)
-        at android.app.Activity.performCreate(Activity.java:6679)
-        at android.app.Instrumentation.callActivityOnCreate(Instrumentation.java:1118)
-
+        ...
  */
 
 public final class SpectrogramActivity extends Activity implements Acoustic.Callback {
@@ -448,9 +445,9 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
      * <br>debug off
      */
     private final AcousticLogConfig LOG_CONFIG = new AcousticLogConfig(
-            AcousticLogConfig.ON,
-            AcousticLogConfig.ON,
-            AcousticLogConfig.UI);// INIT  DEVICE_SOUND_CAPABILITIES
+            AcousticLogConfig.OFF,
+            AcousticLogConfig.OFF,
+            AcousticLogConfig.OFF);// UI INIT  DEVICE_SOUND_CAPABILITIES
 
     /* TODO new pref
     - for mic, offer to user all choices supported by the device and give the app one of the options
@@ -1615,7 +1612,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     }
 
     private void deviceButtonSelected(){
-        if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI) //TODO washere washere 2019-7-5
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
             Log.d(TAG, ".deviceButtonSelected: " +
                     "DEVICE button selected; deviceShown = "+deviceShown);
         if (!deviceShown) {
@@ -2417,7 +2414,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
      * <p/>Designed to be run on the ui thread.
      * All callers are run on the ui thread in this version.
      */
-    private void pauseToggle() {//TODO washere washere bug 2019-7-6 isPaused returns true and should be false
+    private void pauseToggle() {
         if (LOG_CONFIG.DEBUG==AcousticLogConfig.PAUSE
                 || LOG_CONFIG.DEBUG==AcousticLogConfig.UI
                 || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
@@ -3311,7 +3308,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
          * @param givenIsConnected  boolean
          * @param givenEmailToAddress String, may be null or empty
          */
-        /*
+
         TextDisplayWithEmailActivity.show(activity, //TODO washere washere bug? 2019-7-5
                 all,
                 getResources().getString(R.string.app_name_short), //title
@@ -3319,7 +3316,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
                 OnAnyThread.IT.isConnected(isSimulatingNoConnection()),
                 "" //this.getDeviceOwnerEmailAddress()
         );
-        */
+
         Log.e(TAG,".notifyForAnomaly: detailsForEmail = "+detailsForEmail);
 
         if (isSupportEmailEnabled() 
