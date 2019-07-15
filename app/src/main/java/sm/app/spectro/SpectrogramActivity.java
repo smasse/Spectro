@@ -460,45 +460,43 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
       TODO prio 2 keep list of urls to play, give them names, delete, move up/down, export list (share)
      */
 
-    AcousticLibConfig soundPrefs = AcousticLibConfig.DEFAULT;
+    final AcousticLibConfig LIB_CONFIG = AcousticLibConfig.DEFAULT;
 
     private AcousticLibConfig getAcousticConfigFromClient(){
-        if(soundPrefs!=null && ! AcousticLibConfig.DEFAULT.equals(soundPrefs)) return soundPrefs;
-        soundPrefs = new AcousticLibConfig();
-        soundPrefs.logConfig = LOG_CONFIG;
-//        soundPrefs.isMicPreferred = true;
-//        soundPrefs.isChannelMonoRequested = true;
-//        soundPrefs.isEncodingPcmFloatPreferred = false;//TODO future true with new code for float processing
-        soundPrefs.isNativeSampleRateRequested = true;
-        soundPrefs.isSameEncodingPcmForInputAndOutputRequested = false;
-//        soundPrefs.isDevMode = false;
-//        soundPrefs.isDbCapable = false;
-//        soundPrefs.emissionIsEnabled = false;
-        soundPrefs.mipmap_ic_launcher = R.mipmap.ic_launcher;
+        LIB_CONFIG.logConfig = LOG_CONFIG;
+//        libConfig.isMicPreferred = true;
+//        libConfig.isChannelMonoRequested = true;
+//        libConfig.isEncodingPcmFloatPreferred = false;//TODO future true with new code for float processing
+        LIB_CONFIG.isNativeSampleRateRequested = true;
+        LIB_CONFIG.isSameEncodingPcmForInputAndOutputRequested = false;
+//        libConfig.isDevMode = false;
+//        libConfig.isDbCapable = false;
+//        libConfig.emissionIsEnabled = false;
+        LIB_CONFIG.mipmap_ic_launcher = R.mipmap.ic_launcher;
 
         //settings for textviews
-        soundPrefs.textSizeSp = 14;
-        soundPrefs.textStyleString = "bold";
-        soundPrefs.textColorHexString = "#33b5e5"; //"white"; TODO washere washere bug when failure: screen text and bg are not good
-        soundPrefs.bgColorHexString = "#0099cc";
+        LIB_CONFIG.textSizeSp = 14;
+        LIB_CONFIG.textStyleString = "bold";
+        LIB_CONFIG.textColorHexString = "#33b5e5"; //"white"; TODO washere washere bug when failure: screen text and bg are not good
+        LIB_CONFIG.bgColorHexString = "#0099cc";
 
         //TODO washere textview container bg color
 
-        soundPrefs.xMinHzInputFromApp = 2;
+        LIB_CONFIG.xMinHzInputFromApp = 2;
 
         if(LOG_CONFIG.DEBUG==AcousticLogConfig.ON){
-            Log.d(TAG,".getAcousticConfigFromClient:" // isMicPreferred {"+soundPrefs.isMicPreferred
-//                    +"} isChannelMonoRequested {"+soundPrefs.isChannelMonoRequested
-//                    +"} isEncodingPcmFloatPreferred {"+soundPrefs.isEncodingPcmFloatPreferred
-                    +"\n isNativeSampleRateRequested {"+soundPrefs.isNativeSampleRateRequested
+            Log.d(TAG,".getAcousticConfigFromClient:" // isMicPreferred {"+libConfig.isMicPreferred
+//                    +"} isChannelMonoRequested {"+libConfig.isChannelMonoRequested
+//                    +"} isEncodingPcmFloatPreferred {"+libConfig.isEncodingPcmFloatPreferred
+                    +"\n isNativeSampleRateRequested {"+ LIB_CONFIG.isNativeSampleRateRequested
                     +"}\n isSameEncodingPcmForInputAndOutputRequested {"
-                    +soundPrefs.isSameEncodingPcmForInputAndOutputRequested
+                    + LIB_CONFIG.isSameEncodingPcmForInputAndOutputRequested
                     +"}");
         }
         if(SHOW_USER_INIT_EVENTS_ENABLED){
             showStatusSnackbar("AcousticLibConfig were set");
         }
-        return soundPrefs;
+        return LIB_CONFIG;
     }
 
     private void onError(String s) {
@@ -576,7 +574,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         Acoustic acoustic = null;
         try {
             //acoustic = Acoustic.firstCall(this, getAcousticConfigFromClient(), getApplicationContext());
-            acoustic = Acoustic.firstCall(this, soundPrefs, getApplicationContext());
+            acoustic = Acoustic.firstCall(this, LIB_CONFIG, getApplicationContext());
         }catch(Throwable ex){
             if(LOG_INIT_ENABLED) Log.e(TAG,"onCreate: "+ex);
         }
