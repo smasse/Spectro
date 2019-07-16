@@ -79,13 +79,11 @@
     <string name="url_no_sound_output">Device does not support sound output</string>
     <string name="url_no_sound_input">Device does not support sound input</string>
 
+    <string name="our_apps_short">Touch the link to go to our apps currently in the Google Play™ store.</string>
+    <string name="our_apps_please_note">Please note that some of our apps are not visible from all devices and from all countries.</string>
 
     <string name="pause_button">Pause</string>
     <string name="pause_button_restart">Resume</string>
-    <!--
-    our_apps_short_part1
-    our_apps_please_note
-    -->
 
     <!-- also in lib-sound -->
     <string name="app_type_free">free</string>
@@ -93,4 +91,5 @@
     <string name="app_type_priced">priced</string>
     <string name="app_type_edu">edu</string>
     <string name="app_type_unknown">unknown</string>
+
 </resources>

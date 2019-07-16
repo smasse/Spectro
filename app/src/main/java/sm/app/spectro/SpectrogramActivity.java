@@ -444,7 +444,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
      * <br>warning off
      * <br>debug off
      */
-    private final AcousticLogConfig LOG_CONFIG = new AcousticLogConfig(
+    static final AcousticLogConfig LOG_CONFIG = new AcousticLogConfig(
             AcousticLogConfig.OFF,
             AcousticLogConfig.OFF,
             AcousticLogConfig.OFF);// UI INIT  DEVICE_SOUND_CAPABILITIES
@@ -460,9 +460,9 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
       TODO prio 2 keep list of urls to play, give them names, delete, move up/down, export list (share)
      */
 
-    final AcousticLibConfig LIB_CONFIG = AcousticLibConfig.DEFAULT;
+    static final AcousticLibConfig LIB_CONFIG = AcousticLibConfig.DEFAULT;
 
-    private AcousticLibConfig getAcousticConfigFromClient(){
+    static{
         LIB_CONFIG.logConfig = LOG_CONFIG;
 //        libConfig.isMicPreferred = true;
 //        libConfig.isChannelMonoRequested = true;
@@ -477,15 +477,13 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         //settings for textviews
         LIB_CONFIG.textSizeSp = 14;
         LIB_CONFIG.textStyleString = "bold";
-        LIB_CONFIG.textColorHexString = "#33b5e5"; //"white"; TODO washere washere bug when failure: screen text and bg are not good
+        LIB_CONFIG.textColorHexString = "white";//  "#33b5e5"; //"white"; TODO washere washere bug when failure: screen text and bg are not good
         LIB_CONFIG.bgColorHexString = "#0099cc";
-
-        //TODO washere textview container bg color
 
         LIB_CONFIG.xMinHzInputFromApp = 2;
 
         if(LOG_CONFIG.DEBUG==AcousticLogConfig.ON){
-            Log.d(TAG,".getAcousticConfigFromClient:" // isMicPreferred {"+libConfig.isMicPreferred
+            Log.d(TAG,"static block:" // isMicPreferred {"+libConfig.isMicPreferred
 //                    +"} isChannelMonoRequested {"+libConfig.isChannelMonoRequested
 //                    +"} isEncodingPcmFloatPreferred {"+libConfig.isEncodingPcmFloatPreferred
                     +"\n isNativeSampleRateRequested {"+ LIB_CONFIG.isNativeSampleRateRequested
@@ -493,9 +491,18 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
                     + LIB_CONFIG.isSameEncodingPcmForInputAndOutputRequested
                     +"}");
         }
-        if(SHOW_USER_INIT_EVENTS_ENABLED){
-            showStatusSnackbar("AcousticLibConfig were set");
-        }
+    }
+
+    /**
+     * Convenience method.
+     * @return AcousticLibConfig
+     * @deprecated replaced by direct access to LIB_CONFIG
+     */
+    private AcousticLibConfig getAcousticConfigFromClient(){
+
+//        if(SHOW_USER_INIT_EVENTS_ENABLED){
+//            showStatusSnackbar("AcousticLibConfig were set");
+//        }
         return LIB_CONFIG;
     }
 
@@ -2754,7 +2761,8 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 
         // ##### our apps text #####
 
-        if (!SEPARATE_OUR_APPS_GUI_IS_ENABLED && AcousticLibConfig.getIt().googlePlayPubAppsTextIsEnabled) {
+        if (!SEPARATE_OUR_APPS_GUI_IS_ENABLED){
+                //&& AcousticLibConfig.getIt().googlePlayPubAppsTextIsEnabled) {
             buf.append(getOurAppsText());
         }
 
@@ -3028,7 +3036,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     private String getOurAppsText() {
         if (ourAppsText == null || ourAppsText.length() == 0)
             ourAppsText = "<p/><h2>OUR APPS</h2><p/>"
-                    + getString(R.string.our_apps_short_part1)
+                    + getString(R.string.our_apps_short)
                     + "<p/>"
                     + AcousticLibConfig.getIt().googlePlayPub
                     + "<p/>"
