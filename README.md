@@ -110,35 +110,6 @@ Some current Android devices can perform sampling of sounds at 96,000 samples pe
     This app supports 96,000 samples per second. It analyzes sounds 40 times per second. It uses 1024 samples for each analysis (using FFT).
 
 
-### Publication Process ###
-
-review this list with the one in the lib project
-
-1. Review all "washere", "bug", "prio 1", and "prod" to-do's
-
-2. disable all log flags (in libs and apps) and isDevMode(), ensure all Log uses are in flagged blocks;
-run test with all 3 logconfig levels off and check logcat to see log statements that are not flagged.
-
-3. Libs: Compile (assemble) release aar's, then copy aar's to 3 client projects, and test in these projects
-
-4. Review all copyright strings
-
-5. Review all texts shown to user (About, Device, etc.), i18n resources
-
-6. review launch icon(s) and other images
-
-7. for opensourcing, license text at head of all classes; remove old code
-
-8. re-test
-
-9. Copy to backup external drive
-
-10. Update git local and remote 
-
-10. Publish one or more client projects to G Play 
-- https://developer.android.com/studio/publish/index.html
-- new icon
-- review texts and links and screen shots in G Play
 
 #### TODO's Legend/Definitions ####
 
