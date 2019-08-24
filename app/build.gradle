@@ -1,13 +1,27 @@
 apply plugin: 'com.android.application'
 
 android {
+    signingConfigs {
+        debug {
+            storeFile file('/Users/sergemasse/sm-apps/balls2')
+            storePassword 'smasse_android'
+            keyAlias = 'simplecode_android'
+            keyPassword 'smasse_android'
+        }
+        release {
+            storeFile file('/Users/sergemasse/sm-apps/balls2')
+            storePassword 'smasse_android'
+            keyAlias = 'simplecode_android'
+            keyPassword 'smasse_android'
+        }
+    }
     compileSdkVersion 28
     defaultConfig {
         applicationId "sm.app.spectro"
         minSdkVersion 19
         targetSdkVersion 28
         versionCode 5 //currently published versionCode is 4 as of 2019-7-11
-        versionName 'v5-2019-7-11'
+        versionName 'v5-2019-8-24'
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
     }
@@ -17,6 +31,7 @@ android {
         release_unsigned {
         }
         release {
+        signingConfig signingConfigs.release
         }
     }
     buildToolsVersion '28.0.3'

@@ -97,19 +97,6 @@ acousticevents used by the lib for getting data from the client may not be worki
 
 disable the url to play for now
 
----
-
-fixed: device button does not show device text
-
-fixed: pauseButton button does not work as intended (pauses only when pressed continuously)
-
-fixed: the log settings are not working in the library
-
-fixed init issues:
-
-AcousticForLib: .notifyClientAppOfSevereAnomaly: text {SettingsForSound.dependentsOnVoltageSamplingRate() raised sm.lib.acoustic.DeviceCannotDoSoundInputAndOutputException at sm.lib.acoustic.DeviceCannotDoSoundInputAndOutputException
-        at sm.lib.acoustic.SettingsForSound.dependentsOnVoltageSamplingRate(SettingsForSound.java:216)
-        ...
  */
 
 public final class SpectrogramActivity extends Activity implements Acoustic.Callback {
@@ -439,7 +426,10 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     private final boolean APP_INDEXING_IS_ENABLED = false;
 
     /**
-     * Production (prod): new AcousticLogConfig(AcousticLogConfig.OFF,AcousticLogConfig.OFF,AcousticLogConfig.OFF)
+     * Production (prod): new AcousticLogConfig(AcousticLogConfig.OFF,
+     * AcousticLogConfig.OFF,
+     * AcousticLogConfig.OFF)
+     *
      * <br>error off
      * <br>warning off
      * <br>debug off
@@ -481,6 +471,55 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         LIB_CONFIG.bgColorHexString = "#0099cc";
 
         LIB_CONFIG.xMinHzInputFromApp = 2;
+
+        LIB_CONFIG.isSupportEmailEnabled = true;
+
+        LIB_CONFIG.supportEmailAddress = "sergemasse1@yahoo.com";
+
+        LIB_CONFIG.supportEmailSubjectLine = "Mobile app user requesting support";
+
+        LIB_CONFIG.isPublisherEmailEnabled = true;
+
+        LIB_CONFIG.publisherEmailAddress = "sergemasse1@yahoo.com";
+
+        LIB_CONFIG.webSiteUrl = "https://gitlab.com/serge_masse/android-spectro-doc";
+
+        LIB_CONFIG.appPublisherCopyright = "Copyright 2019 Serge Masse";
+
+        LIB_CONFIG.privacyPolicyUrl = "https://gitlab.com/sergemasse/privacy-policy";
+
+        LIB_CONFIG.sourceCodeLicenseUrl = "https://gitlab.com/serge_masse/android-spectro-doc";
+
+        LIB_CONFIG.sourceCodeLicenseText = "Copyright (c) 2019 Serge Masse"
+                +"\n"
+                +"\n Redistribution and use in source and binary forms, with or without modification, are permitted"
+                +"\n provided that the following conditions are met:"
+                +"\n"
+                +"\n 1. Redistributions of source code must retain the above copyright notice, this list of conditions"
+                +"\n and the following disclaimer."
+                +"\n"
+                +"\n 2. Redistributions in binary form must reproduce the above copyright notice, this list of"
+                +"\n conditions and the following disclaimer in the documentation and/or other materials"
+                +"\n provided with the distribution."
+                +"\n"
+                +"\n 3. Neither the name of the copyright holder nor the names of its contributors may be used"
+                +"\n to endorse or promote products derived from this software without specific prior written"
+                +"\n permission."
+                +"\n"
+                +"\n 4. This software, as well as products derived from IT, must not be used for the purpose of"
+                +"\n killing, harming, harassing, or capturing animals."
+                +"\n"
+                +"\n THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS \"AS IS\""
+                +"\n AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED"
+                +"\n WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED."
+                +"\n IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,"
+                +"\n INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,"
+                +"\n BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,"
+                +"\n DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY"
+                +"\n THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT"
+                +"\n (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF"
+                +"\n THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE."
+        ;
 
         if(LOG_CONFIG.DEBUG==AcousticLogConfig.ON){
             Log.d(TAG,"static block:" // isMicPreferred {"+libConfig.isMicPreferred
@@ -3038,7 +3077,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
             ourAppsText = "<p/><h2>OUR APPS</h2><p/>"
                     + getString(R.string.our_apps_short)
                     + "<p/>"
-                    + AcousticLibConfig.getIt().googlePlayPub
+                    + AcousticLibConfig.getIt().ourAppsPubUrl
                     + "<p/>"
                     + getString(R.string.our_apps_please_note)
                     + "<p/>";
@@ -3716,21 +3755,32 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //    }
 
     private void closeListener() {
-        //BasicListener.shutdownTheRunningListener();
         if (LOG_CONFIG.DEBUG!=AcousticLogConfig.PAUSE
                 || LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
             Log.d(TAG, ".closeListener: entering; "
-                +"calling *Acoustic.IT.shutdown()*...");
-        Acoustic.IT.shutdown();
+                +"calling *Acoustic.IT.doPauseForClient()*...");
+        Acoustic.IT.doPauseForClient("closing the listener");
     }
 
+    private void shutdown() {
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
+            Log.d(TAG, ".shutdown: entering; "
+                    +"calling *Acoustic.IT.lastCallShutdown()*...");
+        Acoustic.IT.lastCallShutdown();
+    }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         if (LOG_CONFIG.DEBUG!=AcousticLogConfig.OFF) Log.d(TAG, ".onDestroy: entering");
-        closeListener();
-        AudioPlayer.getIt().onActivityStop();
+        shutdown();
+        //AudioPlayer.getIt().onActivityStop();
+//        AudioPlayer player = AudioPlayer.getIt();
+//        if(player!=null){
+//            if (LOG_CONFIG.DEBUG!=AcousticLogConfig.OFF) Log.d(TAG,
+//                    ".onDestroy: player not null after shutdown");
+//            player.onActivityStop();
+//        }
         // remove notification if any showing
         notifyCancelAll();
         if (LOG_CONFIG.DEBUG!=AcousticLogConfig.OFF) Log.d(TAG, ".onDestroy: exiting");
@@ -3757,6 +3807,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
                 || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL
                 )
             Log.d(TAG, ".onPause: prefs saved; calling closeListener() " + Thread.currentThread());
+
         closeListener();
 
         AudioPlayer.getIt().pause(); // shutdown();

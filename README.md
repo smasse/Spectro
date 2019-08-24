@@ -4,7 +4,8 @@
 #### The app is currently published on Google Play: ####
 https://play.google.com/store/apps/details?id=sm.app.spectro&hl=en
 
-Version 2 is the current production version, released Feb 8, 2018.
+Version 4 is the current production version. 
+Version 5 is the version in development.
 
 [//]: <>(TODO 2017-6-7 Mic button: tries next mic in list of available sound sources; 
 device text shows the current mic details at top, then output channel...
@@ -15,12 +16,12 @@ sm Spectro is a complete spectrogram app for Android.
 
 Its only dependency is the gitlab project **android-acoustic-lib**, 
 from the same author. The library from android-acoustic-lib is an 
-.aar file in directory app/libs: **lib-acoustic-release.aar**; more details below.
+.aar file in directory app/libs: **sm-lib-sound-release.aar**; more details below.
 
 The executable app does not use other libraries than 
 the basic Android ones and the library from the same author.
 
-Copyright (c) 2016-2018 Serge Masse
+Copyright (c) 2016-2019 Serge Masse
 
 Redistribution and use in source and binary forms, with or without modification, are permitted 
 provided that the following conditions are met:
@@ -62,14 +63,14 @@ Android Studio Project: Spectro
 Gitlab Project: leafyseadragon/android-spectro-app
 
 
-#### lib-acoustic-release.aar ####
+#### sm-lib-sound-release.aar ####
 
-Library **lib-acoustic** (package **sm.lib.acoustic**) 
+Library **sm-lib-acoustic** (package **sm.lib.acoustic**) 
 contains generic acoustic functions, 
 some specific to Android and some generic and not specific to Android. 
 It also contains generic utilities.
 
-The compiled file is **lib-acoustic-release.aar**.
+The compiled file is **sm-lib-sound-release.aar**.
 
 Android Studio Project: sm-lib-acoustic
 
@@ -77,7 +78,7 @@ Android Manifest Package = sm.lib.acoustic
 
 GitLab Project: leafyseadragon / android-acoustic-lib
 
-Library **lib-comm** from the above package is not used by the Spectro app.
+Library **sm-lib-comm**, also in the above GitLab project, is not used by the Spectro app.
 
 #### DRAFT TEXT FOR PLAY STORE LISTING ####
 
@@ -89,14 +90,14 @@ See the sounds surrounding you:
 - get an idea of the quality of your hearing and may help you decide to get a medical hearing test
 
 This app will also
-- play a remote media file (e.g., a wa. file) of killer whale vocalizations, for example, or the pre-recorded vocalizations from your cat or dog
+- play a remote media file (e.g., a wav file) of killer whale vocalizations, for example, or the pre-recorded vocalizations from your cat or dog
 - test the audio capabilities of your Android device and present the results in a text form
 - select the best sampling rate supported by your device
 
 Using the built-in feature of your Android device, you can take screen shots of the spectrogram and share them via email or messenger apps.
     The app does not include special features for doing this; just use the normal functions of your device.
 
-External microphones may be compatible with your device, for example, via a USB connector or the RCA audio jack.
+External microphones may be compatible with your device, for example, via a USB connector or the audio jack.
     The app does not have special features for external mic's and you're on your own for determining if a microphone is compatible or not.
     Future versions may have special functions for testing external mic's.
     We do not recommend microphones that use Bluetooth at this time due to the inherent limitations of the current Bluetooth technology for audio input.

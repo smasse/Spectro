@@ -65,14 +65,20 @@
     <string name="app_publisher_email_address_for_support">sergemasse1@yahoo.com</string>
     <!-- example in app string resource file: -->
     <!--<string name="app_publisher_web_site_url">www.yourdomain.com</string>-->
-    <!-- TODO future use github or gitlab url -->
-    <string name="app_publisher_web_site_url">https://plus.google.com/+SergeMasse</string>
-    <string name="app_publisher_google_play_pub">Serge%20Masse</string>
+
+
     <string name="db_provider_authority_prefix">smspectro</string>
-    <string name="app_publisher_copyright">COPYRIGHT 2016&#8211;2019 Serge Masse</string>
+
     <string name="support_email_subject_line">sm Spectrogram &#8211; User Requesting Support</string>
-    <string name="app_publisher_privacy_policy_url">(the privacy policy URL has not been set)</string>
-    <string name="app_publisher_source_code_license_url">(the source code license URL has not been set)</string>
+
+    <string name="app_publisher_web_site_url">https://gitlab.com/serge_masse/android-dolphin-comm-doc</string>
+    <string name="app_publisher_google_play_pub">Serge%20Masse</string>
+
+    <string name="app_publisher_copyright">COPYRIGHT 2019 Serge Masse</string>
+
+    <string name="app_publisher_privacy_policy_url">https://gitlab.com/sergemasse/privacy-policy</string>
+
+    <string name="app_publisher_source_code_license_url">https://gitlab.com/serge_masse/android-dolphin-comm-doc</string>
 
 
     <string name="url_example">https://</string>
