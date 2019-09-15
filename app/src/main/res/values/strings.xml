@@ -50,36 +50,9 @@
     <string name="action_pause">Pause</string>
     <string name="action_restart">Resume</string>
 
-    <!--<string name="title_activity_fullscreen">FullscreenActivity</string>-->
-
-    <!-- TODO deprecated replaced by app_publisher_email_address -->
-    <!-- alternates: sm1apps@yahoo.ca smasseatgithub@gmail.com -->
-    <string name="email_address">sergemasse1@yahoo.com</string>
-    <!--<string name="pause_button_restart">Restart</string>-->
-
-    <!-- designed to be overridden in application: -->
-    <!-- example in app string resource file: -->
-    <!--<string name="app_publisher_email_address">info@yourdomain.com</string>-->
-    <!-- sm1apps@yahoo.ca smasseatgithub@gmail.com -->
-    <string name="app_publisher_email_address">sergemasse1@yahoo.com</string>
-    <string name="app_publisher_email_address_for_support">sergemasse1@yahoo.com</string>
-    <!-- example in app string resource file: -->
-    <!--<string name="app_publisher_web_site_url">www.yourdomain.com</string>-->
-
-
     <string name="db_provider_authority_prefix">smspectro</string>
 
     <string name="support_email_subject_line">sm Spectrogram &#8211; User Requesting Support</string>
-
-    <string name="app_publisher_web_site_url">https://gitlab.com/serge_masse/android-dolphin-comm-doc</string>
-    <string name="app_publisher_google_play_pub">Serge%20Masse</string>
-
-    <string name="app_publisher_copyright">COPYRIGHT 2019 Serge Masse</string>
-
-    <string name="app_publisher_privacy_policy_url">https://gitlab.com/sergemasse/privacy-policy</string>
-
-    <string name="app_publisher_source_code_license_url">https://gitlab.com/serge_masse/android-dolphin-comm-doc</string>
-
 
     <string name="url_example">https://</string>
     <string name="url_no_sound_output">Device does not support sound output</string>
@@ -97,5 +70,32 @@
     <string name="app_type_priced">priced</string>
     <string name="app_type_edu">edu</string>
     <string name="app_type_unknown">unknown</string>
+
+    <!-- TODO prio 1 things that don't need translation can be just in lib-config attributes and not in strings.xml -->
+
+    <!--<string name="title_activity_fullscreen">FullscreenActivity</string>-->
+
+    <!-- TODO deprecated replaced by app_publisher_email_address -->
+    <!-- alternates: sm1apps@yahoo.ca smasseatgithub@gmail.com -->
+    <string name="email_address">sergemasse1@yahoo.com</string>
+    <!--<string name="pause_button_restart">Restart</string>-->
+
+    <!-- designed to be overridden in application: -->
+    <!-- example in app string resource file: -->
+    <!--<string name="app_publisher_email_address">info@yourdomain.com</string>-->
+    <!-- sm1apps@yahoo.ca smasseatgithub@gmail.com -->
+    <string name="app_publisher_email_address">sergemasse1@yahoo.com</string>
+    <string name="app_publisher_email_address_for_support">sergemasse1@yahoo.com</string>
+    <!-- example in app string resource file: -->
+    <!--<string name="app_publisher_web_site_url">www.yourdomain.com</string>-->
+
+    <string name="app_publisher_web_site_url">https://gitlab.com/serge_masse/android-dolphin-comm-doc</string>
+    <string name="app_publisher_google_play_pub">Serge%20Masse</string>
+
+    <string name="app_publisher_copyright">COPYRIGHT 2019 Serge Masse</string>
+
+    <string name="app_publisher_privacy_policy_url">https://gitlab.com/sergemasse/privacy-policy</string>
+
+    <string name="app_publisher_source_code_license_url">https://gitlab.com/serge_masse/android-dolphin-comm-doc</string>
 
 </resources>

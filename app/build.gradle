@@ -19,7 +19,7 @@ android {
     defaultConfig {
         applicationId "sm.app.spectro"
         minSdkVersion 19
-        targetSdkVersion 28
+        targetSdkVersion 29
         versionCode 5 //currently published versionCode is 4 as of 2019-7-11
         versionName 'v5-2019-8-24'
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"

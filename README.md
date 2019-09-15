@@ -7,10 +7,6 @@ https://play.google.com/store/apps/details?id=sm.app.spectro&hl=en
 Version 4 is the current production version. 
 Version 5 is the version in development.
 
-[//]: <>(TODO 2017-6-7 Mic button: tries next mic in list of available sound sources; 
-device text shows the current mic details at top, then output channel...
-)
-
 ## Overview ##
 sm Spectro is a complete spectrogram app for Android.
 
@@ -62,8 +58,10 @@ Android Studio Project: Spectro
 
 Gitlab Project: leafyseadragon/android-spectro-app
 
+<!-- git remote add origin git@gitlab.com:leafyseadragon/android-spectro-app.git -->
 
-#### sm-lib-sound-release.aar ####
+
+#### Library: sm-lib-sound-release.aar ####
 
 Library **sm-lib-acoustic** (package **sm.lib.acoustic**) 
 contains generic acoustic functions, 
@@ -112,9 +110,9 @@ Some current Android devices can perform sampling of sounds at 96,000 samples pe
 
 
 
-#### TODO's Legend/Definitions ####
+#### T O D O's Legend/Definitions ####
 
-see all "bug", "washere", "prio 1", "prod"/"production" to-do's
+see all "bug", "washere", "prio 1", "prod", "production" to-do's
 
 prio 1 = urgent, possibly to be resolved before publishing current version
 
@@ -122,19 +120,14 @@ prio 2 = maybe for next version
 
 no prio or prio 3: lowest priority, or no priority
 
-washere is for easily finding the place where was working last in current issue in different locations
-should not be used as a priority level
+washere is for easily finding the place where I was working last in current issue 
+in different locations; should not be used as a priority level
 
-prod is for settings to be changed for production
+"prod" is for settings to be changed for production
 
-#### for next version: prio 2 & 3 ####
 
-2017-6-7 "Next Mic" button: tries next mic in list of available sound sources; 
-device text shows the current mic details at top.
 
-new gui to allow user to test different mic and speaker config: bluetooth, usb, ...
-
-test with bluetooth mic and speakers, for altamer underwater tablet
+#### TODO for next version: prio 2 & 3 ####
 
 2017-12-27 
 Previous url: url play button ==> play/pause, previous, {cancel/clear?}
@@ -145,18 +138,9 @@ otherwise show disabled "PLay" url button;
 Selecting "Previous" will play the http.s file from pref
 (content files are not played again)
 
-done: if the file is a content one (e.g. a download), 
-then it is not saved and it is not shown when the app is restarted
-
-done: invalid url file text not saved
-
 prio 2 new preferences:
-- for mic, offer to user all choices supported by the device and give the app one of the options
-    future:
-- for channel, mono or stereo, same as above
 - for float pcm encoding, same as above, float/int for input, float/int for output, depending on version of android
-- for sampling rate, offer to user the native rate and some other rates supported by device, and let user pick one
-      and let user decide for same encoding for input and output
+
 
 2017-6-3 prio 2 next version: Make the status bar translucent
 
@@ -173,11 +157,8 @@ android:statusBarColor = @android:color/transparent
     </style>
 ```
 
-prio 1 or 2? maybe [audio input source = android default, not mic, test bluetooth mic]
-
-prio 1 or 2? list of sources/recordings of ceta sounds; to add in about text
-
-prio 1 or 2? activity with text containing URLs of ceta sounds
+prio 2: list of sources of recordings of ceta sounds; to add in about text
+prio 2: activity with text containing URLs of ceta sounds
 
 do in prominence in play store text:
 
@@ -189,12 +170,12 @@ When the choices of ways to share comes up, you select the icon for this app.
 You can also use other sound apps that can share recorded files with this app, often in a similar fashion to using Chrome for sharing.
 
  
-prio 3: keep list of urls to play, give them names, delete, move up/down, export list (share)
+prio 2: keep list of urls to play, give them names, delete, move up/down, export list (share)
 
-prio 3: weakness: when the app loses focus after a url Pause, when it comes back, the button is Resume 
+prio 2: weakness: when the app loses focus after a url Pause, when it comes back, the button is Resume 
 but the url/intent restarts from beginning; fix: keep the position in preferences and seek to it at restart
 
-prio 3: try the new exoplayer
+prio 2: try the new exoplayer
 
 for html strings: 
 ```<string name="my_text">
@@ -209,33 +190,20 @@ tv.setText(Html.fromHtml(getString(R.string.my_text)));
 
 #### 2018 todo's ####
 
-[presentation with bluetooth speaker (waterproof)]
-
-[presentation with laptop showing phone screen (airdroid, teamviewer)]
+[write documentation showing bluetooth speaker (waterproof)]
 
 [record and post videos of great whistle recording(s) played by spectrogram, send to west coast orca team]
 
 [cleanup the code for public opensource (all apps and libs)]
 
-done: add license text at top of all classes (all apps and libs)
-
-work on the other 2 apps, Recog and DolphinComm
-
 ### samsung SGH-I467M SDK 19 test results 2018-2-10 ###
 
 todo www.samsung.com/kies
 
-fixed: no output for < v21
-
-[buttons too dark]
-
-done: move device basic at top of text
-
-done: add in about: icon is made using a screenshot of a recording by www.aguasonic.com of a very animated
-discussion (vocalisations) by a group of dolphins, probably Tursiops, with often some 5 individuals
-whistling at the same time.
-
-#### 2018-4-17 ####
+TODO washere [samsung buttons too dark]
 
 [not starting correctly]
 
+
+[//]: <>(
+)

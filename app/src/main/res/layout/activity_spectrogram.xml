@@ -74,7 +74,6 @@
             android:textStyle="bold"
             android:visibility="visible" />
 
-        <!-- TODO copy this to large layout; test old version to tablet first -->
         <LinearLayout
             android:id="@+id/spectrogram2_buttons"
             android:layout_width="match_parent"
