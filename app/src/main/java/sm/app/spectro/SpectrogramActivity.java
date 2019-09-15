@@ -575,28 +575,6 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         return LIB_CONFIG;
     }
 
-    /**
-     * Designed to be called when the Acoustic lib sends an ON_ERROR event.
-     * @param s
-     */
-    private void onError(String s) {//TODO washere
-        if(Acoustic.IT.isAnyLogEnabled() ){
-            Log.d(TAG,"onError: "+s);
-        }
-    }
-
-    public boolean isDbCapable() {
-        return false;
-    }
-
-    public String getDbProviderAuthority() {
-        return "N/A";
-    }
-
-    public String getDbProviderAuthorityFragment() {
-        return "N/A";
-    }
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -1176,7 +1154,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
      */
     private String getTextForDisplayFromClient() {
         if (!isDevMode()) return getClass().getSimpleName();
-        boolean isDbCapable = isDbCapable();
+//        boolean isDbCapable = isDbCapable();
         return "isDevMode() " + isDevMode()
 //                + ", isAdsCapable() " + isAdsCapable()
 //                + ", isEduVersion() " + isEduVersion()
@@ -1186,10 +1164,10 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 //                + ", isVerifyIabPayload() " + isVerifyIabPayload()
                 + ", isSimulatingNoConnection() " + isSimulatingNoConnection()
 //                + ", isSimulatingNoPurchase() " + isSimulatingNoPurchase()
-                + ", isDbCapable " + isDbCapable
-                + (isDbCapable ? ", getDbProviderAuthority() "+getDbProviderAuthority():"")
+//                + ", isDbCapable " + isDbCapable
+//                + (isDbCapable ? ", getDbProviderAuthority() "+getDbProviderAuthority():"")
 //                + ", isShowAdsWhenDonated() " + isShowAdsWhenDonated()
-                + ", getDbProviderAuthorityFragment() " + getDbProviderAuthorityFragment()
+//                + ", getDbProviderAuthorityFragment() " + getDbProviderAuthorityFragment()
                 ;
     }
 
@@ -4217,133 +4195,6 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     }
 
 
-    /**
-     * Informs the user of the invalidity of the intent.
-     *
-     * @param intent
-     * @param filename
-     */
-    private void invalidIntent(final Intent intent, final String filename) {
-        if (LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT
-                || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
-            Log.d(TAG, ".invalidIntent: invalid intent {" + intent + "}");
-        String x = filename == null || filename.isEmpty() ? "" : ", filename {" + filename+"}";
-        String s = "The Intent is invalid" + x;//from another app ???
-        if (intent != null) {
-            // url for a local file
-            s = s+" Intent: "+intent;
-        }
-//        if (coordinatorLayout != null) {
-//            Snackbar.make(findViewById(android.R.id.content), //coordinatorLayout,
-//                    s, Snackbar.LENGTH_LONG).show();
-//        }
-        Toast.makeText(this, s, Toast.LENGTH_LONG).show();
-        notifyPlayAbnormalEnd(new Exception(s));
-    }
-
-    private void showError(final String text) {
-        if (LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT
-                || LOG_CONFIG.DEBUG==AcousticLogConfig.ON
-                || LOG_CONFIG.ERROR==AcousticLogConfig.ON)
-            Log.e(TAG, ".showError {" + text + "}");
-//        if (coordinatorLayout != null) {
-//            Snackbar.make(findViewById(android.R.id.content), //coordinatorLayout,
-//                    text, Snackbar.LENGTH_LONG).show();
-//        }
-        Toast.makeText(this, text, Toast.LENGTH_LONG).show();
-    }
-
-    /**
-     * @param ex     Throwable
-     * @param method a text fragment, example: "mediaPlayer.prepare"
-     */
-    private void showFailureInMethod(final Throwable ex, final String method) {
-        //if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
-        showAnomalyText(ex, method + " raised " + ex);
-    }
-
-    //TO DO when is this reset to null after it is set to non-null?
-    private volatile String previousAnomalyText = null;
-    private volatile boolean lastAnomalyTextIsShown = false;
-
-    /**
-     * Designed to be used in runOnUiThread.
-     */
-    private final Runnable RUNNABLE_TO_SHOW_ANOMALY_TEXT = new Runnable() {
-
-        public void run() {
-            if (LOG_CONFIG.ERROR!=AcousticLogConfig.OFF)
-                Log.e(SpectrogramActivity.TAG, fromHtmlToString(getLastAnomalyTextInHtml()));
-
-            notifyForAnomaly(lastAnomalyText,lastThrowable);//TODO washere washere
-
-            if (about != null) {
-//                if(lastAnomalyText==null || lastAnomalyText.isEmpty()){
-//                    about. setText("About");//TO DO use res
-//                }else {
-//                    about. setText("Error");//TO DO use res
-//                }
-                aboutButtonSelected();
-                afterButtonSelected(about);
-//                if(!about.performClick()){
-//                    Log.e(SpectrogramActivity.TAG,
-//                            "secondary issue: *about.performClick()* returned false; " +
-//                                    "the primary issue was: "+ getLastAnomalyTextForHtml());
-//                }
-            }
-        }
-    };
-
-
-    /**
-     * @param e    Throwable, may be null.
-     * @param text String
-     */
-    private void showAnomalyText(final Throwable e, final String text) {
-        processLastError(e,false);//TODO washere
-        lastThrowable = e;
-        lastAnomalyText = text;
-        lastAnomalyTimeMillis = System.currentTimeMillis();
-        runOnUiThread(RUNNABLE_TO_SHOW_ANOMALY_TEXT);
-    }
-
-    private void clearLastAnomaly() {//TODO washere
-        lastThrowable = null;
-        lastAnomalyText = null;
-        lastAnomalyTimeMillis = -1L;
-    }
-
-    private final Runnable RUNNABLE_TO_CLEAR_ANOMALY_TEXT = new Runnable() {//TODO washere
-
-        public void run() {
-            updateAboutButtonOnUIThread();
-        }
-    };
-
-    private void updateAboutButtonOnUIThread() {
-        if (lastAnomalyText == null || lastAnomalyText.length() == 0) {
-            if (about != null) {
-                about.setText("About");//TODO use res
-                if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
-                    Log.d(TAG,"updateAboutButtonOnUIThread: about button label set to *About*");
-            }
-        } else {
-            if (about != null) {
-                about.setText("Error");//TODO use res
-                if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
-                    Log.d(TAG,"updateAboutButtonOnUIThread: about button label set to *Error*");
-            }
-        }
-    }
-
-    private void clearAnomalyText() {//TODO washere
-        previousAnomalyText = lastAnomalyText;
-        lastAnomalyText = null;
-        lastAnomalyTextIsShown = false;
-        runOnUiThread(RUNNABLE_TO_CLEAR_ANOMALY_TEXT);
-    }
-
-
     private final Runnable RUNNABLE_FOR_PLAYER_STARTING_TO_PLAY = new Runnable() {
 
         public void run() {
@@ -4811,6 +4662,132 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
 
 
     /**
+     * Informs the user of the invalidity of the intent.
+     *
+     * @param intent
+     * @param filename
+     */
+    private void invalidIntent(final Intent intent, final String filename) {
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT
+                || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
+            Log.d(TAG, ".invalidIntent: invalid intent {" + intent + "}");
+        String x = filename == null || filename.isEmpty() ? "" : ", filename {" + filename+"}";
+        String s = "The Intent is invalid" + x;//from another app ???
+        if (intent != null) {
+            // url for a local file
+            s = s+" Intent: "+intent;
+        }
+//        if (coordinatorLayout != null) {
+//            Snackbar.make(findViewById(android.R.id.content), //coordinatorLayout,
+//                    s, Snackbar.LENGTH_LONG).show();
+//        }
+        Toast.makeText(this, s, Toast.LENGTH_LONG).show();
+        notifyPlayAbnormalEnd(new Exception(s));
+    }
+
+//    private void showError(final String text) {
+//        if (LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT
+//                || LOG_CONFIG.DEBUG==AcousticLogConfig.ON
+//                || LOG_CONFIG.ERROR==AcousticLogConfig.ON)
+//            Log.e(TAG, ".showError {" + text + "}");
+////        if (coordinatorLayout != null) {
+////            Snackbar.make(findViewById(android.R.id.content), //coordinatorLayout,
+////                    text, Snackbar.LENGTH_LONG).show();
+////        }
+//        Toast.makeText(this, text, Toast.LENGTH_LONG).show();
+//    }
+
+    /**
+     * @param ex     Throwable
+     * @param method a text fragment, example: "mediaPlayer.prepare"
+     */
+    private void showFailureInMethod(final Throwable ex, final String method) {
+        //if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
+        showAnomalyText(ex, method + " raised " + ex);
+    }
+
+    //TO DO when is this reset to null after it is set to non-null?
+    private volatile String previousAnomalyText = null;
+    private volatile boolean lastAnomalyTextIsShown = false;
+
+    /**
+     * Designed to be used in runOnUiThread.
+     */
+    private final Runnable RUNNABLE_TO_SHOW_ANOMALY_TEXT = new Runnable() {
+
+        public void run() {
+            if (LOG_CONFIG.ERROR!=AcousticLogConfig.OFF)
+                Log.e(SpectrogramActivity.TAG, fromHtmlToString(getLastAnomalyTextInHtml()));
+
+            notifyForAnomaly(lastAnomalyText,lastThrowable);//TODO washere washere
+
+            if (about != null) {
+//                if(lastAnomalyText==null || lastAnomalyText.isEmpty()){
+//                    about. setText("About");//TO DO use res
+//                }else {
+//                    about. setText("Error");//TO DO use res
+//                }
+                aboutButtonSelected();
+                afterButtonSelected(about);
+//                if(!about.performClick()){
+//                    Log.e(SpectrogramActivity.TAG,
+//                            "secondary issue: *about.performClick()* returned false; " +
+//                                    "the primary issue was: "+ getLastAnomalyTextForHtml());
+//                }
+            }
+        }
+    };
+
+
+    /**
+     * @param e    Throwable, may be null.
+     * @param text String
+     */
+    private void showAnomalyText(final Throwable e, final String text) {
+        processLastError(e,false);//TODO washere
+        lastThrowable = e;
+        lastAnomalyText = text;
+        lastAnomalyTimeMillis = System.currentTimeMillis();
+        runOnUiThread(RUNNABLE_TO_SHOW_ANOMALY_TEXT);
+    }
+
+    private void clearLastAnomaly() {//TODO washere
+        lastThrowable = null;
+        lastAnomalyText = null;
+        lastAnomalyTimeMillis = -1L;
+    }
+
+    private final Runnable RUNNABLE_TO_CLEAR_ANOMALY_TEXT = new Runnable() {//TODO washere
+
+        public void run() {
+            updateAboutButtonOnUIThread();
+        }
+    };
+
+    private void updateAboutButtonOnUIThread() {
+        if (lastAnomalyText == null || lastAnomalyText.length() == 0) {
+            if (about != null) {
+                about.setText("About");//TODO use res
+                if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
+                    Log.d(TAG,"updateAboutButtonOnUIThread: about button label set to *About*");
+            }
+        } else {
+            if (about != null) {
+                about.setText("Error");//TODO use res
+                if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
+                    Log.d(TAG,"updateAboutButtonOnUIThread: about button label set to *Error*");
+            }
+        }
+    }
+
+    private void clearAnomalyText() {//TODO washere
+        previousAnomalyText = lastAnomalyText;
+        lastAnomalyText = null;
+        lastAnomalyTextIsShown = false;
+        runOnUiThread(RUNNABLE_TO_CLEAR_ANOMALY_TEXT);
+    }
+
+    /**
      * This adds the prefix "A severe anomaly was detected " to the text param.
      * <p/>
      * The stack trace is not shown in the monitor text but it will be in the
@@ -4940,11 +4917,17 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
 //        }
     }
 
-    //---------------- last error logic ------------------
+    //---------------- new last-error logic ------------------
+
+    boolean lastErrorIsAtStartUp = false;
+
+    boolean lastErrorIsSevere = false;
 
     /**
      * if true, then the app should finish after the details are shown to user,
      * with option to email.
+     *
+     * <p/>lastErrorIsTerminal = lastErrorIsSevere && lastErrorIsAtStartUp;
      */
     boolean lastErrorIsTerminal = false;
 
@@ -4968,11 +4951,11 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
     String getLastErrorAgeForDisplay(){
         long now = System.currentTimeMillis();
         long age = now - lastErrorTime;
-        return getMillisForDisplay(age);
+        return getDaysHoursMinutesForDisplay(age);
     }
 
     String getLastErrorAgeSettingToShowDetailsForDisplay(){
-        return getMillisForDisplay(lastErrorAgeSettingToShowDetails);
+        return getDaysHoursMinutesForDisplay(lastErrorAgeSettingToShowDetails);
     }
 
     String getLastErrorDateTimeForDisplay(){
@@ -4982,14 +4965,14 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
     }
 
     /**
-     * Results: D days H hours M minutes S seconds
+     * Results: D day(s) H hour(s) M minute(s); "0 day" when less that one minute
      *
      * @param millis
-     * @return String such as 1 days 2 hours 3 minutes 5 seconds
+     * @return String such as: 1 day 2 hours 3 minutes
      */
-    String getMillisForDisplay(final long millis){
+    String getDaysHoursMinutesForDisplay(final long millis){
 
-        String s = "";
+        String s = "0 day";
 
 //        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
 //            Duration d = Duration.ofMillis(millis);
@@ -5003,31 +4986,32 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
             String d = days > 1 ? "days" : "day";
             String h = hours > 1 ? "hours" : "hour";
             String m = minutes > 1 ? "minutes" : "minute";
-            s = days+" "+d+" "+hours+" "+h+" "+minutes+" "+m;
+            if(days>0){
+                s = days+" "+d;
+            }
+            if(hours>0){
+                s += hours+" "+h;
+            }
+            if(minutes>0){
+                s += minutes+" "+m;
+            }
 //        }
 
         return s;
     }
 
     /**
+     * 86,400,000 milliseconds in one day
+     */
+    final static long MILLIS_IN_ONE_DAY = 86400000L;
+
+    /**
      * example: 1 day; 30 days...
      *
      * <p>In milliseconds</p>
      */
-    long lastErrorAgeSettingToShowDetails = getLastErrorAgeToShowDetails(1);
+    static long lastErrorAgeSettingToShowDetails = 1L * MILLIS_IN_ONE_DAY;
 
-    /**
-     * 86,400,000 milliseconds in one day
-     *
-     * @param days int
-     * @return Param days converted to milliseconds
-     */
-    long getLastErrorAgeToShowDetails(final int days){
-
-        final long d = days;
-
-        return 86400000L * d;
-    }
 
     long getAgeInMillis(final long birthInMillis){
         long now = System.currentTimeMillis();
@@ -5039,13 +5023,10 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
         return age > lastErrorAgeSettingToShowDetails;
     }
 
-
     /**
      * set to true when all onCreate methods are done and the app startup is completed.
      */
     volatile boolean onCreateCompleted = false;
-
-//TODO washere washere write the code to use these fields
 
     /**
      * Designed to be called when an error is detected.
@@ -5067,14 +5048,23 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
      * after the error has been seen, then remove the * from the button label
      * </p>
      *
+     * <p/>If at startup and terminal, then finish.
+     *
      * @param ex Throwable
-     * @return true when the application should finish; false when it can continue running.
+     * @param isSevere boolean
+     * @return lastErrorIsTerminal: true when the application should finish
+     * after the call to this method;
+     * false when it can continue running.
      */
-    boolean processLastError(final Throwable ex, final boolean isTerminal){
+    boolean processLastError(final Throwable ex, final boolean isSevere){
 
         lastError = ex;
 
-        lastErrorIsTerminal = isTerminal;
+        lastErrorIsSevere = isSevere;
+
+        lastErrorIsAtStartUp =  ! onCreateCompleted;
+
+        lastErrorIsTerminal = lastErrorIsSevere && lastErrorIsAtStartUp;
 
         lastErrorTime = System.currentTimeMillis();
 
@@ -5082,9 +5072,7 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
 
         updateButton(about);
 
-        final boolean atStartUp =  ! onCreateCompleted;
-
-        return lastErrorIsTerminal && atStartUp;
+        return lastErrorIsTerminal;
     }
 
     /**
@@ -5093,26 +5081,76 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
      * @return the text on the last error, detailed or summary.
      */
     String getLastErrorText(){
+
         //TODO washere
-
-        /*
-        if not seen, show details including stack;
-        if seen, show summary: name, date-time
-         */
-
-        if(lastErrorSeenTime == 0){
-            // not seen, show details
-
-
-        }else{
-            // seen, show summary
-
-
-        }
 
         lastErrorSeenTime = System.currentTimeMillis();
 
-        return "";
+        updateButton(about);
+
+        if(lastErrorIsTerminal){
+            //return details
+            return getLastErrorDetails();
+        }
+
+        if(lastErrorSeenTime == 0){
+            // not seen, then return details if young enough
+
+            if( ! isTheLastErrorPastTheAgeToShowDetails()){
+                // young, so show details
+                return getLastErrorDetails();
+
+            }else{
+                // past the age for details, so return summary
+                return getLastErrorSummary();
+            }
+
+        }else{
+            // seen, return summary, remove * in button
+            return getLastErrorSummary();
+        }
+    }
+
+    String getLastErrorDetails(){
+        //TODO washere
+
+        //summary + stack + cause + cause stack
+
+        return "TODO";
+    }
+
+    String getLastErrorSummary(){
+//TODO washere
+        StringBuilder buf = new StringBuilder();
+
+        buf.append("\n").append("Last Error:");
+
+        buf.append("\n").append(lastError);
+
+        buf.append(" - ").append(lastError.getMessage());
+
+        if(lastErrorIsTerminal) {
+            buf.append("\nIs terminal.");
+        }else{
+            if(lastErrorIsSevere){
+                buf.append("\nIs severe but not terminal.");
+            }else{
+                buf.append("\nIs not severe.");
+            }
+        }
+
+        buf.append("\nDate-Time: ").append(getLastErrorDateTimeForDisplay());
+
+        buf.append("\nAge: ").append(getLastErrorAgeForDisplay());
+
+        buf.append("\nDetails not shown when not terminal and older than ")
+                .append(getLastErrorAgeSettingToShowDetailsForDisplay());
+
+        //TODO as been seen, and seen time
+
+
+
+        return buf.toString();
     }
 
     final static String CHAR_TO_ADD_TO_BUTTON_LABEL_FOR_ERROR = "*";
