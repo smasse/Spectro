@@ -40,14 +40,12 @@ import android.app.NotificationManager;
 import android.content.ClipData;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.preference.PreferenceManager;
 import android.text.Html;
 import android.text.Spanned;
 import android.text.method.ScrollingMovementMethod;
@@ -78,57 +76,27 @@ import sm.lib.acoustic.Acoustic;
 import sm.lib.acoustic.AcousticDeviceCapabilities;
 import sm.lib.acoustic.AcousticEvent;
 import sm.lib.acoustic.AcousticLibConfig;
+import sm.lib.acoustic.AcousticLibException;
 import sm.lib.acoustic.AcousticLog;
 import sm.lib.acoustic.AcousticLogConfig;
 import sm.lib.acoustic.AudioPlayer;
 import sm.lib.acoustic.SpectrogramView;
-import sm.lib.acoustic.gui.TextDisplayWithEmailActivity;
+import sm.lib.acoustic.gui.TextDisplayWithTwoButtonsActivity;
 import sm.lib.acoustic.util.AppContext;
 import sm.lib.acoustic.util.DataFromIntent;
 import sm.lib.acoustic.util.OnAnyThread;
 import sm.lib.acoustic.util.Timestamp;
 
 /*
-TODO washere washere bugs 2019-7-5 2019-9-8
-
-error text in activity with blue bg, change bg and/or text colors or just dont show it
-
-error text in activity with email button, include email support address in email to field
-and maybe change button text to "Email this text to app publisher support"
-
-SpectrogramActivity: .notifyForAnomaly
-
-text activity colors wrong, ex. the one with email button
-
-~~~~~
-
-error display/email needs to be improved
-=============
-if a very severe (terminal) error is detected at startup (and the app cannot continue),
-then
-show text in error activity, including instructions to user to send email to support address;
-and close the app (using the back-key?) using a button
-
-if a not terminal error is detected,
-then
-show * at end of ABOUT button label,
-and show last error in ABOUT text;
-if error is younger than AGE_TO_SHOW_ERROR_DETAILS (30 days?) then show details,
-if not then show date of last error in the text.
-
-ofter the error has been seen, then remove the * from the button label
-
-~~~~~
-
+TODO washere
 
 if in device or about, using the back button should be same as touching the device or about button again
 which is going back to spectro display
 
 
-
 acousticevents used by the lib for getting data from the client may not be working
 
-disable the url to play for now
+maybe disable the url to play for now
 
  */
 
@@ -388,7 +356,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     /**
      * used for snackbar
      */
-    CoordinatorLayout coordinatorLayout;//TODO washere bug 2018-4-17 does not seem to work: text not shown when exiting app
+    CoordinatorLayout coordinatorLayout;//TODO prio 1 bug 2018-4-17 does not seem to work: text not shown when exiting app
 
     LinearLayout buttonsLayout;
     TextView contentTextView;
@@ -470,7 +438,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     static final AcousticLogConfig LOG_CONFIG = new AcousticLogConfig(
             AcousticLogConfig.OFF,
             AcousticLogConfig.OFF,
-            AcousticLogConfig.INIT); //OFF  UI INIT  DEVICE_SOUND_CAPABILITIES
+            AcousticLogConfig.INIT); //OFF  UI INIT  DEVICE_SOUND_CAPABILITIES //TODO washere
 
     /* TODO new pref
     - for mic, offer to user all choices supported by the device and give the app one of the options
@@ -496,7 +464,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         //settings for textviews
         LIB_CONFIG.textSizeSp = 14;
         LIB_CONFIG.textStyleString = "bold";
-        LIB_CONFIG.textColorHexString = "white";//  "#33b5e5"; //"white"; TODO washere washere bug when failure: screen text and bg are not good
+        LIB_CONFIG.textColorHexString = "white";
         LIB_CONFIG.bgColorHexString = "#0099cc";
 
         LIB_CONFIG.xMinHzInputFromApp = 2;
@@ -581,7 +549,8 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 
         Acoustic acoustic = null;
         try {
-            //acoustic = Acoustic.firstCall(this, getAcousticConfigFromClient(), getApplicationContext());
+            //getSharedPreferences();
+            //acoustic = Acoustic.firstCall(this, LIB_CONFIG, this);
             acoustic = Acoustic.firstCall(this, LIB_CONFIG, getApplicationContext());
         }catch(Throwable ex){
             if(LOG_INIT_ENABLED) Log.e(TAG,"onCreate: "+ex);
@@ -614,7 +583,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 
 //        tempHackForCpuAtFullSpeed();
 
-        restorePreferences();
+        Acoustic.IT.secondCallRestorePreferences();
 
         if (Acoustic.IT.isAnyLogEnabled()){
             Log.d(TAG, ".onCreate: entering..." +
@@ -969,15 +938,17 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
             //------------------------------------------
 
             if (LOG_CONFIG.DEBUG == AcousticLogConfig.INIT || LOG_INIT_ENABLED) {
-                Log.d(TAG, ".onCreateComplete: before test onExceptionAtInit");
-                onExceptionAtInit(new Exception("testing - not a real exception"));//TODO washere washere 2019-9-6
-                Log.d(TAG, ".onCreateComplete: after test onExceptionAtInit");
+                Log.d(TAG, ".onCreateComplete: >>>>> before test onExceptionAtInit");
+                //onExceptionAtInit(new Exception("testing - not a real exception"));
+                processLastError(new Exception("testing - not a real exception"),false);
+                Log.d(TAG, ".onCreateComplete: <<<<< after test onExceptionAtInit");
             }
 
         } catch (Exception ex) {
-            if(Acoustic.IT.isAnyLogEnabled())Log.e(TAG,".onCreateComplete: "+ex);
+//            if(Acoustic.IT.isAnyLogEnabled())Log.e(TAG,".onCreateComplete: "+ex);
             disableThePauseButton("Error");
-            onExceptionAtInit(ex);//TODO prio 2 2016-11 does this work???
+            //onExceptionAtInit(ex);//TODO prio 2 2016-11 does this work???
+            processLastError(ex,true);
         } finally {
             onCreateCompleted = true;
             if (Acoustic.IT.isLogDebugEnabled())
@@ -1519,8 +1490,6 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
             Log.d(TAG,"afterButtonSelected: entering");
 
-        updateAboutButtonOnUIThread();
-
         if (v.equals(hideUrlButton) || v.equals(playUrlButton)) {
             if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
                 Log.d(TAG,"afterButtonSelected: exiting; button is hideUrlButton or playUrlButton");
@@ -1741,7 +1710,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
             Log.d(TAG, ".playUrlButtonSelected: " +
                     "urlIsPlaying = " + urlIsPlaying
                     + "; urlIsPaused = " + urlIsPaused);
-        clearLastAnomaly();
+        clearLastUrlPlayAnomaly();
         if (urlIsPlaying) {
             // url is playing, so do pause url, don't play it
             if (LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL){
@@ -2516,46 +2485,46 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     /**
      * Set to null when cleared. May be null even when anomaly detected.
      */
-    private volatile Throwable lastThrowable = null;
+    private volatile Throwable lastUrlPlayThrowable = null;
 
     /**
      * Cleared (set to null) by component that sets it and at app restart and when url starts playing.
      */
-    private volatile String lastAnomalyText = null;
+    private volatile String lastUrlPLayAnomalyText = null;
 
     /**
      * -1L when cleared.
      */
-    private volatile long lastAnomalyTimeMillis = -1;
+    private volatile long lastUrlPlayAnomalyTimeMillis = -1;
 
     /**
      * @return String or null when none;
      * when an anomaly text exists, then it is formatted with html tags for Html.fromHtml().
      */
     private String getLastAnomalyTextInHtml() {
-        if (lastAnomalyText == null) return null;
+        if (lastUrlPLayAnomalyText == null) return null;
         StringBuilder buf = new StringBuilder();
         buf.append("<h3>Last Anomaly:</h3><p/>");
-        buf.append(lastAnomalyText);
+        buf.append(lastUrlPLayAnomalyText);
         if (isDevMode() || LOG_CONFIG.DEBUG==AcousticLogConfig.INIT || LOG_INIT_ENABLED) {
-            if (lastThrowable != null)
-                buf.append("<p/>").append(AcousticLogConfig.getStackInHtml(10,lastThrowable)); //Log.getStackTraceString(lastThrowable));
+            if (lastUrlPlayThrowable != null)
+                buf.append("<p/>").append(AcousticLogConfig.getStackInHtml(10, lastUrlPlayThrowable)); //Log.getStackTraceString(lastUrlPlayThrowable));
         } else {
             buf.append("<p/>").append(AcousticLibConfig.getIt().getSupportEmailAddressWithText());
             // For support, please contact ")
                     //append(AppPublisher.emailAddressForSupport
                     //);
         }
-        buf.append("<p/>The anomaly was detected ").append(new Date(lastAnomalyTimeMillis));
+        buf.append("<p/>The anomaly was detected ").append(new Date(lastUrlPlayAnomalyTimeMillis));
 
         return buf.toString();
     }
 
-    private void updateAboutButton() {
-        if (lastAnomalyText == null || lastAnomalyText.length() == 0) {
-            runOnUiThread(RUNNABLE_TO_CLEAR_ANOMALY_TEXT);
-        }
-    }
+//    private void updateAboutButton() {
+//        if (lastUrlPLayAnomalyText == null || lastUrlPLayAnomalyText.length() == 0) {
+//            runOnUiThread(RUNNABLE_TO_CLEAR_URL_PLAY_ANOMALY);
+//        }
+//    }
 
     @NonNull
     private String getDeviceText(){
@@ -2566,7 +2535,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     }
 
     @NonNull
-    private String getDeviceTextInHtml(){//TODO washere 2019-7-5
+    private String getDeviceTextInHtml(){
         // make it robust in case lib fails
         StringBuilder buf = new StringBuilder();
 
@@ -2632,6 +2601,11 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     private String getAboutText() {
         StringBuilder buf = new StringBuilder();
 
+        if(lastError != null) {
+            buf.append(getLastErrorText());
+            buf.append("\n\n");
+        }
+
         buf.append(fromHtml( getAboutTextInHtml() ));
 
         if(LOG_CONFIG.DEBUG==AcousticLogConfig.UI){
@@ -2655,12 +2629,12 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
             buf.append(anomaliesText);
 //            buf.append("<p/>Support email: ");
 //            buf.append(AppPublisher.emailAddressForSupport);
-            lastAnomalyTextIsShown = true;
+            lastUrlPlayAnomalyTextIsShown = true;
             return buf.toString();
         }
 
-        lastAnomalyTextIsShown = false;
-        runOnUiThread(RUNNABLE_TO_CLEAR_ANOMALY_TEXT);
+        lastUrlPlayAnomalyTextIsShown = false;
+//        runOnUiThread(RUNNABLE_TO_CLEAR_URL_PLAY_ANOMALY);
 
         buf.append("<h2>ABOUT THIS APP - ");
         buf.append(getString(R.string.app_name)).append("</h2>");
@@ -3084,30 +3058,6 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         // restore url from pref done in onCreateComplete
     }
 
-    /**
-     * Designed to be done very early in the activity startup step.
-     */
-    private void restorePreferences() {
-        if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT)
-            Log.d(TAG, ".restorePreferences: entering...");
-
-        final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-
-        if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT)
-            Log.d(TAG, ".restorePreferences: prefs = " + prefs);
-
-//        SettingsForSoundPreferences.restoreInputSettings(prefs);
-          Acoustic.IT.secondCallRestorePreferences(prefs); //restoreFromPreferences(prefs);
-
-//        restoreUrlToPlay(prefs);
-
-        if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT)
-            Log.d(TAG, ".restorePreferences: exiting...");
-    }
-
-    public SharedPreferences getSharedPreferences(){
-        return PreferenceManager.getDefaultSharedPreferences(this);
-    }
 
 //    / **
 //     * disabled in this version
@@ -3123,14 +3073,15 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //                    + "} fileSizeToPlayFromPref {"+ fileSizeToPlayFromPref +"}");
 //    }
 
-    private void onExceptionAtInit(Throwable ex) {
-        String s = ex.getLocalizedMessage();
-        if (LOG_CONFIG.ERROR==AcousticLogConfig.ON || LOG_CONFIG.DEBUG==AcousticLogConfig.THREADS) {
-            String t = s+"\n\n" + Log.getStackTraceString(ex);//TODO washere washere
-            Log.e(TAG, ".onExceptionAtInit: " + t + " " + Thread.currentThread());
-        }
-        showAnomalyText(ex, "Error detected at startup: "+s);//TODO washere washere no email, and show exception message
-    }
+//    private void onExceptionAtInit(Throwable ex) {
+//        String s = ex.getLocalizedMessage();
+//        if (LOG_CONFIG.ERROR==AcousticLogConfig.ON || LOG_CONFIG.DEBUG==AcousticLogConfig.THREADS) {
+//            String t = s+"\n\n" + Log.getStackTraceString(ex);//TO DO was here was here
+//            Log.e(TAG, ".onExceptionAtInit: " + t + " " + Thread.currentThread());
+//        }
+//        //showAnomalyText(ex, "Error detected at startup: "+s);//TO DO was here was here no email, and show exception message
+//        processLastError(ex,true);
+//    }
 
     /**
      *
@@ -3191,6 +3142,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         return true;
     }
 
+    public static final boolean FINISH_ON_CLOSE_FROM_LIB = true;
 
     /**
      * called by the overriding method in the child.
@@ -3219,33 +3171,38 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
             case AcousticEvent.ON_NON_SEVERE_ANOMALY_DETECTED_IN_LIB:
                 if(ev.ob!=null) {
 
-                    showAnomalyText(null, ev.ob.toString());//TODO washere
-
+                    processLastError(ev.acousticLibException, false);
                 }
                 ev.returnCode = AcousticEvent.OK;
                 return true;
 
-//            case AcousticEvent.TEXT_FOR_NORMAL_MONITORING:
-//                if(ev.ob!=null) {
-//                    writeInMonitor(ev.ob.toString());
-//                }
-//                ev.returnCode = AcousticEvent.OK;
-//                return true;
-
-            case AcousticEvent.ON_AUDIOTRACK_INIT_FAILED://TODO washere
-                if(ev.ob!=null) {
-                    String s = ".onAcousticEvent: ON_AUDIOTRACK_INIT_FAILED; "+ev;
-                    if(AcousticLog.isLogErrorEnabled()) Log.e(TAG,s);
-                    notifyForAnomaly(s);
+            // the audio player:
+            case AcousticEvent.ON_AUDIOTRACK_PLAYER_INIT_FAILED:
+                if(ev.acousticLibException==null) {
+                    if (ev.ob != null) {
+                        String s = ".onAcousticEvent: ON_AUDIOTRACK_PLAYER_INIT_FAILED; " + ev.ob;
+                        if (AcousticLog.isLogErrorEnabled()) Log.e(TAG, s);
+                        processLastError(new AcousticLibException(s), false);
+                    } else {
+                        //processLastError(ev.acousticLibException,false);
+                        processLastError(new AcousticLibException("Audio player init failed"), false);
+                    }
+                }else{
+                    processLastError(ev.acousticLibException, false);
                 }
                 ev.returnCode = AcousticEvent.OK;
                 return true;
 
-            case AcousticEvent.ON_SEVERE_ANOMALY_DETECTED_IN_LIB://TODO washere
-                if(ev.ob!=null) {
-                    String s = ".onAcousticEvent: ON_SEVERE_ANOMALY_DETECTED_IN_LIB; "+ev;
+            case AcousticEvent.ON_SEVERE_ANOMALY_DETECTED_IN_LIB:
+                if(ev.acousticLibException != null) {
+                    processLastError(ev.acousticLibException, true);
+                }else{
+                    String s = "ON_SEVERE_ANOMALY_DETECTED_IN_LIB";
+                    if(ev.ob!=null){
+                        s += ev.ob;
+                    }
                     if(AcousticLog.isLogErrorEnabled()) Log.e(TAG,s);
-                    notifyForAnomaly(s);
+                    processLastError(new AcousticLibException(s), true);
                 }
                 ev.returnCode = AcousticEvent.OK;
                 return true;
@@ -3264,11 +3221,6 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
                 notifyVolume();
                 ev.returnCode = AcousticEvent.OK;
                 return true;
-
-//            case AcousticEvent.ON_ERROR:
-//                onError(ev.genericString);
-//                ev.returnCode = AcousticEvent.OK;
-//                return true;
 
             case AcousticEvent.ON_SHOW_STATUS:
                 showStatus(ev.genericString);
@@ -3294,13 +3246,20 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //                ev.returnCode = AcousticEvent.OK;
 //                return true;
 
-            case AcousticEvent.GET_IS_SOUND_INPUT_PAUSED_BY_CLIENT://TODO washere washere bug 2019-7-6 returning null to lib
+            case AcousticEvent.GET_IS_SOUND_INPUT_PAUSED_BY_CLIENT://TODO prio 1 bug 2019-7-6 returning null to lib
                 ev.returnedObject = isSoundInputPaused();
                 ev.returnCode = AcousticEvent.OK;
                 return true;
 
             case AcousticEvent.ON_PAUSE_SOUND_INPUT://TODO update acousticevent and callers
                 ev.returnedObject = onPauseSoundInput(""+ev.ob);
+                ev.returnCode = AcousticEvent.OK;
+                return true;
+
+            case AcousticEvent.ON_CLOSE_THE_APP:
+                if(FINISH_ON_CLOSE_FROM_LIB){//TODO log
+                    finish();
+                }
                 ev.returnCode = AcousticEvent.OK;
                 return true;
         }
@@ -3445,7 +3404,8 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
                 return true;
             } catch (Exception e) {
                 disableThePauseButton("Failed");
-                showProblemStartingListener();
+                //showProblemStartingListener();
+                processLastError(e,true);
                 if (LOG_CONFIG.ERROR>=AcousticLogConfig.ON)
                     Log.e(TAG, ".startAcoustic: " + e + " " + Log.getStackTraceString(e));
                 //throw e;
@@ -3454,24 +3414,24 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         }//sync.
     }
 
-    private void showProblemStartingListener() {
-//        if (coordinatorLayout != null) {
-//            Snackbar.make(findViewById(android.R.id.content), //coordinatorLayout,
-//                     "The sound listener cannot be started", Snackbar.LENGTH_LONG).show();
-//        } else {
-//            Toast.makeText(this, "The listener failed to start", Toast.LENGTH_LONG).show();
-//        }
-        Toast.makeText(this, "The sound listener cannot be started",
-                Toast.LENGTH_LONG).show();
-        // show error in text view
-        showFailureInMethod(null, "BasicListener");
-    }
+//    private void showProblemStartingListener() {
+////        if (coordinatorLayout != null) {
+////            Snackbar.make(findViewById(android.R.id.content), //coordinatorLayout,
+////                     "The sound listener cannot be started", Snackbar.LENGTH_LONG).show();
+////        } else {
+////            Toast.makeText(this, "The listener failed to start", Toast.LENGTH_LONG).show();
+////        }
+//        Toast.makeText(this, "The sound listener cannot be started",
+//                Toast.LENGTH_LONG).show();
+//        // show error in text view
+//        showFailureInMethod(null, "BasicListener");
+//    }
 
     //private final ReentrantLock REL_FOR_LISTENER = new ReentrantLock();
 
     //private BasicListener listener = null;
 
-    //TODO review washere 2018-6-1 do we need to always create a new listener in this method
+    //TODO review 2018-6-1 do we need to always create a new listener in this method
     //TODO or can we store the listener in an attribute when it is already created??????
     //TODO this method is often used to _restart_ the listener, not to create a new one
 
@@ -3980,6 +3940,29 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //
 //    }// end of class DataFromIntent
 
+    /**
+     * Informs the user of the invalidity of the intent.
+     *
+     * @param intent
+     * @param filename
+     */
+    private void invalidIntent(final Intent intent, final String filename) {
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT
+                || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
+            Log.d(TAG, ".invalidIntent: invalid intent {" + intent + "}");
+        String x = filename == null || filename.isEmpty() ? "" : ", filename {" + filename+"}";
+        String s = "The Intent is invalid" + x;//from another app ???
+        if (intent != null) {
+            // url for a local file
+            s = s+" Intent: "+intent;
+        }
+//        if (coordinatorLayout != null) {
+//            Snackbar.make(findViewById(android.R.id.content), //coordinatorLayout,
+//                    s, Snackbar.LENGTH_LONG).show();
+//        }
+        Toast.makeText(this, s, Toast.LENGTH_LONG).show();
+        notifyPlayAbnormalEnd(new Exception(s));
+    }
 
     /**
      * Designed to be called from or during onCreate, which would be called when another app sends
@@ -4223,7 +4206,8 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //                    Snackbar.LENGTH_LONG).show();
             Toast.makeText(SpectrogramActivity.this, textForEndOfPlay, Toast.LENGTH_LONG).show();
             resetUrlGui();
-            clearAnomalyText();
+            //clearUrlPlayAnomaly();
+            clearLastUrlPlayAnomaly();
         }
     };
 
@@ -4247,7 +4231,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 //            if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
             editTextUrlToPlay.setTextColor(Color.RED);
 
-            showAnomalyText(throwableFromPlayer, errorMessageFromPlayer);
+            showUrlPlayAnomaly(throwableFromPlayer, errorMessageFromPlayer);
 
 //            if (coordinatorLayout != null)
 //                Snackbar.make(findViewById(android.R.id.content), //coordinatorLayout,
@@ -4274,7 +4258,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         if(isCancelling){
             return;
         }
-        processLastError(e,false);//TODO washere
+        processLastError(e,false);
         throwableFromPlayer = e;
         errorMessageFromPlayer = errorMessage + (e != null ? ": " + e : "");
         runOnUiThread(RUNNABLE_FOR_ANOMALY_IN_PLAYER);
@@ -4401,7 +4385,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
     /**
      * TODO could be moved to lib, with two new params: channel and id; and maybe also Context,
-     * and maybe also importance attrib.
+     * and maybe also importance param.
      *
      * @param e Throwable, may be null.
      * @param title shown as-is.
@@ -4409,7 +4393,9 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      * @param iconId not used when e is not null, then ndroid.R.drawable.stat_notify_error is used.
      */
     private void notifySimple(Throwable e, String title, String text, int iconId ) {
+
         if(!NOTIF_ARE_ENABLED)return;
+
         NotificationCompat.Builder b =
                 new NotificationCompat.Builder(this, NOTIF_CHANNEL_SM_SPECTRO_NAME);
 
@@ -4478,7 +4464,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
                     shutdown(true);
                 }
             } else {
-                // there is no previous back button press time; no exit TODO washere bug 2018-4-17 snackbar fails maybe internal error
+                // there is no previous back button press time; no exit
                 if(LOG_CONFIG.DEBUG!=AcousticLogConfig.OFF) Log.d(TAG,".onKeyDown: no previous back button press time; no exit");
                 previousBackButtonMs = System.currentTimeMillis();
                 //if(coordinatorLayout!=null) {
@@ -4538,31 +4524,6 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
     private boolean isAutoSupportEmailEnabled() {
         return getAcousticConfigFromClient().isAutoSupportEmailEnabled;
     }
-
-//
-//    public boolean isAdsCapable() {
-//        return false;
-//    }
-
-//
-//    public boolean isShowAdsWhenDonated() {
-//        return false;
-//    }
-//
-//
-//    public boolean isDonationsCapable() {
-//        return false;
-//    }
-//
-//
-//    public boolean isUseTestPurchase() {
-//        return false;
-//    }
-//
-//
-//    public boolean isUseEmptyIabPayload() {
-//        return false;
-//    }
 
 
     private boolean isSimulatingNoConnection() {
@@ -4661,133 +4622,103 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
     // @@@@@@@@@@@@@@@@@@@@@@ anomaly notification @@@@@@@@@@@@@@@@@@@@@
 
 
-    /**
-     * Informs the user of the invalidity of the intent.
-     *
-     * @param intent
-     * @param filename
-     */
-    private void invalidIntent(final Intent intent, final String filename) {
-        if (LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT
-                || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL)
-            Log.d(TAG, ".invalidIntent: invalid intent {" + intent + "}");
-        String x = filename == null || filename.isEmpty() ? "" : ", filename {" + filename+"}";
-        String s = "The Intent is invalid" + x;//from another app ???
-        if (intent != null) {
-            // url for a local file
-            s = s+" Intent: "+intent;
-        }
-//        if (coordinatorLayout != null) {
-//            Snackbar.make(findViewById(android.R.id.content), //coordinatorLayout,
-//                    s, Snackbar.LENGTH_LONG).show();
-//        }
-        Toast.makeText(this, s, Toast.LENGTH_LONG).show();
-        notifyPlayAbnormalEnd(new Exception(s));
-    }
-
-//    private void showError(final String text) {
-//        if (LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT
-//                || LOG_CONFIG.DEBUG==AcousticLogConfig.ON
-//                || LOG_CONFIG.ERROR==AcousticLogConfig.ON)
-//            Log.e(TAG, ".showError {" + text + "}");
-////        if (coordinatorLayout != null) {
-////            Snackbar.make(findViewById(android.R.id.content), //coordinatorLayout,
-////                    text, Snackbar.LENGTH_LONG).show();
-////        }
-//        Toast.makeText(this, text, Toast.LENGTH_LONG).show();
+//    /* *
+//     * @param ex     Throwable
+//     * @param method a text fragment, example: "mediaPlayer.prepare"
+//     */
+//    private void showFailureInMethod(final Throwable ex, final String method) {
+//        showAnomalyText(ex, method + " raised " + ex);
 //    }
 
+//    private volatile String previousUrlPlayAnomalyText = null;
+
     /**
-     * @param ex     Throwable
-     * @param method a text fragment, example: "mediaPlayer.prepare"
+     * it is used and a bug in Android Studio shows it as unused.
      */
-    private void showFailureInMethod(final Throwable ex, final String method) {
-        //if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
-        showAnomalyText(ex, method + " raised " + ex);
-    }
+    private volatile boolean lastUrlPlayAnomalyTextIsShown = false;
 
-    //TO DO when is this reset to null after it is set to non-null?
-    private volatile String previousAnomalyText = null;
-    private volatile boolean lastAnomalyTextIsShown = false;
-
-    /**
+    /* *
      * Designed to be used in runOnUiThread.
      */
-    private final Runnable RUNNABLE_TO_SHOW_ANOMALY_TEXT = new Runnable() {
-
-        public void run() {
-            if (LOG_CONFIG.ERROR!=AcousticLogConfig.OFF)
-                Log.e(SpectrogramActivity.TAG, fromHtmlToString(getLastAnomalyTextInHtml()));
-
-            notifyForAnomaly(lastAnomalyText,lastThrowable);//TODO washere washere
-
-            if (about != null) {
-//                if(lastAnomalyText==null || lastAnomalyText.isEmpty()){
-//                    about. setText("About");//TO DO use res
-//                }else {
-//                    about. setText("Error");//TO DO use res
-//                }
-                aboutButtonSelected();
-                afterButtonSelected(about);
-//                if(!about.performClick()){
-//                    Log.e(SpectrogramActivity.TAG,
-//                            "secondary issue: *about.performClick()* returned false; " +
-//                                    "the primary issue was: "+ getLastAnomalyTextForHtml());
-//                }
-            }
-        }
-    };
+//    private final Runnable RUNNABLE_TO_SHOW_URL_PLAY_ANOMALY = new Runnable() {
+//
+//        public void run() {
+//            if (LOG_CONFIG.ERROR!=AcousticLogConfig.OFF)
+//                Log.e(SpectrogramActivity.TAG, fromHtmlToString(getLastAnomalyTextInHtml()));
+//
+//            notifyForAnomaly(lastUrlPLayAnomalyText, lastUrlPlayThrowable);
+//
+//            if (about != null) {
+////                if(lastUrlPLayAnomalyText==null || lastUrlPLayAnomalyText.isEmpty()){
+////                    about. setText("About");//TO DO use res
+////                }else {
+////                    about. setText("Error");//TO DO use res
+////                }
+//                aboutButtonSelected();
+//                afterButtonSelected(about);
+////                if(!about.performClick()){
+////                    Log.e(SpectrogramActivity.TAG,
+////                            "secondary issue: *about.performClick()* returned false; " +
+////                                    "the primary issue was: "+ getLastAnomalyTextForHtml());
+////                }
+//            }
+//        }
+//    };
 
 
     /**
      * @param e    Throwable, may be null.
      * @param text String
      */
-    private void showAnomalyText(final Throwable e, final String text) {
-        processLastError(e,false);//TODO washere
-        lastThrowable = e;
-        lastAnomalyText = text;
-        lastAnomalyTimeMillis = System.currentTimeMillis();
-        runOnUiThread(RUNNABLE_TO_SHOW_ANOMALY_TEXT);
-    }
-
-    private void clearLastAnomaly() {//TODO washere
-        lastThrowable = null;
-        lastAnomalyText = null;
-        lastAnomalyTimeMillis = -1L;
-    }
-
-    private final Runnable RUNNABLE_TO_CLEAR_ANOMALY_TEXT = new Runnable() {//TODO washere
-
-        public void run() {
-            updateAboutButtonOnUIThread();
-        }
-    };
-
-    private void updateAboutButtonOnUIThread() {
-        if (lastAnomalyText == null || lastAnomalyText.length() == 0) {
-            if (about != null) {
-                about.setText("About");//TODO use res
-                if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
-                    Log.d(TAG,"updateAboutButtonOnUIThread: about button label set to *About*");
-            }
-        } else {
-            if (about != null) {
-                about.setText("Error");//TODO use res
-                if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
-                    Log.d(TAG,"updateAboutButtonOnUIThread: about button label set to *Error*");
-            }
+    private void showUrlPlayAnomaly(final Throwable e, final String text) {
+        lastUrlPlayThrowable = e;
+        lastUrlPLayAnomalyText = text;
+        lastUrlPlayAnomalyTimeMillis = System.currentTimeMillis();
+        //runOnUiThread(RUNNABLE_TO_SHOW_URL_PLAY_ANOMALY);
+        if( processLastError(e,false) ){
+            finish();
         }
     }
 
-    private void clearAnomalyText() {//TODO washere
-        previousAnomalyText = lastAnomalyText;
-        lastAnomalyText = null;
-        lastAnomalyTextIsShown = false;
-        runOnUiThread(RUNNABLE_TO_CLEAR_ANOMALY_TEXT);
+    private void clearLastUrlPlayAnomaly() {
+        lastUrlPlayThrowable = null;
+        lastUrlPLayAnomalyText = null;
+        lastUrlPlayAnomalyTimeMillis = -1L;
+        lastUrlPlayAnomalyTextIsShown = false;
     }
 
-    /**
+//    private void clearUrlPlayAnomaly() {
+//        previousUrlPlayAnomalyText = lastUrlPLayAnomalyText;
+//        lastUrlPLayAnomalyText = null;
+//        lastUrlPlayAnomalyTextIsShown = false;
+//        //runOnUiThread(RUNNABLE_TO_CLEAR_URL_PLAY_ANOMALY);
+//    }
+
+//    private final Runnable RUNNABLE_TO_CLEAR_URL_PLAY_ANOMALY = new Runnable() {//TO DO was here
+//
+//        public void run() {
+//            updateAboutButtonOnUIThread();
+//        }
+//    };
+
+//    private void updateAboutButtonOnUIThread() {
+//        if (lastUrlPLayAnomalyText == null || lastUrlPLayAnomalyText.length() == 0) {
+//            if (about != null) {
+//                about.setText("About");//TO DO use res; TO DO was here * for other errors
+//                if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
+//                    Log.d(TAG,"updateAboutButtonOnUIThread: about button label set to *About*");
+//            }
+//        } else {
+//            if (about != null) {
+//                about.setText("Error");//TO DO use res;  was here * ???
+//                if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
+//                    Log.d(TAG,"updateAboutButtonOnUIThread: about button label set to *Error*");
+//            }
+//        }
+//    }
+
+
+    /* *
      * This adds the prefix "A severe anomaly was detected " to the text param.
      * <p/>
      * The stack trace is not shown in the monitor text but it will be in the
@@ -4795,36 +4726,36 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
      * the monitor text if the email and report file are disabled.
      *
      * @param text e.g., "in [method]: [details]"
-     * @param ex TODO not needed? maybe only use in dev mode
+     * @param ex TO DO not needed? maybe only use in dev mode
      * @return String "A severe anomaly was detected " with text param
      */
-    static String getMonitorTextForAnomalyNotif(final String text, final Throwable ex) {//TODO washere
-        return "A severe anomaly was detected – " + text;
-    }
+//    static String getMonitorTextForAnomalyNotif(final String text, final Throwable ex) {//TO DO was here
+//        return "A severe anomaly was detected – " + text;
+//    }
 
-    static String getAnomalyDetailsForEmail(final Throwable ex) {//TODO washere
-
-        final StringBuilder s = new StringBuilder();
-
-        //stack
-        if (ex != null) {
-            s.append("\n\nStack:\n\n").append(Log.getStackTraceString(ex));
-        }
-
-        //device
-        s.append("\n\n");
-        s.append(OnAnyThread.IT.getDeviceInfoForDisplay());
-        s.append("\n");
-        s.append(OnAnyThread.IT.getAndroidInfoForDisplay());
-
-        //session
+//    static String getAnomalyDetailsForEmail(final Throwable ex) {//TO DO was here
+//
+//        final StringBuilder s = new StringBuilder();
+//
+//        //stack
+//        if (ex != null) {
+//            s.append("\nStack:\n").append(Log.getStackTraceString(ex));
+//        }
+//
+//        //device
 //        s.append("\n\n");
-//        s.append(getSessionInfoForAnomalyNotif());
+//        s.append(OnAnyThread.IT.getDeviceInfoForDisplay());
+//        s.append("\n");
+//        s.append(OnAnyThread.IT.getAndroidInfoForDisplay());
+//
+//        //session
+////        s.append("\n\n");
+////        s.append(getSessionInfoForAnomalyNotif());
+//
+//        return s.toString();
+//    }
 
-        return s.toString();
-    }
-
-    /**
+    /* *
      * if dev email enabled and networked, then try to send email to dev;
      * if dev email not enabled or no network, then write Toast (?).
      * <p/>
@@ -4834,12 +4765,12 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
      *
      * @param text
      */
-    public void notifyForAnomaly(final String text) {//TODO washere
-        notifyForAnomaly(text, null);
-    }
+//    public void notifyForAnomaly(final String text) {//TO DO was here
+//        notifyForAnomaly(text, null);
+//    }
 
 
-    /**
+    /* *
      * if dev email enabled and networked, then try to send email to dev and write in monitor and console (short msg);
      * <p/>if dev email not enabled or no network, then write in monitor and console (short msg) and to file.
      *
@@ -4848,74 +4779,74 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
      * @param text
      * @param ex   Throwable, may be null.
      */
-    public void notifyForAnomaly(final String text, final Throwable ex) {//TODO washere
-
-        if(LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_QUALITY
-                || LOG_CONFIG.ERROR==AcousticLogConfig.ON) {
-            Log.e(TAG, "notifyForAnomaly: entering with\n text {" + text + "}\n ex: "+ex);
-        }
-
-        notifyGenericAnomaly(ex);
-
-//        if(SHOW_USER_INIT_EVENTS_ENABLED){
-//            showStatusSnackbar(text);
-//        }
-
-        final String detailsForEmail = getAnomalyDetailsForEmail(ex);
-
-        final String monitorText = getMonitorTextForAnomalyNotif(text, ex);
-
-        //final String consoleMsg = "Anomaly detected, please consult app messages for details";
-
-        final String all = monitorText + "\n\n" + detailsForEmail;
-
-        /*
-         * @param parent            Activity
-         * @param givenText         String
-         * @param givenTextTitle    String
-         * @param givenSubjectLine  String
-         * @param givenIsConnected  boolean
-         * @param givenEmailToAddress String, may be null or empty
-         */
-
-        TextDisplayWithEmailActivity.show(activity, //TODO washere washere bug? 2019-7-5
-                all,
-                getResources().getString(R.string.app_name_short), //title
-                "Severe Anomaly", //email subject line
-                OnAnyThread.IT.isConnected(isSimulatingNoConnection()),
-                "" //this.getDeviceOwnerEmailAddress()
-        );
-
-        if(LOG_CONFIG.ERROR!=AcousticLogConfig.OFF || LOG_CONFIG.DEBUG!=AcousticLogConfig.OFF)
-            Log.e(TAG,".notifyForAnomaly: detailsForEmail = "+detailsForEmail);
-
-//        if (isSupportEmailEnabled() //TO DO was here was here no automated email
-//                && OnAnyThread.IT.isConnected(isSimulatingNoConnection())) {
-//            //try to send email to dev and write in monitor and console (short msg referring to monitor, app msgs);
+//    public void notifyForAnomaly(final String text, final Throwable ex) {//TO DO was here
 //
-//            sendEmailToSupport(all);
+//        if(LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_QUALITY
+//                || LOG_CONFIG.ERROR==AcousticLogConfig.ON) {
+//            Log.e(TAG, "notifyForAnomaly: entering with\n text {" + text + "}\n ex: "+ex);
+//        }
 //
-//            //rules for adding the stack trace to monitor
-////            if (ex!=null && ! AppConfig.getIt().isSupportEmailEnabled()){ // && ! Settings.anomalyReportToFileIsEnabled) {
-////                writeInMonitor(LeafyLog.getStack(ex));
-////            }
+//        notifyGenericAnomaly(ex);
 //
-//            return;
-//        }
-
-        //here no dev email or no network or appParent not set;
-        //write in monitor and console (short msg) and to file.
-//        if (appParent != null) {
-//            appParent.writeInConsoleByApp(consoleMsg);
-//            writeInMonitor(monitorText);
-//        }
-//        writeAnomalyReportToFileNoException(all);
-
-        //rules for adding the stack trace to monitor
-//        if (ex!=null && ! Settings.supportEmailEnabled && ! Settings.anomalyReportToFileIsEnabled) {
-//            writeInMonitor(LeafyLog.getStack(ex));
-//        }
-    }
+////        if(SHOW_USER_INIT_EVENTS_ENABLED){
+////            showStatusSnackbar(text);
+////        }
+//
+//        final String detailsForEmail = getAnomalyDetailsForEmail(ex);
+//
+//        final String monitorText = getMonitorTextForAnomalyNotif(text, ex);
+//
+//        //final String consoleMsg = "Anomaly detected, please consult app messages for details";
+//
+//        final String all = monitorText + "\n\n" + detailsForEmail;
+//
+//        /*
+//         * @param parent            Activity
+//         * @param givenText         String
+//         * @param givenTextTitle    String
+//         * @param givenSubjectLine  String
+//         * @param givenIsConnected  boolean
+//         * @param givenEmailToAddress String, may be null or empty
+//         */
+//
+//        TextDisplayWithEmailActivity.show(activity, //TO DO was here was here bug? 2019-7-5
+//                all,
+//                getResources().getString(R.string.app_name_short), //title
+//                "Severe Anomaly", //email subject line
+//                OnAnyThread.IT.isConnected(isSimulatingNoConnection()),
+//                "" //this.getDeviceOwnerEmailAddress()
+//        );
+//
+//        if(LOG_CONFIG.ERROR!=AcousticLogConfig.OFF || LOG_CONFIG.DEBUG!=AcousticLogConfig.OFF)
+//            Log.e(TAG,".notifyForAnomaly: detailsForEmail = "+detailsForEmail);
+//
+////        if (isSupportEmailEnabled() //TO DO was here was here no automated email
+////                && OnAnyThread.IT.isConnected(isSimulatingNoConnection())) {
+////            //try to send email to dev and write in monitor and console (short msg referring to monitor, app msgs);
+////
+////            sendEmailToSupport(all);
+////
+////            //rules for adding the stack trace to monitor
+//////            if (ex!=null && ! AppConfig.getIt().isSupportEmailEnabled()){ // && ! Settings.anomalyReportToFileIsEnabled) {
+//////                writeInMonitor(LeafyLog.getStack(ex));
+//////            }
+////
+////            return;
+////        }
+//
+//        //here no dev email or no network or appParent not set;
+//        //write in monitor and console (short msg) and to file.
+////        if (appParent != null) {
+////            appParent.writeInConsoleByApp(consoleMsg);
+////            writeInMonitor(monitorText);
+////        }
+////        writeAnomalyReportToFileNoException(all);
+//
+//        //rules for adding the stack trace to monitor
+////        if (ex!=null && ! Settings.supportEmailEnabled && ! Settings.anomalyReportToFileIsEnabled) {
+////            writeInMonitor(LeafyLog.getStack(ex));
+////        }
+//    }
 
     //---------------- new last-error logic ------------------
 
@@ -4959,43 +4890,51 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
     }
 
     String getLastErrorDateTimeForDisplay(){
+        return getDateTimeInMillisForDisplay(lastErrorTime);
+    }
+
+    String getDateTimeInMillisForDisplay(final long dateTimeInMillis){
         final Calendar cal = Calendar.getInstance();
-        cal.setTimeInMillis(lastErrorTime);
+        cal.setTimeInMillis(dateTimeInMillis);
         return cal.getTime().toString();
     }
 
     /**
      * Results: D day(s) H hour(s) M minute(s); "0 day" when less that one minute
      *
-     * @param millis
+     * @param durationInMillis
      * @return String such as: 1 day 2 hours 3 minutes
      */
-    String getDaysHoursMinutesForDisplay(final long millis){
+    String getDaysHoursMinutesForDisplay(final long durationInMillis){
 
-        String s = "0 day";
+        String s = "";
 
-//        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-//            Duration d = Duration.ofMillis(millis);
-//            s = d.toString();
-//        }else{
-            long days = TimeUnit.MILLISECONDS.toDays(millis);
-            long hours = TimeUnit.MILLISECONDS.toHours(millis)
-                    - TimeUnit.MILLISECONDS.toHours(days);
-            long minutes = TimeUnit.MILLISECONDS.toMinutes(millis)
-                    - TimeUnit.MILLISECONDS.toMinutes(hours);
-            String d = days > 1 ? "days" : "day";
-            String h = hours > 1 ? "hours" : "hour";
-            String m = minutes > 1 ? "minutes" : "minute";
-            if(days>0){
-                s = days+" "+d;
+        long days = TimeUnit.MILLISECONDS.toDays(durationInMillis);
+        long hours = TimeUnit.MILLISECONDS.toHours(durationInMillis)
+                - TimeUnit.DAYS.toHours(days);
+        long minutes = TimeUnit.MILLISECONDS.toMinutes(durationInMillis)
+                - (TimeUnit.HOURS.toMinutes(hours) + TimeUnit.DAYS.toMinutes(days));
+        String d = days > 1 ? "days" : "day";
+        String h = hours > 1 ? "hours" : "hour";
+        String m = minutes > 1 ? "minutes" : "minute";
+        if(days>0){
+            s = days+" "+d;
+        }
+        if(hours>0){
+            if( ! s.isEmpty()){
+                s += " ";
             }
-            if(hours>0){
-                s += hours+" "+h;
+            s += hours+" "+h;
+        }
+        if(minutes>0){
+            if( ! s.isEmpty()){
+                s += " ";
             }
-            if(minutes>0){
-                s += minutes+" "+m;
-            }
-//        }
+            s += minutes+" "+m;
+        }
+        if(s.isEmpty()){
+            s = "0 day";
+        }
 
         return s;
     }
@@ -5070,64 +5009,119 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
 
         lastErrorSeenTime = 0;
 
-        updateButton(about);
+        if(lastErrorIsTerminal){
+
+            TextDisplayWithTwoButtonsActivity.show(this,
+                    getLastErrorText(),
+                    "Severe Anomaly" //textTitle
+                );
+        } else {
+            updateButton(about);
+        }
 
         return lastErrorIsTerminal;
     }
 
     /**
-     * Designed to be called when creating the About text.
+     * Designed to be called when creating the About text or when the last error is terminal
+     * and is displayed in an activity containing a button to terminate the app.
      *
      * @return the text on the last error, detailed or summary.
      */
     String getLastErrorText(){
 
-        //TODO washere
-
-        lastErrorSeenTime = System.currentTimeMillis();
-
-        updateButton(about);
+        if(lastError == null){
+            return "";
+        }
 
         if(lastErrorIsTerminal){
             //return details
-            return getLastErrorDetails();
+            String text = getLastErrorDetails();
+            if(lastErrorSeenTime==0) lastErrorSeenTime = System.currentTimeMillis();
+            updateButton(about);
+            return text;
         }
 
-        if(lastErrorSeenTime == 0){
-            // not seen, then return details if young enough
-
-            if( ! isTheLastErrorPastTheAgeToShowDetails()){
-                // young, so show details
-                return getLastErrorDetails();
-
-            }else{
-                // past the age for details, so return summary
-                return getLastErrorSummary();
-            }
-
-        }else{
-            // seen, return summary, remove * in button
-            return getLastErrorSummary();
-        }
+        String text = getLastErrorTextForNotTerminal();
+        if(lastErrorSeenTime==0) lastErrorSeenTime = System.currentTimeMillis();
+        updateButton(about);
+        return text;
     }
 
+    private String getLastErrorTextForNotTerminal(){
+        String text = "";
+
+        if( ! isTheLastErrorPastTheAgeToShowDetails()){
+            // young, so show details
+            text = getLastErrorDetails();
+
+        }else{
+            // past the age for details, so return summary
+            text = getLastErrorSummary();
+
+            text+="\nDetails are not shown when the anomaly is not terminal and not younger than "
+                    +getLastErrorAgeSettingToShowDetailsForDisplay();
+        }
+        return text;
+    }
+
+    /**
+     * shown in close-app window and in About text.
+     *
+     * <p/>shared summary + stack + cause + cause stack
+     *
+     * @return String detailed information about the last error.
+     */
     String getLastErrorDetails(){
-        //TODO washere
 
         //summary + stack + cause + cause stack
 
-        return "TODO";
+        final StringBuilder details = new StringBuilder();
+
+        details.append("\nThe Call Stack (up to 10 calls):")
+                .append(AcousticLogConfig.getStack(10,lastError));
+
+        final Throwable cause = lastError.getCause();
+
+        if(cause!=null) {
+            details.append("\n\nThe Cause: ").append(""+cause).append(
+                    AcousticLogConfig.getStack(10, cause));
+        }
+
+        if(lastErrorSeenTime > 0){
+            details.append("\n\nThis error occurrence has been shown before at ")
+                .append(getDateTimeInMillisForDisplay(lastErrorSeenTime));
+        }else{
+            details.append("\n\nThis error occurrence had not been shown before.");
+        }
+
+        return getLastErrorSharedText() + "\n"+details;
     }
 
-    String getLastErrorSummary(){
-//TODO washere
+    /**
+     * shown in About text when the error has been seen before.
+     *
+     * @return text without stacks
+     */
+    String getLastErrorSummary() {
+        return getLastErrorSharedText() + "\n\nThe above is a summary text of the last error.";
+    }
+
+    String getLastErrorSharedText(){
+
         StringBuilder buf = new StringBuilder();
 
         buf.append("\n").append("Last Error:");
 
-        buf.append("\n").append(lastError);
+        String s1 = ""+lastError;
 
-        buf.append(" - ").append(lastError.getMessage());
+        buf.append("\n").append(s1);
+
+        String s2 = lastError.getMessage();
+
+        if( ! s1.equals(s2)) {
+            buf.append(" - ").append(s2);
+        }
 
         if(lastErrorIsTerminal) {
             buf.append("\nIs terminal.");
@@ -5139,16 +5133,28 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
             }
         }
 
+        if(lastErrorIsAtStartUp){
+            buf.append("\nWas detected _during_ startup.");
+        }else{
+            buf.append("\nWas detected _after_ startup.");
+        }
+
         buf.append("\nDate-Time: ").append(getLastErrorDateTimeForDisplay());
 
         buf.append("\nAge: ").append(getLastErrorAgeForDisplay());
 
-        buf.append("\nDetails not shown when not terminal and older than ")
-                .append(getLastErrorAgeSettingToShowDetailsForDisplay());
+//        buf.append("\nDetails are not shown when the anomaly is not terminal and not younger than ")
+//                .append(getLastErrorAgeSettingToShowDetailsForDisplay());
 
-        //TODO as been seen, and seen time
+        buf.append("\n\n").append( //AcousticLibConfig.getIt().getPublisherEmailAddress());
+            AcousticLibConfig.getIt().getSupportEmailAddressWithText()
+            );
 
-
+        //device & OS
+        buf.append("\n\n");
+        buf.append(OnAnyThread.IT.getDeviceInfoForDisplay());
+        buf.append("\n");
+        buf.append(OnAnyThread.IT.getAndroidInfoForDisplay());
 
         return buf.toString();
     }
