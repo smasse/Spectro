@@ -88,7 +88,7 @@ import sm.lib.acoustic.util.OnAnyThread;
 import sm.lib.acoustic.util.Timestamp;
 
 /*
-TODO washere new launch icon
+TODO washere readme and version # etc for publication on g play and gitlab
 
 TODO prio 2 keep list of urls to play, give them names, delete, move up/down, export list (share)
 */
