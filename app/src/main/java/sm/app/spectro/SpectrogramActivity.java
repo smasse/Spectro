@@ -88,17 +88,11 @@ import sm.lib.acoustic.util.OnAnyThread;
 import sm.lib.acoustic.util.Timestamp;
 
 /*
-TODO washere
+TODO washere new launch icon
 
-if in device or about, using the back button should be same as touching the device or about button again
-which is going back to spectro display
+TODO prio 2 keep list of urls to play, give them names, delete, move up/down, export list (share)
+*/
 
-
-acousticevents used by the lib for getting data from the client may not be working
-
-maybe disable the url to play for now
-
- */
 
 public final class SpectrogramActivity extends Activity implements Acoustic.Callback {
 
@@ -109,6 +103,19 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
      * normally false in production
      */
     public static final boolean LOG_INIT_ENABLED = false;
+
+    /**
+     * Designed to minimise code change before production.
+     *
+     * Must be used one at a time.
+     */
+    public static final boolean TEST_SEVERE_ERROR_AT_INIT_ENABLED = false;//done
+
+    public static final boolean TEST_SEVERE_ERROR_AFTER_INIT_ENABLED = false;//done
+
+    public static final boolean TEST_NON_SEVERE_ERROR_AT_INIT_ENABLED = false; //done
+
+    public static final boolean TEST_NON_SEVERE_ERROR_AFTER_INIT_ENABLED = false;//done
 
     /**
      * only to be used for showing user some init events;
@@ -436,20 +443,10 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
      * <br>debug off
      */
     static final AcousticLogConfig LOG_CONFIG = new AcousticLogConfig(
+            AcousticLogConfig.OFF, //use ON to test error management
             AcousticLogConfig.OFF,
-            AcousticLogConfig.OFF,
-            AcousticLogConfig.INIT); //OFF  UI INIT  DEVICE_SOUND_CAPABILITIES //TODO washere
+            AcousticLogConfig.OFF); //OFF  UI INIT  DEVICE_SOUND_CAPABILITIES INIT ERROR_MANAGEMENT
 
-    /* TODO new pref
-    - for mic, offer to user all choices supported by the device and give the app one of the options
-    future:
-    - for channel, mono or stereo, same as above
-    - for float pcm encoding, same as above, float/int for input, float/int for output, depending on version of android
-    - for sampling rate, offer to user the native rate and some other rates supported by device, and let user pick one
-      and let user decide for same encoding for input and output
-
-      TODO prio 2 keep list of urls to play, give them names, delete, move up/down, export list (share)
-     */
 
     static final AcousticLibConfig LIB_CONFIG = AcousticLibConfig.DEFAULT;
 
@@ -459,13 +456,13 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         LIB_CONFIG.isNativeSampleRateRequested = true;
         LIB_CONFIG.isSameEncodingPcmForInputAndOutputRequested = false;
 
-        LIB_CONFIG.mipmap_ic_launcher = R.mipmap.ic_launcher;
+        LIB_CONFIG.mipmap_ic_launcher = R.mipmap.ic_launcher_2;
 
-        //settings for textviews
-        LIB_CONFIG.textSizeSp = 14;
+        //settings for textviews used in Lib
+        LIB_CONFIG.textSizeSp = 18;
         LIB_CONFIG.textStyleString = "bold";
-        LIB_CONFIG.textColorHexString = "white";
-        LIB_CONFIG.bgColorHexString = "#0099cc";
+        LIB_CONFIG.textColorHexString = "blue";//"#8833b5e5";//"blue";//#8833b5e5 //"white";
+        LIB_CONFIG.bgColorHexString = "#000000";//"#0099cc";
 
         LIB_CONFIG.xMinHzInputFromApp = 2;
 
@@ -937,21 +934,28 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
             initUrlToPlayLocal(savedInstanceStateGiven);
             //------------------------------------------
 
-            if (LOG_CONFIG.DEBUG == AcousticLogConfig.INIT || LOG_INIT_ENABLED) {
-                Log.d(TAG, ".onCreateComplete: >>>>> before test onExceptionAtInit");
-                //onExceptionAtInit(new Exception("testing - not a real exception"));
-                processLastError(new Exception("testing - not a real exception"),false);
-                Log.d(TAG, ".onCreateComplete: <<<<< after test onExceptionAtInit");
+            if(TEST_NON_SEVERE_ERROR_AT_INIT_ENABLED) {
+                if (LOG_CONFIG.DEBUG == AcousticLogConfig.INIT || LOG_INIT_ENABLED) {
+                    Log.d(TAG, ".onCreateComplete: >>>>> before test processLastError");
+                }
+                processLastError(new Exception("testing - not a real exception"), false);
+                if (LOG_CONFIG.DEBUG == AcousticLogConfig.INIT || LOG_INIT_ENABLED) {
+                    Log.d(TAG, ".onCreateComplete: <<<<< after test processLastError");
+                }
+            }else {
+                if (TEST_SEVERE_ERROR_AT_INIT_ENABLED) {
+                    throw new Exception("testing - not a real exception");
+                }
             }
 
         } catch (Exception ex) {
-//            if(Acoustic.IT.isAnyLogEnabled())Log.e(TAG,".onCreateComplete: "+ex);
+            if(LOG_CONFIG.DEBUG == AcousticLogConfig.INIT || LOG_INIT_ENABLED)
+                Log.e(TAG,".onCreateComplete: "+ex);
             disableThePauseButton("Error");
-            //onExceptionAtInit(ex);//TODO prio 2 2016-11 does this work???
             processLastError(ex,true);
         } finally {
             onCreateCompleted = true;
-            if (Acoustic.IT.isLogDebugEnabled())
+            if (Acoustic.IT.isLogDebugEnabled() || LOG_INIT_ENABLED)
                 Log.d(TAG, ".onCreateComplete: exiting...");
         }
     }
@@ -1471,10 +1475,11 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
                     doShowGui();
                 }
             } catch (Throwable ex) {
-                if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI||LOG_CONFIG.ERROR==AcousticLogConfig.ON)
+                if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI||LOG_CONFIG.ERROR!=AcousticLogConfig.OFF)
                     Log.e(TAG, "ON_CLICK_LISTENER_FOR_SPECTROGRAM.onClick(v): " + ex
                             + "\n" + Log.getStackTraceString(ex)
                         );
+                processLastError(ex,true);
             }
             if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
                 Log.d(TAG, "ON_CLICK_LISTENER_FOR_SPECTROGRAM.onClick(v): exiting");
@@ -1593,10 +1598,28 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         }
     }
 
-    private void deviceButtonSelected(){
+    private void deviceButtonSelected() throws Exception{
         if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
             Log.d(TAG, ".deviceButtonSelected: " +
                     "DEVICE button selected; deviceShown = "+deviceShown);
+        if(TEST_NON_SEVERE_ERROR_AFTER_INIT_ENABLED){
+            if (LOG_CONFIG.ERROR != AcousticLogConfig.OFF) {
+                Log.d(TAG, ".deviceButtonSelected: >>>>> before test processLastError");
+            }
+            processLastError(new Exception("testing - not a real exception"), false);
+//            throw new Exception("testing - not a real exception");
+            if (LOG_CONFIG.ERROR != AcousticLogConfig.OFF) {
+                Log.d(TAG, ".deviceButtonSelected: <<<<< after test processLastError non-severe");
+            }
+            return;
+        }else{
+            if(TEST_SEVERE_ERROR_AFTER_INIT_ENABLED){
+                if (LOG_CONFIG.ERROR != AcousticLogConfig.OFF) {
+                    Log.d(TAG, ".deviceButtonSelected: >>>>> before throw new Exception");
+                }
+                throw new Exception("testing - not a real exception");
+            }
+        }
         if (!deviceShown) {
             //the text is not shown, then show text of device sound capabilities
             if(ALWAYS_HIDE_BG_WHEN_TEXT){
@@ -1651,7 +1674,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         }
     }
 
-    private void aboutButtonSelected() {
+    private void aboutButtonSelected() throws Exception {
         if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI)
             Log.d(TAG, "aboutButtonSelected: " +
                     "aboutShown = " + aboutShown
@@ -2603,7 +2626,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 
         if(lastError != null) {
             buf.append(getLastErrorText());
-            buf.append("\n\n");
+            buf.append("\n\n~~~~~\n\n");
         }
 
         buf.append(fromHtml( getAboutTextInHtml() ));
@@ -4435,61 +4458,56 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if ((keyCode == KeyEvent.KEYCODE_BACK)) {
-            //Log.d(this.getClass().getName(), "back button pressed");
-            String s = "";
-            if (contentTextView.isShown()) {
-                s = "; or tap the button to hide the text";
-            }
-            if (previousBackButtonMs > 0) {
-                //there is a previous back button press time; this is the second back-key
-                if (System.currentTimeMillis() - previousBackButtonMs > BACK_BUTTON_TIMEOUT_MS) {
-                    // timeout exceeded, reset previous one; no exit
-                    if(LOG_CONFIG.DEBUG!=AcousticLogConfig.OFF) Log.d(TAG,".onKeyDown: timeout exceeded, reset previous one; no exit");
+        try {
+            if ((keyCode == KeyEvent.KEYCODE_BACK)) {
+                //Log.d(this.getClass().getName(), "back button pressed");
+                String s = "";
+                if (contentTextView.isShown()) {
+                    //s = "; or tap the button again to hide the text";
+                    if(aboutShown)aboutButtonSelected();
+                    if(deviceShown)deviceButtonSelected();
+                    return true;
+                }
+                if (previousBackButtonMs > 0) {
+                    //there is a previous back button press time; this is the second back-key
+                    if (System.currentTimeMillis() - previousBackButtonMs > BACK_BUTTON_TIMEOUT_MS) {
+                        // timeout exceeded, reset previous one; no exit
+                        if (LOG_CONFIG.DEBUG == AcousticLogConfig.UI)
+                            Log.d(TAG, ".onKeyDown: timeout exceeded, reset previous one; no exit");
+                        previousBackButtonMs = System.currentTimeMillis();
+                        Toast.makeText(this, "Please press the Back key again to exit" + s,
+                                Toast.LENGTH_LONG).show();
+                        // eat the action and do not propagate it
+                        return true;
+                    } else {
+                        // timeout not exceeded, then exit; propagate the action
+                        if (LOG_CONFIG.DEBUG == AcousticLogConfig.UI)
+                            Log.d(TAG, ".onKeyDown: timeout not exceeded, then exit; " +
+                                    "propagate the action");
+                        shutdown(true);
+                    }
+                } else {
+                    // there is no previous back button press time; no exit
+                    if (LOG_CONFIG.DEBUG == AcousticLogConfig.UI)
+                        Log.d(TAG, ".onKeyDown: no previous back button press time; no exit");
                     previousBackButtonMs = System.currentTimeMillis();
-                    //if a text is showing, add  s = "; to hide the text, touch the text button"
-                    //if(coordinatorLayout!=null) {
-//                        Snackbar.make(findViewById(android.R.id.content), //coordinatorLayout,
-//                                "Please press the Back key again to exit" + s,
-//                                Snackbar.LENGTH_LONG)
-//                                .show();
-                    //}
-                    Toast.makeText(this, "Please press the Back key again to exit" + s,
-                            Toast.LENGTH_LONG).show();
+                    s = "Please press the Back key again to exit" + s;
+                    Toast.makeText(this, s, Toast.LENGTH_LONG).show();
                     // eat the action and do not propagate it
                     return true;
-                } else {
-                    // timeout not exceeded, then exit; propagate the action
-                    if (LOG_CONFIG.DEBUG!=AcousticLogConfig.OFF) Log.d(TAG,".onKeyDown: timeout not exceeded, then exit; propagate the action");
-                    shutdown(true);
                 }
-            } else {
-                // there is no previous back button press time; no exit
-                if(LOG_CONFIG.DEBUG!=AcousticLogConfig.OFF) Log.d(TAG,".onKeyDown: no previous back button press time; no exit");
-                previousBackButtonMs = System.currentTimeMillis();
-                //if(coordinatorLayout!=null) {
-                /*
-                E/InputEventSender: Exception dispatching finished signal.
-E/MessageQueue-JNI: Exception in MessageQueue callback: handleReceiveCallback
-E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Error inflating class <unknown>
-                        at android.view.LayoutInflater.createView(LayoutInflater.java:626)
-                 */
-                s = "Please press the Back key again to exit" + s;
-
-//                Snackbar.make(findViewById(android.R.id.content), //coordinatorLayout,
-//                        "Please press the Back key again to exit" + s,
-//                        Snackbar.LENGTH_LONG)
-//                        .show();
-
-                Toast.makeText(this,s,Toast.LENGTH_LONG).show();
-
-                //}
-                // eat the action and do not propagate it
-                return true;
             }
+            if (LOG_CONFIG.DEBUG == AcousticLogConfig.UI)
+                Log.d(TAG, ".onKeyDown: calling *super.onKeyDown(keyCode, event)*");
+            return super.onKeyDown(keyCode, event);
+        }catch (Throwable ex){
+            if (LOG_CONFIG.DEBUG==AcousticLogConfig.UI||LOG_CONFIG.ERROR!=AcousticLogConfig.OFF)
+                Log.e(TAG, "onKeyDown: " + ex
+                        + "\n" + Log.getStackTraceString(ex)
+                );
+            processLastError(ex,true);
+            return true;
         }
-        if(LOG_CONFIG.DEBUG!=AcousticLogConfig.OFF) Log.d(TAG,".onKeyDown: calling *super.onKeyDown(keyCode, event)*");
-        return super.onKeyDown(keyCode, event);
     }
 
 //    /* *
@@ -4933,7 +4951,7 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
             s += minutes+" "+m;
         }
         if(s.isEmpty()){
-            s = "0 day";
+            s = "less than 1 minute";
         }
 
         return s;
@@ -4996,6 +5014,8 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
      * false when it can continue running.
      */
     boolean processLastError(final Throwable ex, final boolean isSevere){
+
+        //TODO use new AcousticLogConfig.ERROR_MANAGEMENT here and downstream
 
         lastError = ex;
 
@@ -5115,12 +5135,18 @@ E/MessageQueue-JNI: android.view.InflateException: Binary XML file line #41: Err
 
         String s1 = ""+lastError;
 
+        s1 = s1.trim();
+
         buf.append("\n").append(s1);
 
         String s2 = lastError.getMessage();
 
-        if( ! s1.equals(s2)) {
+        s2 = s2.trim();
+
+        if( ! s1.endsWith(s2)) {
             buf.append(" - ").append(s2);
+            //TODO use AcousticLogConfig.ERROR_MANAGEMENT here
+            //Log.d(TAG,"getLastErrorSharedText: \n s1 {"+s1+"}\n s2 {"+s2+"}");
         }
 
         if(lastErrorIsTerminal) {
