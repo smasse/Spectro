@@ -1,23 +1,28 @@
 ## README file for software sm Spectro by Serge Masse ##
-#### First Published on Gitlab 2016.11.20 ####
-
-#### The app is currently published on Google Play: ####
-https://play.google.com/store/apps/details?id=sm.app.spectro&hl=en
-
-Version 4 is the current production version. 
-Version 5 is the version in development.
 
 ## Overview ##
 sm Spectro is a complete spectrogram app for Android.
+
+The app is currently published on Google Play: 
+https://play.google.com/store/apps/details?id=sm.app.spectro&hl=en
+
+Open-sourced in Gitlab project: leafyseadragon/android-spectro-app
+
+The library: leafyseadragon / android-acoustic-lib
+
+Version 4 is the current production version (published on Google Play store). 
+Version 5 is the version in development.
 
 Its only dependency is the gitlab project **android-acoustic-lib**, 
 from the same author. The library from android-acoustic-lib is an 
 .aar file in directory app/libs: **sm-lib-sound-release.aar**; more details below.
 
-The executable app does not use other libraries than 
+The app does not use other libraries than 
 the basic Android ones and the library from the same author.
 
 Copyright (c) 2016-2019 Serge Masse
+
+SOURCE CODE LICENSE:
 
 Redistribution and use in source and binary forms, with or without modification, are permitted 
 provided that the following conditions are met:
@@ -47,8 +52,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF 
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-The use of this software with captive cetaceans and other large mammals
-in captivity is discouraged.
+END OF LICENSE
 
 ### Identifiers ###
 
@@ -76,8 +80,9 @@ Android Manifest Package = sm.lib.acoustic
 
 GitLab Project: leafyseadragon / android-acoustic-lib
 
-Library **sm-lib-comm**, also in the above GitLab project, is not used by the Spectro app.
+Library **sm-lib-comm**, also in the above GitLab project, is not used by the Spectrogram app.
 
+<!--
 #### DRAFT TEXT FOR PLAY STORE LISTING ####
 
 See the sounds surrounding you:
@@ -107,7 +112,7 @@ Some current Android devices can perform sampling of sounds at 96,000 samples pe
     this latency is the delay between the actual sounds and the availability of the numeric samples to the application.
     Only Android Marshmallow (i.e., version 6, API level 23), and later versions, do support 96,000 samples per second.
     This app supports 96,000 samples per second. It analyzes sounds 40 times per second. It uses 1024 samples for each analysis (using FFT).
-
+-->
 
 
 #### T O D O's Legend/Definitions ####
@@ -120,10 +125,10 @@ prio 2 = maybe for next version
 
 no prio or prio 3: lowest priority, or no priority
 
-washere is for easily finding the place where I was working last in current issue 
-in different locations; should not be used as a priority level
+washere = for easily finding the place where I was working last in current issue 
+in different locations; should not be used as a priority level, or in released versions
 
-"prod" is for settings to be changed for production
+"prod" is for settings that are to be changed for production
 
 
 
@@ -198,11 +203,9 @@ tv.setText(Html.fromHtml(getString(R.string.my_text)));
 
 ### samsung SGH-I467M SDK 19 test results 2018-2-10 ###
 
-todo www.samsung.com/kies
+TODO www.samsung.com/kies
 
 TODO washere [samsung buttons too dark]
-
-[not starting correctly]
 
 
 [//]: <>(
