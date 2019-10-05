@@ -208,5 +208,10 @@ TODO www.samsung.com/kies
 TODO washere [samsung buttons too dark]
 
 
+#### 2019 todo's ####
+
+TODO washere [use new h-editable settings from lib]
+
+
 [//]: <>(
 )

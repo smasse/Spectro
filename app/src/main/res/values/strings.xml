@@ -54,6 +54,8 @@
 
     <string name="support_email_subject_line">sm Spectrogram &#8211; User Requesting Support</string>
 
+    <string name="user_guide_email_subject_line">sm Spectrogram &#8211; User Guide</string>
+
     <string name="url_example">https://</string>
     <string name="url_no_sound_output">Device does not support sound output</string>
     <string name="url_no_sound_input">Device does not support sound input</string>

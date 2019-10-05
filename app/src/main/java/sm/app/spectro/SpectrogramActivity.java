@@ -52,6 +52,8 @@ import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.KeyEvent;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
@@ -81,6 +83,7 @@ import sm.lib.acoustic.AcousticLog;
 import sm.lib.acoustic.AcousticLogConfig;
 import sm.lib.acoustic.AudioPlayer;
 import sm.lib.acoustic.SpectrogramView;
+import sm.lib.acoustic.gui.SettingsTextActivity;
 import sm.lib.acoustic.gui.TextDisplayWithTwoButtonsActivity;
 import sm.lib.acoustic.util.AppContext;
 import sm.lib.acoustic.util.DataFromIntent;
@@ -91,6 +94,17 @@ import sm.lib.acoustic.util.Timestamp;
 TODO washere readme and version # etc for publication on g play and gitlab
 
 TODO prio 2 keep list of urls to play, give them names, delete, move up/down, export list (share)
+
+
+TODO washere add these menu items and activities
+
+settings
+
+device
+
+user guide
+
+about
 */
 
 
@@ -2682,8 +2696,13 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         buf.append("<p/>").append("Application Version Code: ")
         .append(AppContext.getVersionCode())
         .append("<br>Version Name: ")
-        .append(AppContext.getVersionName())
-        .append("<p/>Questions, defects, suggestions, please contact ")
+        .append(AppContext.getVersionName());
+
+        buf.append("<p/>Now open-sourced on GitLab at https://gitlab.com/leafyseadragon/android-spectro-app");
+
+        buf.append("<p/>The version in GitLab may be more recent than the one on Google Play.");
+
+        buf.append("<p/>Questions, defects, suggestions, please contact ")
                 .append(AcousticLibConfig.getIt().getPublisherEmailAddress());//AppPublisher.emailAddressForSupport);
 
         // ##### intro #####
@@ -2739,6 +2758,38 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 
         return buf.toString();
     }
+    /*
+    Now open-sourced on GitLab at https://gitlab.com/leafyseadragon/android-spectro-app
+
+Privacy Policy: the data in this app is private and owned by the device owner. The publisher of the app does not have access to the data.
+
+A spectrogram in your pocket - Fun things to do with it:
+
+- Pets - dog, cat, hamster, canary - hear and look at their sounds and associate them with their behavior to try to figure out their 'meaning'
+
+- Kids - show the sounds of human voices and animals to kids - easier for them to understand frequencies and harmonics with a live image
+
+- Outdoors - discover the sounds of wild animals - such as birds in your backyard - they'll amaze you by their beautiful shapes
+
+- Whales - plug a hydrophone in the RCA input jack and analyses the sounds of whales and dolphins, at sea
+
+- No whales or dolphins near by, or no hydrophone in your bag just yet, then play their sounds on a plain old computer from some online recordings, there are hundreds - search for them with Google
+
+- Games with friends - for example the weirdest looking sounds with one's voice wins - or with one's body part other than mouth - this may require special settings that only you would know
+
+- Experiment with settings - find the best combo for your device and the sounds that you are interested in
+
+This app displays a spectrogram to analyze live sounds in real-time. A spectrogram is also called a sonogram.
+
+This app can easily be used near any source of sound such as another device playing a recording. It can also play a recording from a file on the device or shared from a web site or from another app, as long as the file type is compatible. It does not record sound.
+
+It has a nice device audio configuration testing logic and you get the detailed results of the app testing your device audio in the DEVICE section.
+
+Some of the icons used by the app are a screenshot of the analysis of a recording made by aguasonic.com of dolphins having an animated conversation where possibly more than five dolphins (probably Tursiops) were whistling at the same time and for a few minutes.
+
+App © 2017-2019 Serge Masse
+     */
+
 
     /* TODO prio 2 EULA example from https://www.makingmoneywithandroid.com/2011/05/how-to-eula-android-app/
 
@@ -5233,5 +5284,94 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
             buttonForLabel.setText(buttonLabel);
         }
     };
+
+
+//    String getUserGuide(){
+//
+//        return "TODO user guide text";
+//    }
+
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        //super.onCreateOptionsMenu(menu); TODO use this if we want to also use the menu from parent Seadragon?
+        // Inflate the menu; this adds items to the action bar if it is present.
+        getMenuInflater().inflate(R.menu.menu_main, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle action bar item clicks here. The action bar will
+        // automatically handle clicks on the Home/Up button, so long
+        // as you specify a parent activity in AndroidManifest.xml.
+        final int id = item.getItemId();
+
+        //noinspection SimplifiableIfStatement
+        if (id == R.id.action_settings) {
+            SettingsTextActivity.show(this,
+                    16f, //null);
+                    getResources().getString(R.string.app_name_short)); //MENU_SETTINGS_NAME);
+            return true;
+        }
+
+//        if (id == R.id.action_device_sound_capabilities) {
+//            String text = "(empty)";
+//            String title = "Device Sound Capabilities";
+//            try {
+//
+//                Acoustic.IT.thirdCallInitDeviceCapabilitiesAndSettings();
+//
+//                text = Acoustic.IT.getDeviceCapabilitiesText();
+//            } catch (Exception ex) {
+//                text = "Anomaly detected when generating the text for the sound capabilities of the device. " +
+//                        "\n\nPLease contact support: " + ex
+//                        + "\n\n" + Log.getStackTraceString(ex);
+//            }
+//            try {
+//                TextDisplayWithEmailActivity.show(this, text,
+//                        title,
+//                        this.getResources().getString(R.string.app_name_short)
+//                                + " - " + title,
+//                        OnAnyThread.IT.isConnected(this.isSimulatingNoConnection()),
+//                        ""
+//                );
+//                return true;
+//            } catch (Exception ex) {
+//                if (LOG_CONFIG.isAnyLogErrorEnabled()) {
+//                    Log.e(TAG, "" + ex + " " + Log.getStackTraceString(ex));
+//                }
+//                return false;
+//            }
+//        }
+
+//        if (item.getItemId() == R.id.action_user_guide) {
+//            TextDisplayWithEmailActivity.show(this, this.getUserGuide(),
+//                    "USER GUIDE",
+//                    this.getResources().getString(R.string.user_guide_email_subject_line),
+//                    OnAnyThread.IT.isConnected(this.isSimulatingNoConnection()),
+//                    ""
+//            );
+//            return true;
+//        }
+
+//        if (item.getItemId() == R.id.action_about) {
+//            try {
+//                TextDisplayWithEmailActivity.show(this, getAboutText(),
+//                        "About this App",
+//                        this.getResources().getString(R.string.app_name_short),
+//                        OnAnyThread.IT.isConnected(this.isSimulatingNoConnection()),
+//                        ""
+//                );
+//                return true;
+//            } catch (Exception var5) {
+//                if (LOG_CONFIG.isAnyLogErrorEnabled())
+//                    Log.e(TAG, "" + var5 + " " + Log.getStackTraceString(var5));
+//                return false;
+//            }
+//        }
+
+        return super.onOptionsItemSelected(item);
+    }
 
 } // end of class
