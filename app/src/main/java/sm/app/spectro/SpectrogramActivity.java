@@ -439,12 +439,6 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
      */
     private volatile boolean doesSoundOutput = true;
 
-    /* *
-     * ATTENTION: This was auto-generated to implement the App Indexing API.
-     * See https://g.co/AppIndexing/AndroidStudio for more information.
-     */
-//    private GoogleApiClient client;
-
     private final boolean APP_INDEXING_IS_ENABLED = false;
 
     /**
