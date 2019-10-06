@@ -467,6 +467,10 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     static{
         LIB_CONFIG.logConfig = LOG_CONFIG;
 
+        LIB_CONFIG.thisAppUsesTheDatabase = false;
+        LIB_CONFIG.thisAppEmitsSignals = false;
+        LIB_CONFIG.thisAppRecognizesSignals = false;
+
         LIB_CONFIG.isNativeSampleRateRequested = true;
         LIB_CONFIG.isSameEncodingPcmForInputAndOutputRequested = false;
 
