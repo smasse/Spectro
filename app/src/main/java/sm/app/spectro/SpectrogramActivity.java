@@ -478,8 +478,6 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 
         LIB_CONFIG.xMinHzInputFromApp = 2;
 
-        //LIB_CONFIG.isSupportEmailEnabled = false;
-        LIB_CONFIG.isAutoSupportEmailEnabled = false;
         LIB_CONFIG.isManualSupportEmailEnabled = true;
 
         LIB_CONFIG.supportEmailAddress = "sergemasse1@yahoo.com";
@@ -540,26 +538,12 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         }
     }
 
-    /**
-     * Convenience method.
-     * @return AcousticLibConfig
-     * @deprecated replaced by direct access to LIB_CONFIG
-     */
-    private AcousticLibConfig getAcousticConfigFromClient(){
-//        if(SHOW_USER_INIT_EVENTS_ENABLED){
-//            showStatusSnackbar("AcousticLibConfig were set");
-//        }
-        return LIB_CONFIG;
-    }
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
 
         Acoustic acoustic = null;
         try {
-            //getSharedPreferences();
-            //acoustic = Acoustic.firstCall(this, LIB_CONFIG, this);
             acoustic = Acoustic.firstCall(this, LIB_CONFIG, getApplicationContext());
         }catch(Throwable ex){
             if(LOG_INIT_ENABLED) Log.e(TAG,"onCreate: "+ex);
@@ -4579,24 +4563,12 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
 
     private boolean isDevMode() {
-        return getAcousticConfigFromClient().isDevMode;
+        return LIB_CONFIG.isDevMode;
     }
-
-    /**
-     *
-     * @return boolean
-     * @deprecated our apps should not do auto emails, without specific user action requesting
-     * to send an email.
-     */
-    private boolean isAutoSupportEmailEnabled() {
-        return getAcousticConfigFromClient().isAutoSupportEmailEnabled;
-    }
-
 
     private boolean isSimulatingNoConnection() {
 
-        return getAcousticConfigFromClient().isSimulatingNoConnection;
-
+        return LIB_CONFIG.isSimulatingNoConnection;
     }
 
     /**
