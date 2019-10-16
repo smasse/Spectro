@@ -3223,7 +3223,6 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
             // when the id is SEVERE_ANOMALY_DETECTED_IN_LIB
             // then the returnCode should be UNDETERMINED here
 
-
             case AcousticEvent.ON_NON_SEVERE_ANOMALY_DETECTED_IN_LIB:
                 if(ev.ob!=null) {
 
@@ -3283,11 +3282,6 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
                 ev.returnCode = AcousticEvent.OK;
                 return true;
 
-//            case AcousticEvent.GET_ACOUSTIC_CONFIG:
-//                ev.returnedObject = getAcousticConfigFromClient();
-//                ev.returnCode = AcousticEvent.OK;
-//                return true;
-
             case AcousticEvent.ON_CHANGE_PAUSE:
                 if(ev.genericBoolean){
                     enableThePauseButton(null);
@@ -3296,11 +3290,6 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
                 }
                 ev.returnCode = AcousticEvent.OK;
                 return true;
-
-//            case AcousticEvent.GET_IS_PAUSE_BUTTON_CHECKED:
-//                ev.returnedObject = isPauseButtonChecked();
-//                ev.returnCode = AcousticEvent.OK;
-//                return true;
 
             case AcousticEvent.GET_IS_SOUND_INPUT_PAUSED_BY_CLIENT://TODO prio 1 bug 2019-7-6 returning null to lib
                 ev.returnedObject = isSoundInputPaused();
