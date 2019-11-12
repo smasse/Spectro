@@ -32,7 +32,6 @@
 package sm.app.spectro;
 
 import android.Manifest;
-import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.NotificationChannel;
@@ -144,7 +143,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
      */
     public static final boolean SEPARATE_OUR_APPS_GUI_IS_ENABLED = false;
 
-    public static final boolean SEPARATE_EMAIL_DEV_GUI_IS_ENABLED = false;
+//    public static final boolean SEPARATE_EMAIL_DEV_GUI_IS_ENABLED = false;
 
     /**
      * For user-entered url and for incoming url from any app.
@@ -257,13 +256,13 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 //    String fileNameToPlayFromPref = "";
 
     /* *
-     * decoded, used to display in edit text TODO display the user filename, not the internal doc id
+     * decoded, used to display in edit text TO DO display the user filename, not the internal doc id
      * @ deprecated not useful in this version
      */
 //    volatile String urlToPlayString = "";
 
     /* *
-     * @ deprecated ===TODO=== deprecated TBD
+     * @ deprecated ===TO DO=== deprecated TBD
      */
 //    String urlToPlayFromPref = "";
 
@@ -349,7 +348,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     public static final boolean INBOUND_INTENT_PLAY_TYPE_AUDIO_WAV_ENABLED = true;
     public static final boolean INBOUND_INTENT_PLAY_TYPE_AUDIO_ANY_ENABLED = true;
 
-    public static final boolean INBOUND_INTENT_PLAY_RAW_URL_ENABLED = true;
+//    public static final boolean INBOUND_INTENT_PLAY_RAW_URL_ENABLED = true;
 
     //play sound file from intent from other app or from url entered by user;
     //an intent from other app causes this app to start or restart
@@ -390,40 +389,42 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 
     /*
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.WAKE_LOCK" /> not dangerous
     <uses-permission android:name="android.permission.INTERNET" /> not dangerous
     */
-    private static final int PERMISSIONS_REQUEST_CODE_FOR_RECORD_AUDIO = 20180221;
+    private static final int PERMISSIONS_REQUEST_CODE = 20180221;
 
-    private static String[] PERMISSIONS_FOR_RECORD_AUDIO = {
-            Manifest.permission.RECORD_AUDIO
-        };
+//    private static String[] PERMISSIONS_FOR_RECORD_AUDIO = {
+//            Manifest.permission.RECORD_AUDIO
+//        };
 
     // Storage Permissions
-    private static final int PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS = 20180223;
+//    private static final int PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS = 20180223;
 
-    /**
+    /* *
      * Used to move the value from method getPermissionForRecordAudio to onRequestPermissionsResult,
      * and to feed playLocalFileAfterStorageAccessGranted.
      */
-    private volatile String filePathNeedingAccess = "";
+//    private volatile String filePathNeedingAccess = "";
 
-    private static String[] PERMISSIONS_FOR_EXTERNAL_STORAGE_ACCESS = {
-            Manifest.permission.READ_EXTERNAL_STORAGE,
-            Manifest.permission.WRITE_EXTERNAL_STORAGE
-        };
+    /* *
+     * Used for reading pre-recorded audio files
+     */
+//    private static String[] PERMISSIONS_FOR_EXTERNAL_STORAGE_ACCESS = {
+//            Manifest.permission.READ_EXTERNAL_STORAGE //,
+//            //Manifest.permission.WRITE_EXTERNAL_STORAGE
+//        };
 
-    /**
+    /* *
      * true when storage access permission was asked to user; used to avoid asking permission more
      * than once.
      */
-    private volatile boolean storageAccessPermissionWasAsked = false;
+//    private volatile boolean storageAccessPermissionWasAsked = false;
 
     /**
-     * Used to move the value from method getPermissionForRecordAudio to onRequestPermissionsResult, and
-     * to feed onCreateComplete, when there could be an intent to play by the caller of the app.
+     * Used to move the value from method getPermissionForRecordAudio to onRequestPermissionsResult,
+     * and to feed onCreateComplete, when there could be an intent to play by the caller of the app.
      * Needed in this version.
      */
     private volatile Bundle savedInstanceStateTemp = null;
@@ -559,7 +560,9 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
             //TODO show user downstream
         }
 
+        //---------------------------------
         super.onCreate(savedInstanceState);
+        //---------------------------------
 
         if (!isTaskRoot()) {
             // Android launched another instance of the root activity into an existing task
@@ -579,7 +582,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         Acoustic.IT.secondCallRestorePreferences();
 
         if (Acoustic.IT.isAnyLogEnabled()){
-            Log.d(TAG, ".onCreate: entering..." +
+            Log.d(TAG, ".onCreate: after Acoustic.IT.secondCallRestorePreferences(); " +
                     "app name {" + AppContext.getAppName()
                     + "} version name {" + AppContext.getVersionName()
                     //+ "} AppPublisher.emailAddressForSupport {" + AppPublisher.emailAddressForSupport
@@ -592,7 +595,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         }
 
         savedInstanceStateTemp = savedInstanceState;
-        if(getPermissionForRecordAudio(permissions,PERMISSIONS_REQUEST_CODE_FOR_RECORD_AUDIO)){
+        if(getPermissionForRecordAudio(permissions, PERMISSIONS_REQUEST_CODE)){
             onCreateComplete(savedInstanceState);
         }
     }
@@ -600,7 +603,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     private static final String[] permissions = new String[]{
             Manifest.permission.RECORD_AUDIO,
             Manifest.permission.READ_EXTERNAL_STORAGE,
-            Manifest.permission.WRITE_EXTERNAL_STORAGE,
+            //Manifest.permission.WRITE_EXTERNAL_STORAGE,
             Manifest.permission.ACCESS_NETWORK_STATE};
 
     /**
@@ -650,7 +653,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 
                 ActivityCompat.requestPermissions(this, permissionsGiven, requestCode);
             }
-            // PERMISSIONS_REQUEST_CODE_FOR_RECORD_AUDIO is an
+            // PERMISSIONS_REQUEST_CODE is an
             // app-defined int constant. The callback method gets the
             // result of the request.
         } else {
@@ -679,20 +682,21 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     public void onRequestPermissionsResult(int requestCode,
                                            @NonNull String[] permissions,
                                            @NonNull int[] grantResults) {
-        if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT || LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
+        if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT
+                || LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
                 || LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS)
             Log.d(TAG, ".onRequestPermissionsResult entering with requestCode {" + requestCode
-                    + "}; filePathNeedingAccess {" + filePathNeedingAccess + "}");
+                    + "}"); // filePathNeedingAccess {" + filePathNeedingAccess + "}");
 //        readFileAccepted = false;
 //        writeFileAccepted = false;
         //permissionGrantedForRecordAudio = false;
         switch (requestCode) {
-            case PERMISSIONS_REQUEST_CODE_FOR_RECORD_AUDIO: {
+            case PERMISSIONS_REQUEST_CODE: {
                 if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT
                         || LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
                         || LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS)
                     Log.d(TAG, ".onRequestPermissionsResult: " +
-                            "PERMISSIONS_REQUEST_CODE_FOR_RECORD_AUDIO; " +
+                            "PERMISSIONS_REQUEST_CODE; " +
                             "grantResults.length = " + grantResults.length);
                 // If request is cancelled, the result arrays are empty.
                 boolean permissionGrantedForRecordAudio = false;
@@ -715,7 +719,8 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
                     return;
                 }
                 //here when record audio was granted
-                if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT || LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
+                if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT
+                        || LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
                         || LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS)
                     Log.d(TAG, ".onRequestPermissionsResult: audio permission granted");
                 //complete create
@@ -723,47 +728,48 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
                 break;
             } // case
 
-            case PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS: {
-                if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT
-                        || LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
-                        || LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS)
-                    Log.d(TAG, ".onRequestPermissionsResult: " +
-                            "PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS; " +
-                            "grantResults.length = " + grantResults.length);
-                // If request is cancelled, the result arrays are empty.
-                boolean readFileAccepted = false;
-                boolean writeFileAccepted = false;
-                if (grantResults.length > 0) {
-                    readFileAccepted = grantResults[0] == PackageManager.PERMISSION_GRANTED;
-
-                    if (grantResults.length > 1)
-                        writeFileAccepted = grantResults[1] == PackageManager.PERMISSION_GRANTED;
-                }
-                // when false, disable the play url functions for local files
-//                permissionGrantedForStorageAccess = ;
-
-                if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT
-                        || LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
-                        || LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS)
-                    Log.d(TAG, ".onRequestPermissionsResult: " +
-                            "PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS; " +
-                            "readFileAccepted = " + readFileAccepted
-                            + "; writeFileAccepted = " + writeFileAccepted);
-
-                if (readFileAccepted || writeFileAccepted) {
-                    // playLocalFileAfterStorageAccessGranted(filePathNeedingAccess);
-                    // TODO 2017-7-26 does this break intent from external app?
-                } else {
-                    // disable the play url functions but only for local files
-                }
-
-                break;
-            }
+//            case PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS: {
+//                if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT
+//                        || LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
+//                        || LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS)
+//                    Log.d(TAG, ".onRequestPermissionsResult: " +
+//                            "PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS; " +
+//                            "grantResults.length = " + grantResults.length);
+//                // If request is cancelled, the result arrays are empty.
+//                boolean readFileAccepted = false;
+//                boolean writeFileAccepted = false;
+//                if (grantResults.length > 0) {
+//                    readFileAccepted = grantResults[0] == PackageManager.PERMISSION_GRANTED;
+//
+//                    if (grantResults.length > 1)
+//                        writeFileAccepted = grantResults[1] == PackageManager.PERMISSION_GRANTED;
+//                }
+//                // when false, disable the play url functions for local files
+////                permissionGrantedForStorageAccess = ;
+//
+//                if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT
+//                        || LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
+//                        || LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS)
+//                    Log.d(TAG, ".onRequestPermissionsResult: " +
+//                            "PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS; " +
+//                            "readFileAccepted = " + readFileAccepted
+//                            + "; writeFileAccepted = " + writeFileAccepted);
+//
+//                if (readFileAccepted || writeFileAccepted) {
+//                    // playLocalFileAfterStorageAccessGranted(filePathNeedingAccess);
+//                    // TO DO 2017-7-26 does this break intent from external app?
+//                } else {
+//                    // disable the play url functions but only for local files
+//                }
+//
+//                break;
+//            }
 
             // other 'case' lines to check for other
             // permissions this app might request
             default: {
-                if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT || LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
+                if (LOG_CONFIG.DEBUG==AcousticLogConfig.INIT
+                        || LOG_CONFIG.DEBUG==AcousticLogConfig.SOUND_INPUT_INIT
                         || LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS)
                     Log.d(TAG, ".onRequestPermissionsResult: default; requestCode " + requestCode
                             //+"; permissionGrantedForRecordAudio "+ permissionGrantedForRecordAudio
@@ -775,7 +781,9 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 
     }
 
-    /**
+    /* *
+     * Used for reading pre-recorded audio files.
+     * <p/>
      * Request permission to access device storage (aka. external storage, i.e., external to the app).
      * <p/>
      * If the app does not have permission yet, then the user will be prompted to grant permission.
@@ -784,79 +792,86 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
      * false when previously denied (and not requested again)
      * or when permission being requested, i.e., the caller should not try to play.
      */
-    @SuppressLint("WrongConstant")
-    public boolean getPermissionForExternalStorageAccess(final String filePath) {
-        requestFilesPermission(filePath);
-
-        // Check if we have write permission
-        int permission = 0;
-        if (Build.VERSION.SDK_INT >= 23) {
-            permission = checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE);
-        } else {
-            permission = ActivityCompat.checkSelfPermission(this,
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE);
-        }
-
-        if (permission == PackageManager.PERMISSION_GRANTED) {
-            if (LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS
-                    || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL) {
-                Log.d(TAG, ".getPermissionForExternalStorageAccess: " +
-                        "checkSelfPermission returned positive; this method is returning true");
-            }
-            return true;
-        }
-
-        //no permission; did we asked the user before? if yes, then don't ask again
-        if (LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS||LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL) {
-            Log.d(TAG, ".getPermissionForExternalStorageAccess: " +
-                    "checkSelfPermission returned negative; storageAccessPermissionWasAsked = "
-                    + storageAccessPermissionWasAsked);
-        }
-        if (storageAccessPermissionWasAsked) {
-            // previously denied by user
-//            if (largeGuiLayout != null) {
-//                Snackbar.make(findViewById(android.R.id.content), //largeGuiLayout,
-//                        "The file cannot be played"
-//                                + ": it is in external storage and access was denied by you",
-//                        Snackbar.LENGTH_LONG).show();
-                Toast.makeText(this,"The file cannot be played"
-                        + ": it is in external storage and access was denied by you",
-                        Toast.LENGTH_LONG).show();
+    //@ SuppressLint("WrongConstant")
+//    public boolean getPermissionForExternalStorageAccess(final String filePath) {
+//
+//        requestFilesPermission(filePath);
+//
+//        // Check if we have write permission
+//        int permission = 0;
+//        if (Build.VERSION.SDK_INT >= 23) {
+//            permission = checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+//        } else {
+//            permission = ActivityCompat.checkSelfPermission(this,
+//                    Manifest.permission.WRITE_EXTERNAL_STORAGE);
+//        }
+//
+//        if (permission == PackageManager.PERMISSION_GRANTED) {
+//            if (LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS
+//                    || LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL) {
+//                Log.d(TAG, ".getPermissionForExternalStorageAccess: " +
+//                        "checkSelfPermission returned positive; this method is returning true");
 //            }
-            return false;
-        }
+//            return true;
+//        }
+//
+//        //no permission; did we asked the user before? if yes, then don't ask again
+//        if (LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS
+//                ||LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL) {
+//            Log.d(TAG, ".getPermissionForExternalStorageAccess: " +
+//                    "checkSelfPermission returned negative; storageAccessPermissionWasAsked = "
+//                    + storageAccessPermissionWasAsked);
+//        }
+//        if (storageAccessPermissionWasAsked) {
+//            // previously denied by user
+////            if (largeGuiLayout != null) {
+////                Snackbar.make(findViewById(android.R.id.content), //largeGuiLayout,
+////                        "The file cannot be played"
+////                                + ": it is in external storage and access was denied by you",
+////                        Snackbar.LENGTH_LONG).show();
+//                Toast.makeText(this,"The file cannot be played"
+//                        + ": it is in external storage and access was denied by you",
+//                        Toast.LENGTH_LONG).show();
+////            }
+//            return false;
+//        }
+//
+//        storageAccessPermissionWasAsked = true;
+//
+//        // We don't have permission so prompt the user;
+//        // this function will be continued in onRequestPermissionsResult
+//
+//        // to be used after permission is granted, if it is
+//        filePathNeedingAccess = filePath;
+//
+//        ActivityCompat.requestPermissions(
+//                this,
+//                PERMISSIONS_FOR_EXTERNAL_STORAGE_ACCESS,
+//                PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS
+//        );
+//        if (LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS
+//                ||LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL) {
+//            Log.d(TAG, ".getPermissionForExternalStorageAccess: " +
+//                    "checkSelfPermission returned negative; storageAccessPermissionWasAsked = "
+//                    + storageAccessPermissionWasAsked
+//                    + "; user was asked; this method returning false");
+//        }
+//        return false;
+//    }
 
-        storageAccessPermissionWasAsked = true;
-
-        // We don't have permission so prompt the user;
-        // this function will be continued in onRequestPermissionsResult
-
-        // to be used after permission is granted, if it is
-        filePathNeedingAccess = filePath;
-
-        ActivityCompat.requestPermissions(
-                this,
-                PERMISSIONS_FOR_EXTERNAL_STORAGE_ACCESS,
-                PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS
-        );
-        if (LOG_CONFIG.DEBUG==AcousticLogConfig.PERMISSIONS||LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL) {
-            Log.d(TAG, ".getPermissionForExternalStorageAccess: " +
-                    "checkSelfPermission returned negative; storageAccessPermissionWasAsked = "
-                    + storageAccessPermissionWasAsked
-                    + "; user was asked; this method returning false");
-        }
-        return false;
-    }
-
-    private void requestFilesPermission(final String filePath) {
-        filePathNeedingAccess = filePath;
-
-        ActivityCompat.requestPermissions(
-                this,
-                PERMISSIONS_FOR_EXTERNAL_STORAGE_ACCESS,
-                PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS
-        );
-    }
+    /* *
+     *
+     * @param filePath
+     */
+//    private void requestFilesPermission(final String filePath) {
+//        filePathNeedingAccess = filePath;
+//
+//        ActivityCompat.requestPermissions(
+//                this,
+//                PERMISSIONS_FOR_EXTERNAL_STORAGE_ACCESS,
+//                PERMISSIONS_REQUEST_CODE_FOR_STORAGE_ACCESS
+//        );
+//    }
 
     /**
      * Called on ui thread after initial permissions are processed by Android.
