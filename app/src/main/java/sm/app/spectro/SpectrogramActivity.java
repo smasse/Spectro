@@ -80,7 +80,7 @@ import sm.lib.acoustic.AcousticLibConfig;
 import sm.lib.acoustic.AcousticLibException;
 import sm.lib.acoustic.AcousticLog;
 import sm.lib.acoustic.AcousticLogConfig;
-import sm.lib.acoustic.AudioPlayer;
+import sm.lib.acoustic.Player;
 import sm.lib.acoustic.SpectrogramView;
 import sm.lib.acoustic.gui.SettingsTextActivity;
 import sm.lib.acoustic.gui.TextDisplayWithTwoButtonsActivity;
@@ -1896,7 +1896,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
      * and not the Play URL button.
      *
      * <P/>Starts a new thread to prepare and play the given URL, and shows a Snackbar.
-     * Calls the AudioPlayer.
+     * Calls the Player.
      *
      * <p/>Used in this version.
      *
@@ -1911,9 +1911,9 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         if(LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL||LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT)
             Log.d(TAG, ".play(Intent) entering with {" + intent + "}");
         isCancelling = false;
-        //if(AudioPlayer.getIt()!=null){
+        //if(Player.getIt()!=null){
 //            try{
-//                AudioPlayer.getIt().shutdown();
+//                Player.getIt().shutdown();
 //            }catch(Exception ex){
 //                if(LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL||LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT
 //                        || LOG_CONFIG.ERROR==AcousticLogConfig.ON)
@@ -1924,7 +1924,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         try {
             showUrlPrepareSnackbar();
             // ==============================
-            AudioPlayer.getIt().play(intent);
+            Player.getIt().play(intent);
             // ==============================
         } catch (Throwable ex) {
             if(LOG_CONFIG.ERROR==AcousticLogConfig.ON)
@@ -1955,7 +1955,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         isCancelling = false;
         //if(player!=null){
 //            try{
-//                AudioPlayer.getIt().shutdown();
+//                Player.getIt().shutdown();
 //            }catch(Exception ex){
 //                if(LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL||LOG_CONFIG.DEBUG==AcousticLogConfig.INTENT
 //                        || LOG_CONFIG.ERROR==AcousticLogConfig.ON)
@@ -1966,7 +1966,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         try {
             showUrlPrepareSnackbar();
             // =====================================
-            AudioPlayer.getIt().play(fileUrlString);
+            Player.getIt().play(fileUrlString);
             // =====================================
         } catch (Throwable ex) {
             if(LOG_CONFIG.ERROR==AcousticLogConfig.ON)
@@ -2065,7 +2065,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
                 Log.d(TAG,".doResumeUrl: player is not null, so calling player.resumeOrRestart()...");
             }
             // -------------------------------------------------------
-            resumeOrRestartOk = AudioPlayer.getIt().resumeOrRestart();
+            resumeOrRestartOk = Player.getIt().resumeOrRestart();
             // -------------------------------------------------------
             if(LOG_CONFIG.DEBUG==AcousticLogConfig.PLAY_URL){
                 Log.d(TAG,"doResumeUrl: player.resumeOrRestart() returned "+resumeOrRestartOk);
@@ -2152,23 +2152,23 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         if ( ! urlIsPlaying) return;
         // here when url is playing, and player may be preparing to play or not playing due to invalid audio source
         // TODO if player is not prepared then reset
-        if( AudioPlayer.getIt().isPreparing()){
+        if( Player.getIt().isPreparing()){
             // player is preparing
             // ------------------------
-            AudioPlayer.getIt().stop();
+            Player.getIt().stop();
             // ------------------------
             resetUrl(false);
             return;
         }
         // player is not preparing, and it may not be playing
-        if( ! AudioPlayer.getIt().isPlaying()){
+        if( ! Player.getIt().isPlaying()){
             // player is not preparing and not playing
             resetUrl(false);
             return;
         }
         // player is playing (not preparing), then pause it
         // --------------------------------------------------
-        boolean pauseSucceeded = AudioPlayer.getIt().pause();
+        boolean pauseSucceeded = Player.getIt().pause();
         // --------------------------------------------------
         if(LOG_CONFIG.DEBUG==LOG_CONFIG.PLAY_URL)
             Log.d(TAG,".doPauseUrl: player.pause() returned "+pauseSucceeded);
@@ -2207,7 +2207,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 //        if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
         resetUrlGui();//color is set to urlColorForInactive
         if (isForAnomaly) {
-            AudioPlayer.getIt().stop();
+            Player.getIt().stop();
             editTextUrlToPlay.setTextColor(urlColorForError);
         }
         //TODO prepare anomaly text for display; get text fragment from client method
@@ -2219,14 +2219,14 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     private void doCancelUrl() {
         isCancelling=true;
         resetUrlGui();
-        AudioPlayer.getIt().stop(); //shutdown();
+        Player.getIt().stop(); //shutdown();
     }
 
     /**
      * @param percent the percentage (0-100) of the content
      *                that has been buffered or played thus far
      */
-    @Override
+
     public void onPlayerBufferingUpdate(int percent){
         // do nothing in this version TODO prio 2 show percent to user in snackbar
     }
@@ -2236,7 +2236,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
      *
      * @return int seconds to trigger a timeout event for the preparation of a data source.
      */
-    @Override
+
     public int getPlayerPreparationTimeoutSec(){
         return 15;
     }
@@ -3322,6 +3322,48 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
                 }
                 ev.returnCode = AcousticEvent.OK;
                 return true;
+
+            case AcousticEvent.ON_PLAYER_STARTING_TO_PLAY:
+                onStartingToPlay();
+                ev.returnCode = AcousticEvent.OK;
+                return true;
+
+                // AcousticEvent.ob = focus released or not
+            case AcousticEvent.ON_PLAYER_ENDED_NORMALLY:
+                onNormalEndOfPlay((Boolean)ev.ob);
+                ev.returnCode = AcousticEvent.OK;
+                return true;
+
+                // AcousticEvent.ob = AcousticLibException, with and without a cause
+            case AcousticEvent.ON_PLAYER_ANOMALY_DETECTED:
+                if(ev.ob instanceof AcousticLibException) {
+                    AcousticLibException e0 = (AcousticLibException) ev.ob;
+                    onAnomalyDetectedByPlayer(e0, e0.getMessage());
+                    ev.returnCode = AcousticEvent.OK;
+                    return true;
+                }else{
+                    ev.returnCode = AcousticEvent.NOT_OK;
+                    return true;
+                }
+
+            case AcousticEvent.ON_PLAYER_AUDIO_FOCUS_REFUSED_BY_OS:
+                onAudioFocusRefused();
+                ev.returnCode = AcousticEvent.OK;
+                return true;
+
+                // AcousticEvent.ob = Integer between 0 and 100
+            case AcousticEvent.ON_PLAYER_BUFFERING_UPDATE_PERCENT:
+                onPlayerBufferingUpdate((Integer)ev.ob);
+                ev.returnCode = AcousticEvent.OK;
+                return true;
+
+                // The client app should return an Integer in AcousticEvent.returnedObject.
+            case AcousticEvent.ON_PLAYER_PREP_TIMEOUT_SEC:
+                onPlayerBufferingUpdate((Integer)ev.ob);
+                ev.returnedObject = new Integer(getPlayerPreparationTimeoutSec());
+                ev.returnCode = AcousticEvent.OK;
+                return true;
+
         }
 
 //        // cases from Command.executeCommand() etc
@@ -3573,8 +3615,8 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         super.onDestroy();
         if (LOG_CONFIG.DEBUG!=AcousticLogConfig.OFF) Log.d(TAG, ".onDestroy: entering");
         shutdown();
-        //AudioPlayer.getIt().onActivityStop();
-//        AudioPlayer player = AudioPlayer.getIt();
+        //Player.getIt().onActivityStop();
+//        Player player = Player.getIt();
 //        if(player!=null){
 //            if (LOG_CONFIG.DEBUG!=AcousticLogConfig.OFF) Log.d(TAG,
 //                    ".onDestroy: player not null after shutdown");
@@ -3609,7 +3651,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
         closeListener();
 
-        AudioPlayer.getIt().pause(); // shutdown();
+        Player.getIt().pause(); // shutdown();
 
 //        if (urlPrepareSnackbar != null) urlPrepareSnackbar.dismiss();
     }
@@ -4248,7 +4290,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         }
     };
 
-    @Override
+
     public void onStartingToPlay() {
         runOnUiThread(RUNNABLE_FOR_PLAYER_STARTING_TO_PLAY);
     }
@@ -4271,7 +4313,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         }
     };
 
-    @Override
+
     public void onNormalEndOfPlay( boolean audioFocusIsLost) {
         textForEndOfPlay = "The sound file has ended normally";
         if(audioFocusIsLost){
@@ -4308,12 +4350,12 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     private volatile boolean isCancelling = false;
 
     /**
-     * Called by the AudioPlayer.
+     * Called by the Player.
      *
      * @param e            may be null
      * @param errorMessage String
      */
-    @Override
+
     public void onAnomalyDetectedByPlayer(final Throwable e, final String errorMessage) {
         if(isCancelling){
             return;
@@ -4344,14 +4386,9 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         }
     };
 
-    @Override
+
     public void onAudioFocusRefused(){
         runOnUiThread(RUNNABLE_FOR_AUDIO_FOCUS_REFUSED);
-    }
-
-    @Override
-    public Context getContextForSmartPlayer(){
-        return this;
     }
 
 
@@ -4627,7 +4664,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
     private void shutdown( final boolean withFinish ){
         if (LOG_CONFIG.DEBUG > AcousticLogConfig.OFF) Log.d(TAG, ".shutdown: entering withFinish = "+withFinish);
         //the player is also shutdown in onPause
-        AudioPlayer.getIt().onActivityStop();
+        Player.getIt().onActivityStop();
         if(withFinish){
             finish();
         }
