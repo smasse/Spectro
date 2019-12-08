@@ -74,7 +74,6 @@ import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
 import sm.lib.acoustic.Acoustic;
-import sm.lib.acoustic.AcousticDeviceCapabilities;
 import sm.lib.acoustic.AcousticEvent;
 import sm.lib.acoustic.AcousticLibConfig;
 import sm.lib.acoustic.AcousticLibException;
@@ -2574,7 +2573,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         StringBuilder buf = new StringBuilder();
 
         buf.append(getContentSectionForDeviceTextInHtml())
-                .append(AcousticDeviceCapabilities.IT.getDeviceCapabilitiesInHtml())
+                .append(Acoustic.IT.getDeviceCapabilitiesTextInHtml())
                 //.append(DeviceSoundCapabilities.getDeviceCapabilitiesInHtml(true, true, this))
                 .append(AcousticLibConfig.getIt().getForAppTextInHtml()) //.getForAppTextInHtml(true))
                 .append(getPerfMeasurementsInHtml())
@@ -3181,8 +3180,9 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
                     || LOG_CONFIG.DEBUG==AcousticLogConfig.DEVICE_SOUND_CAPABILITIES
                     ) {
                 Log.d(TAG, ".setDeviceSoundCapabilities: device cannot do sound input");
-                boolean outputOk = AcousticDeviceCapabilities.IT.doesSoundOutput; //DeviceSoundCapabilities.isDeviceCapableOfSoundOutput();
-                Log.d(TAG, ".setDeviceSoundCapabilities: AcousticDeviceCapabilities.getIt().doesSoundOutput is {"+outputOk+"}");
+                boolean outputOk = Acoustic.IT.doesSoundOutput();
+                        //AcousticDeviceCapabilities.IT.doesSoundOutput; //DeviceSoundCapabilities.isDeviceCapableOfSoundOutput();
+                Log.d(TAG, ".setDeviceSoundCapabilities: outputOk {"+outputOk+"}");
             }
             return false;
         }
@@ -3199,7 +3199,8 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
             Log.d(TAG, ".setDeviceSoundCapabilities: " + Timestamp.getNanosForDisplay()
                 + "; first part of initFundamentalsForDevice completed ok;" +
                 "\n xInputHzPerBinFloat = " + AcousticLibConfig.getIt().getxInputHzPerBinFloat() // SettingsForSoundInput.xInputHzPerBinFloat
-                + "\n selectedVspsInputInt = " + AcousticDeviceCapabilities.IT.selectedVspsOutputInt //DeviceSoundCapabilities.getSelectedVspsInputInt()
+                + "\n selectedVspsInputInt = " + Acoustic.IT.getSelectedVspsOutputInt()
+                            //AcousticDeviceCapabilities.IT.selectedVspsOutputInt //DeviceSoundCapabilities.getSelectedVspsInputInt()
                 //+ "\n cTimeIncSecDouble = " + Settings.cTimeIncSec
                 //+ "\n MAX_PCM_ADJUSTED_FORMAT = " + AcousticLibConfig.MAX_PCM_ADJUSTED_FORMAT
                 + " is close to the maximum value for a pcm value " +
@@ -5325,6 +5326,27 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
                     getResources().getString(R.string.app_name_short)); //MENU_SETTINGS_NAME);
             return true;
         }
+
+        //todo washere add About activity
+        /*
+        if (item.getItemId() == R.id.action_about) {
+            try {
+                TextDisplayWithEmailActivity.show(this, //TODO prio 1 use new version
+                        this.getAboutText(),
+                        16.0F,
+                        this.getResources().getString(R.string.app_name_short),
+                        "ABOUT",
+                        "About", //this.getResources().getString(R.string.user_guide_email_subject_line),
+                        OnAnyThread.IT.isConnected(this.isSimulatingNoConnection()),
+                        "" //this.getDeviceOwnerEmailAddress()
+                );
+                return true;
+            } catch (Exception var5) {
+                Log.e(TAG, "onOptionsItemSelected: " + var5 + " " + Log.getStackTraceString(var5));
+                return false;
+            }
+        }
+         */
 
 //        if (id == R.id.action_device_sound_capabilities) {
 //            String text = "(empty)";
