@@ -221,7 +221,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         0% — 00
      */
 
-    public static final boolean TITLE_TEXTVIEW_ENABLED = false;
+    public static final boolean TITLE_TEXTVIEW_ENABLED = true;
 
     public static final boolean ALWAYS_HIDE_BG_WHEN_TEXT = true;
 
@@ -464,6 +464,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         LIB_CONFIG.thisAppUsesTheDatabase = false;
         LIB_CONFIG.thisAppEmitsSignals = false;
         LIB_CONFIG.thisAppRecognizesSignals = false;
+        LIB_CONFIG.thisAppDisplaysTheSpectrogram = true;
 
         LIB_CONFIG.isNativeSampleRateRequested = true;
         LIB_CONFIG.isSameEncodingPcmForInputAndOutputRequested = false;
@@ -2573,9 +2574,9 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         StringBuilder buf = new StringBuilder();
 
         buf.append(getContentSectionForDeviceTextInHtml())
-                .append(Acoustic.IT.getDeviceCapabilitiesTextInHtml())
+                .append(Acoustic.IT.getDeviceCapabilitiesTextInHtml())//todo washere review in lib
                 //.append(DeviceSoundCapabilities.getDeviceCapabilitiesInHtml(true, true, this))
-                .append(AcousticLibConfig.getIt().getForAppTextInHtml()) //.getForAppTextInHtml(true))
+                .append(AcousticLibConfig.getIt().getSettingsForSoundInputDisplayInHtml())
                 .append(getPerfMeasurementsInHtml())
         ;
 
@@ -5095,7 +5096,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
         if(lastErrorIsTerminal){
 
             TextDisplayWithTwoButtonsActivity.show(this,
-                    getLastErrorText(),
+                    getLastErrorText(),//todo spans
                     "Severe Anomaly" //textTitle
                 );
         } else {
