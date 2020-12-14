@@ -62,6 +62,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
@@ -80,9 +81,9 @@ import sm.lib.acoustic.AcousticLibException;
 import sm.lib.acoustic.AcousticLog;
 import sm.lib.acoustic.AcousticLogConfig;
 import sm.lib.acoustic.Player;
+import sm.lib.acoustic.SettingsTextActivity;
 import sm.lib.acoustic.SpectrogramView;
-import sm.lib.acoustic.gui.SettingsTextActivity;
-import sm.lib.acoustic.gui.TextDisplayWithTwoButtonsActivity;
+import sm.lib.acoustic.gui.TextDisplayWithEmailActivity;
 import sm.lib.acoustic.util.AppContext;
 import sm.lib.acoustic.util.DataFromIntent;
 import sm.lib.acoustic.util.OnAnyThread;
@@ -104,18 +105,14 @@ user guide
 
 about
 */
-
-
-public final class SpectrogramActivity extends Activity implements Acoustic.Callback {
+public final class SpectrogramActivity extends AppCompatActivity implements Acoustic.Callback {
 
     private static final String TAG = SpectrogramActivity.class.getSimpleName();
-
     /**
      * only to be used for issues prior to AcousticLogConfig.DEBUG = INIT being set;
      * normally false in production
      */
     public static final boolean LOG_INIT_ENABLED = false;
-
     /**
      * Designed to minimise code change before production.
      *
@@ -128,27 +125,22 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
     public static final boolean TEST_NON_SEVERE_ERROR_AT_INIT_ENABLED = false; //done
 
     public static final boolean TEST_NON_SEVERE_ERROR_AFTER_INIT_ENABLED = false;//done
-
     /**
      * only to be used for showing user some init events;
      * normally false in production
      * @deprecated maybe remove or replace with isDevMode()
      */
     public static final boolean SHOW_USER_INIT_EVENTS_ENABLED = false;
-
     /**
      * true means that the text for our apps is to be shown in a specific window;
      * false means that the text is to be shown with other texts such as in About.
      */
     public static final boolean SEPARATE_OUR_APPS_GUI_IS_ENABLED = false;
-
 //    public static final boolean SEPARATE_EMAIL_DEV_GUI_IS_ENABLED = false;
-
     /**
      * For user-entered url and for incoming url from any app.
      */
     public static final boolean SOUND_TO_PLAY_IS_ENABLED = true;
-
     /**
      * For saving and restoring the spectrogram bitmap between app restarts.
      * <p/>
@@ -220,11 +212,8 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         5% — 0D
         0% — 00
      */
-
     public static final boolean TITLE_TEXTVIEW_ENABLED = true;
-
     public static final boolean ALWAYS_HIDE_BG_WHEN_TEXT = true;
-
     boolean deviceShown = false;
     boolean aboutShown = false;
     boolean ourAppsShown = false;
@@ -236,9 +225,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
      */
     boolean hideBgIsSet = false;
     boolean spectrogramShown = true;
-
     public static final String PREF_BITMAP_KEY = "bitmap";
-
 
     // ==== file-to-play data:
 
@@ -1852,6 +1839,8 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         // READ_REQUEST_CODE. If the request code seen here doesn't match, it's the
         // response to some other intent, and the code below shouldn't run at all.
 
+        super.onActivityResult(requestCode, resultCode, resultData);
+
         if (requestCode == READ_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
             // The document selected by the user won't be returned in the intent.
             // Instead, a URI to that document will be contained in the return intent
@@ -1866,7 +1855,7 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
 //            }
 
             if (LOG_CONFIG.DEBUG == AcousticLogConfig.PLAY_URL)
-                Log.d(TAG,".onActivityResult: Intent resultData {"+resultData+"}");
+                Log.d(TAG, ".onActivityResult: Intent resultData {" + resultData + "}");
 
             play(resultData);
 
@@ -2588,10 +2577,14 @@ public final class SpectrogramActivity extends Activity implements Acoustic.Call
         StringBuilder buf = new StringBuilder();
 
         buf.append("<p/><h2>SOUND PROCESSING PERFORMANCE MEASUREMENTS</h2>")
-        .append("<p/>Android devices these days have a delay of about half a second between the actual sound and the processing by the app, when non-native code is used")
-        .append("; this app adds about 1/50 sec. of delay due to numerical analysis (e.g., FFT) and display; 1/50 sec. of delay is about 10% of the basic delay or latency for Android in 2016.")
-        .append(" The time spent by Android and the app displaying the data as a spectrogram is much more than the time used for numerical analysis.")
-        .append("<p/>").append(Acoustic.getIt().getProcessingPerfInHtml())  //BasicListener.processingPerfInHtml)
+        .append("<p/>Android devices these days have a delay of about half a second between " +
+                "the actual sound and the processing by the app, when non-native code is used")
+        .append("; this app adds about 1/50 sec. of delay due to numerical analysis (e.g., FFT) " +
+                "and display; 1/50 sec. of delay is about 10% of the basic delay or latency " +
+                "for Android in 2016.")
+        .append(" The time spent by Android and the app displaying the data as a spectrogram " +
+                "on the screen is much more than the time used for the numerical analysis.")
+        .append("<p/>").append(Acoustic.IT.getProcessingPerfInHtml())  //BasicListener.processingPerfInHtml)
         .append("<p/>End of performance measurements results")
         ;
         return buf.toString();
@@ -5095,10 +5088,18 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
 
         if(lastErrorIsTerminal){
 
-            TextDisplayWithTwoButtonsActivity.show(this,
-                    getLastErrorText(),//todo spans
-                    "Severe Anomaly" //textTitle
-                );
+//            TextDisplayWithEmailActivity.show(this,
+//                    getLastErrorText(),//todo spans
+//                    "Severe Anomaly" //textTitle
+//                );
+            TextDisplayWithEmailActivity.show(this,
+                    getLastErrorText(),
+                    "SEVERE ANOMALY",
+                    "The last error text from app "
+                            +this.getResources().getString(R.string.app_name_short),
+                    OnAnyThread.IT.isConnected(),
+                    "" //this.getDeviceOwnerEmailAddress()
+            );
         } else {
             updateButton(about);
         }

@@ -213,5 +213,14 @@ TODO washere [samsung buttons too dark]
 TODO washere [use new h-editable settings from lib]
 
 
+2020-12-13
+
+abends at startup
+Caused by: java.lang.SecurityException: ConnectivityService:
+Neither user 10218 nor current process has android.permission.ACCESS_NETWORK_STATE.
+
+
+You need to use a Theme.AppCompat theme (or descendant) with this activity.
+
 [//]: <>(
 )
