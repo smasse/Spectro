@@ -4953,7 +4953,6 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      */
     long lastErrorSeenTime = 0;
 
-
     String getLastErrorAgeForDisplay(){
         long now = System.currentTimeMillis();
         long age = now - lastErrorTime;
@@ -4981,9 +4980,7 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
      * @return String such as: 1 day 2 hours 3 minutes
      */
     String getDaysHoursMinutesForDisplay(final long durationInMillis){
-
         String s = "";
-
         long days = TimeUnit.MILLISECONDS.toDays(durationInMillis);
         long hours = TimeUnit.MILLISECONDS.toHours(durationInMillis)
                 - TimeUnit.DAYS.toHours(days);
