@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Serge Masse
+ * Copyright (c) 2021 Serge Masse
  *
  * Redistribution and use in source and binary forms, with or without modification, are permitted
  * provided that the following conditions are met:
@@ -17,6 +17,12 @@
  *
  * 4. This software, as well as products derived from it, must not be used for the purpose of
  * killing, harming, harassing, or capturing animals.
+ *
+ * 5. This software, as well as products derived from it, must be used with free dolphins, and
+ * must not be used with captive dolphins kept for exploitation, such as for generating revenues
+ * or for research or military purposes; the only ethical use of the app with captive dolphins
+ * would be with dolphins that cannot be set free for their own safety AND are kept in a well-
+ * managed sanctuary or the equivalent.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
