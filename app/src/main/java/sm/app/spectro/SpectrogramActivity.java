@@ -36,7 +36,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 package sm.app.spectro;
-
 import android.Manifest;
 import android.annotation.TargetApi;
 import android.app.Activity;
@@ -94,7 +93,6 @@ import sm.lib.acoustic.util.AppContext;
 import sm.lib.acoustic.util.DataFromIntent;
 import sm.lib.acoustic.util.OnAnyThread;
 import sm.lib.acoustic.util.Timestamp;
-
 /*
 TODO washere readme and version # etc for publication on g play and gitlab
 
@@ -3279,12 +3277,12 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
                 return true;
 
             case AcousticEvent.GET_SYSTEM_SERVICE:
-                ev.returnedObject = getSystemService(ev.genericString);
+                ev.returnedObjectFromApp = getSystemService(ev.genericString);
                 ev.returnCode = AcousticEvent.OK;
                 return true;
 
             case AcousticEvent.GET_TEXT_FOR_DISPLAY_FROM_CLIENT:
-                ev.returnedObject = getTextForDisplayFromClient();
+                ev.returnedObjectFromApp = getTextForDisplayFromClient();
                 ev.returnCode = AcousticEvent.OK;
                 return true;
 
@@ -3308,12 +3306,12 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
                 return true;
 
             case AcousticEvent.GET_IS_SOUND_INPUT_PAUSED_BY_CLIENT://TODO prio 1 bug 2019-7-6 returning null to lib
-                ev.returnedObject = isSoundInputPaused();
+                ev.returnedObjectFromApp = isSoundInputPaused();
                 ev.returnCode = AcousticEvent.OK;
                 return true;
 
             case AcousticEvent.ON_PAUSE_SOUND_INPUT://TODO update acousticevent and callers
-                ev.returnedObject = onPauseSoundInput(""+ev.ob);
+                ev.returnedObjectFromApp = onPauseSoundInput(""+ev.ob);
                 ev.returnCode = AcousticEvent.OK;
                 return true;
 
@@ -3358,10 +3356,10 @@ In no event shall {INSERT COMPANY NAME} be liable for any damages (including, wi
                 ev.returnCode = AcousticEvent.OK;
                 return true;
 
-                // The client app should return an Integer in AcousticEvent.returnedObject.
+                // The client app should return an Integer in AcousticEvent.returnedObjectFromApp.
             case AcousticEvent.ON_PLAYER_PREP_TIMEOUT_SEC:
                 onPlayerBufferingUpdate((Integer)ev.ob);
-                ev.returnedObject = new Integer(getPlayerPreparationTimeoutSec());
+                ev.returnedObjectFromApp = new Integer(getPlayerPreparationTimeoutSec());
                 ev.returnCode = AcousticEvent.OK;
                 return true;
 

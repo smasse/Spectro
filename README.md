@@ -231,5 +231,9 @@ Neither user 10218 nor current process has android.permission.ACCESS_NETWORK_STA
 
 You need to use a Theme.AppCompat theme (or descendant) with this activity.
 
+
+2021-2-27:
+notif from G Play that icon not cosher
+
 [//]: <>(
 )

@@ -65,6 +65,7 @@
         android:layout_height="match_parent"
         android:layout_gravity="center"
         android:clickable="true"
+        android:focusable="true"
         android:orientation="vertical">
         <!-- TODO  maybe remove this view when in older android versions where the top bar is shown -->
         <TextView
@@ -103,7 +104,6 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:alpha="0.5"
-
                     android:minHeight="0dp"
                     android:minWidth="0dp"
                     android:text="Pause" /><!--android:clickable="false" -->
