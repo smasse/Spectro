@@ -24,7 +24,7 @@ the basic Android ones and the library from the same author.
 
 LICENSE:
 
-Copyright (c) 2021 Serge Masse
+Copyright (c) 2022 Serge Masse
 
 Redistribution and use in source and binary forms, with or without modification, are permitted
 provided that the following conditions are met:

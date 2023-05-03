@@ -4,6 +4,9 @@
     <modules>
       <module fileurl="file://$PROJECT_DIR$/Spectro.iml" filepath="$PROJECT_DIR$/Spectro.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/Spectro.app.iml" filepath="$PROJECT_DIR$/.idea/modules/app/Spectro.app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/Spectro.app.androidTest.iml" filepath="$PROJECT_DIR$/.idea/modules/app/Spectro.app.androidTest.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/Spectro.app.main.iml" filepath="$PROJECT_DIR$/.idea/modules/app/Spectro.app.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/Spectro.app.unitTest.iml" filepath="$PROJECT_DIR$/.idea/modules/app/Spectro.app.unitTest.iml" />
     </modules>
   </component>
 </project>
